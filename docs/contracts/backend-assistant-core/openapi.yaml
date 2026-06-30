@@ -1,0 +1,956 @@
+openapi: 3.1.0
+info:
+  title: Internal Assistant Core Frontend Handoff
+  version: 1.0.0
+  description: |
+    Hand-maintained frontend integration contract for the current internal-assistant-core backend.
+    This file documents the tested public HTTP and SSE surface only. It is not a code-generated source
+    of truth and should be kept aligned with contract/integration tests.
+
+    For SSE event union, event sequence, and frontend parsing behavior, use `sse-events.md`
+    and `types-notes.md` as the authoritative frontend parsing reference. The OpenAPI
+    `text/event-stream` schema below is transport-level only.
+servers:
+  - url: /api/v1
+tags:
+  - name: Sessions
+  - name: Messages
+  - name: Feedback
+  - name: ActionDrafts
+  - name: ApprovalRequests
+paths:
+  /assistant/sessions:
+    post:
+      tags: [Sessions]
+      summary: Create assistant session
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      summary: Get session detail
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/sessions/{sessionId}/messages:
+    get:
+      tags: [Sessions]
+      summary: Get session message history summary
+      description: |
+        Returns masked message history summaries for the visible session.
+        Frontend should treat tool and evidence fields as sanitized summaries, not raw payloads.
+        Current public pagination contract supports `limit`, `cursor`, and `order=asc` only.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+        - $ref: '#/components/parameters/HistoryLimitQuery'
+        - $ref: '#/components/parameters/HistoryCursorQuery'
+        - $ref: '#/components/parameters/HistoryOrderQuery'
+      responses:
+        '200':
+          description: Session message history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionMessagesResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+    post:
+      tags: [Messages]
+      summary: Send assistant message and receive SSE
+      description: |
+        Returns `text/event-stream`.
+        The exact event sequence depends on routing: structured lookup, retrieval answer,
+        clarification, no-answer, confirmation_required, approval_required,
+        escalation_required, permission_denied, or stream-level error fallback.
+
+        For SSE event union, event sequence, and frontend parsing behavior, use
+        `sse-events.md` and `types-notes.md` as the authoritative frontend parsing reference.
+        This OpenAPI `text/event-stream` schema is transport-level only.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: tool_call_started
+                  data: {"requestId":"req-001","sessionId":"session-001","messageId":"msg-001","eventType":"tool_call_started","sequence":1,"data":{"toolCallId":"tool-call-001","toolName":"mock.orders.status.read"}}
+                  
+                  event: tool_call_completed
+                  data: {"requestId":"req-001","sessionId":"session-001","messageId":"msg-001","eventType":"tool_call_completed","sequence":2,"data":{"toolCallId":"tool-call-001","toolName":"mock.orders.status.read","status":"completed","executionStatus":"executed"}}
+                  
+                  event: evidence_attached
+                  data: {"requestId":"req-001","sessionId":"session-001","messageId":"msg-001","eventType":"evidence_attached","sequence":3,"data":{"evidenceRefs":["evidence-001"]}}
+                  
+                  event: answer_delta
+                  data: {"requestId":"req-001","sessionId":"session-001","messageId":"msg-001","eventType":"answer_delta","sequence":4,"data":{"delta":"SO-10001 目前狀態為 confirmed。"}}
+                  
+                  event: final
+                  data: {"requestId":"req-001","sessionId":"session-001","messageId":"msg-001","eventType":"final","sequence":5,"data":{"answerDecision":"answered","answer":"SO-10001 目前狀態為 confirmed。","evidenceRefs":["evidence-001"]}}
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/messages/{messageId}/feedback:
+    post:
+      tags: [Feedback]
+      summary: Submit feedback on an assistant message
+      parameters:
+        - $ref: '#/components/parameters/MessageIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [feedbackEventId, messageId, rating, intent]
+                        properties:
+                          feedbackEventId:
+                            type: string
+                          messageId:
+                            type: string
+                          rating:
+                            $ref: '#/components/schemas/FeedbackRating'
+                          intent:
+                            $ref: '#/components/schemas/FeedbackIntent'
+                          reviewItemId:
+                            type: string
+                            nullable: true
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/action-drafts/{actionDraftId}:
+    get:
+      tags: [ActionDrafts]
+      summary: Get action draft detail
+      parameters:
+        - $ref: '#/components/parameters/ActionDraftIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Action draft
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ActionDraft'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/action-drafts/{actionDraftId}/confirm:
+    post:
+      tags: [ActionDrafts]
+      summary: Confirm action draft
+      parameters:
+        - $ref: '#/components/parameters/ActionDraftIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idempotencyKey:
+                  type: string
+      responses:
+        '200':
+          description: Confirm result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [actionDraftId, status, duplicateSafe, recheck]
+                        properties:
+                          actionDraftId:
+                            type: string
+                          status:
+                            $ref: '#/components/schemas/ActionDraftStatus'
+                          duplicateSafe:
+                            type: boolean
+                          recheck:
+                            $ref: '#/components/schemas/ActionDraftRecheck'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/action-drafts/{actionDraftId}/cancel:
+    post:
+      tags: [ActionDrafts]
+      summary: Cancel action draft
+      parameters:
+        - $ref: '#/components/parameters/ActionDraftIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Cancel result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [actionDraftId, status]
+                        properties:
+                          actionDraftId:
+                            type: string
+                          status:
+                            $ref: '#/components/schemas/ActionDraftStatus'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/approval-requests:
+    get:
+      tags: [ApprovalRequests]
+      summary: List approval requests
+      description: |
+        Documented for backend completeness. For `001-internal-assistant-embedded-chat-panel`,
+        approval flows are display-only and do not imply inline approve/reject/cancel UI.
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalRequestStatus'
+        - name: riskLevel
+          in: query
+          schema:
+            $ref: '#/components/schemas/RiskLevel'
+        - name: requesterActorId
+          in: query
+          schema:
+            type: string
+        - name: approverActorId
+          in: query
+          schema:
+            type: string
+        - name: createdAtFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: createdAtTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Approval request list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items]
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ApprovalRequest'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/approval-requests/{approvalRequestId}:
+    get:
+      tags: [ApprovalRequests]
+      summary: Get approval request detail
+      description: |
+        For `001-internal-assistant-embedded-chat-panel`, use this for display/status only.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalRequestIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Approval request detail
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ApprovalRequest'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/approval-requests/{approvalRequestId}/approve:
+    post:
+      tags: [ApprovalRequests]
+      summary: Approve approval request
+      description: |
+        Future approval-management feature only. Not part of `001-internal-assistant-embedded-chat-panel` UI.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalRequestIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idempotencyKey:
+                  type: string
+      responses:
+        '200':
+          description: Approval result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [approvalRequestId, status]
+                        properties:
+                          approvalRequestId:
+                            type: string
+                          status:
+                            $ref: '#/components/schemas/ApprovalRequestStatus'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/approval-requests/{approvalRequestId}/reject:
+    post:
+      tags: [ApprovalRequests]
+      summary: Reject approval request
+      description: |
+        Future approval-management feature only. Not part of `001-internal-assistant-embedded-chat-panel` UI.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalRequestIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Reject result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [approvalRequestId, status]
+                        properties:
+                          approvalRequestId:
+                            type: string
+                          status:
+                            $ref: '#/components/schemas/ApprovalRequestStatus'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/approval-requests/{approvalRequestId}/cancel:
+    post:
+      tags: [ApprovalRequests]
+      summary: Cancel approval request
+      description: |
+        Future approval-management feature only. Not part of `001-internal-assistant-embedded-chat-panel` UI.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalRequestIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Cancel result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [approvalRequestId, status]
+                        properties:
+                          approvalRequestId:
+                            type: string
+                          status:
+                            $ref: '#/components/schemas/ApprovalRequestStatus'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  parameters:
+    RequestIdHeader:
+      name: x-request-id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Recommended. Frontend should generate and propagate this end-to-end.
+    ActorIdHeader:
+      name: x-actor-id
+      in: header
+      required: true
+      schema:
+        type: string
+    OrganizationIdHeader:
+      name: x-organization-id
+      in: header
+      required: true
+      schema:
+        type: string
+    HostAppHeader:
+      name: x-host-app
+      in: header
+      required: true
+      schema:
+        type: string
+    RoleHeader:
+      name: x-role
+      in: header
+      required: true
+      schema:
+        type: string
+    PermissionScopesHeader:
+      name: x-permission-scopes
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Comma-separated scopes, for example `orders:read,assistant:review`.
+    SessionIdPath:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+    MessageIdPath:
+      name: messageId
+      in: path
+      required: true
+      schema:
+        type: string
+    ActionDraftIdPath:
+      name: actionDraftId
+      in: path
+      required: true
+      schema:
+        type: string
+    ApprovalRequestIdPath:
+      name: approvalRequestId
+      in: path
+      required: true
+      schema:
+        type: string
+    HistoryLimitQuery:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+    HistoryCursorQuery:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    HistoryOrderQuery:
+      name: order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc]
+      description: Current public runtime contract supports `asc` only.
+
+  responses:
+    ErrorResponse:
+      description: Safe error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    Envelope:
+      type: object
+      required: [requestId, data]
+      properties:
+        requestId:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+
+    ErrorEnvelope:
+      type: object
+      required: [requestId, error]
+      properties:
+        requestId:
+          type: string
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            statusCode:
+              type: integer
+
+    SessionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Session'
+
+    Session:
+      type: object
+      required: [id, title, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        latestMessageId:
+          type: string
+          nullable: true
+        pageContext:
+          $ref: '#/components/schemas/PageContext'
+          nullable: true
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        pageContext:
+          $ref: '#/components/schemas/PageContext'
+
+    SendMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        pageContext:
+          $ref: '#/components/schemas/PageContext'
+
+    PageContext:
+      type: object
+      description: |
+        Sanitized page-level UI context. Frontend should only send visible, authorized summary data.
+        Richer host state can be collected internally, but current request wire contract uses `pageContext`.
+      properties:
+        module:
+          type: string
+        route:
+          type: string
+        screenId:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        selectedRows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        activeFilters:
+          type: array
+          items: {}
+        visibleColumns:
+          type: array
+          items:
+            type: string
+        userVisibleState:
+          type: object
+          additionalProperties: true
+
+    SessionMessagesResponse:
+      type: object
+      required: [sessionId, messages, nextCursor]
+      properties:
+        sessionId:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+        nextCursor:
+          type: string
+          nullable: true
+
+    HistoryMessage:
+      type: object
+      required: [messageId, role, content, createdAt]
+      properties:
+        messageId:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant, system, tool]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        answerDecision:
+          $ref: '#/components/schemas/AnswerDecisionStatus'
+          nullable: true
+        evidenceRefs:
+          type: array
+          items:
+            type: string
+        toolSummary:
+          $ref: '#/components/schemas/ToolSummary'
+
+    ToolSummary:
+      type: object
+      required: [status, toolCallIds]
+      properties:
+        status:
+          type: string
+        toolCallIds:
+          type: array
+          items:
+            type: string
+
+    AnswerDecisionStatus:
+      type: string
+      enum:
+        - answered
+        - clarification_required
+        - no_answer
+        - confirmation_required
+        - approval_required
+        - escalation_required
+        - permission_denied
+
+    NoAnswerReason:
+      type: string
+      enum:
+        - no_evidence
+        - tool_failure
+        - permission_denied
+        - evidence_conflict
+        - ambiguous_query
+        - low_confidence
+        - missing_page_context
+        - unsupported_scope
+
+    EvidenceRefSummary:
+      type: object
+      required: [id, sourceType]
+      properties:
+        id:
+          type: string
+        sourceType:
+          type: string
+          enum: [structured_record, document_chunk]
+        sourceId:
+          type: string
+          nullable: true
+        toolCallId:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        snippet:
+          type: string
+          nullable: true
+
+    FeedbackRequest:
+      type: object
+      required: [rating, intent]
+      properties:
+        rating:
+          $ref: '#/components/schemas/FeedbackRating'
+        intent:
+          $ref: '#/components/schemas/FeedbackIntent'
+        reason:
+          type: string
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+
+    FeedbackRating:
+      type: string
+      enum: [positive, negative, neutral]
+
+    FeedbackIntent:
+      type: string
+      enum: [correction, unsafe, not_helpful, missing_evidence, other]
+
+    RiskLevel:
+      type: string
+      enum: [low, medium, high, critical]
+
+    ActionDraftStatus:
+      type: string
+      enum: [draft, waiting_confirmation, confirmed, executed, cancelled, expired, failed]
+
+    ActionDraft:
+      type: object
+      required: [id, requestId, messageId, status, riskLevel, toolName, resource, operation]
+      properties:
+        id:
+          type: string
+        requestId:
+          type: string
+        messageId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ActionDraftStatus'
+        riskLevel:
+          type: string
+          enum: [medium]
+        toolName:
+          type: string
+        resource:
+          type: string
+        operation:
+          type: string
+        preview:
+          type: object
+          additionalProperties: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ActionDraftRecheck:
+      type: object
+      required: [organizationBoundary, draftStatus, freshness, permission, toolContract, idempotency]
+      properties:
+        organizationBoundary:
+          type: string
+          enum: [passed]
+        draftStatus:
+          type: string
+          enum: [passed]
+        freshness:
+          type: string
+          enum: [passed]
+        permission:
+          type: string
+          enum: [pending_execution_guard]
+        toolContract:
+          type: string
+          enum: [pending_execution_guard]
+        idempotency:
+          type: string
+          enum: [reserved, duplicate]
+
+    ApprovalRequestStatus:
+      type: string
+      enum: [pending, approved, rejected, cancelled, expired]
+
+    ApprovalRequest:
+      type: object
+      required: [id, requestId, messageId, status, riskLevel, requesterActorId]
+      properties:
+        id:
+          type: string
+        requestId:
+          type: string
+        sessionId:
+          type: string
+          nullable: true
+        messageId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApprovalRequestStatus'
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        requesterActorId:
+          type: string
+        approverActorId:
+          type: string
+          nullable: true
+        actionSummary:
+          type: object
+          additionalProperties: true
+        payloadSummary:
+          type: object
+          additionalProperties: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidenceRefIds:
+          type: array
+          items:
+            type: string
