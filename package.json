@@ -1,0 +1,39 @@
+{
+  "name": "internal-ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "nuxt prepare",
+    "postinstall": "nuxt prepare",
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "test": "npm run test:unit && npm run test:component && npm run test:contract",
+    "test:unit": "vitest run tests/unit",
+    "test:component": "vitest run tests/component",
+    "test:contract": "vitest run tests/contract",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@nuxt/ui": "^4.9.0",
+    "@pinia/nuxt": "^0.11.3",
+    "nuxt": "^4.4.8",
+    "vee-validate": "^4.15.1",
+    "vue": "^3.5.39"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
+    "@nuxt/test-utils": "^4.0.3",
+    "@playwright/test": "^1.61.1",
+    "@vue/test-utils": "^2.4.11",
+    "eslint": "^10.6.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
+    "vue-tsc": "^3.3.6"
+  }
+}
