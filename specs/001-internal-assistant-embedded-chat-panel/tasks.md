@@ -45,20 +45,20 @@
 
 **Completion Criteria**: Nuxt 4 source structure 已確認或已建立；package scripts baseline 已確認；`app/features/assistant/` production target 已建立或明確；`app/services/index.ts` 已建立或明確作為唯一 HTTP client；`app/services/api/assistant.ts` 已建立或明確作為單一 assistant domain service；no `app/lib/assistant/`；no `app/components/assistant/cards/`；reference UI files 不得直接 import / copy / move。
 
-- [X] T001 [Foundation] 定義暫定 Nuxt 4 production source 結構與 source-root reconciliation 規則於 `docs/architecture/internal-assistant/source-structure.md`
-- [X] T002 [Foundation] 建立 UI reference implementation boundary 說明，明確禁止直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `docs/architecture/internal-assistant/reference-ui-boundary.md`
-- [X] T003 [Foundation] 建立 backend contract handoff source-of-truth 索引於 `docs/architecture/internal-assistant/backend-contract-sources.md`
-- [X] T004 [Foundation] 規劃 production module boundary 與責任切分於 `docs/architecture/internal-assistant/module-boundaries.md`
-- [X] T005 [Foundation] 規劃 assistant production naming convention，固定使用 reference-aligned component names 與 assistant-specific logic names 於 `docs/architecture/internal-assistant/naming-conventions.md`
-- [X] T006 [Foundation] 規劃測試與 fixture 目錄結構於 `tests/fixtures/assistant-api/README.md`、`tests/fixtures/assistant-sse/README.md`、`tests/contract/assistant/README.md`
-- [X] T007 [Foundation] 建立 implementation kickoff checklist，要求若實際 source root 與 `app/` 不同則先完成對齊於 `docs/architecture/internal-assistant/implementation-kickoff-checklist.md`
-- [X] T008 [Foundation] 建立或確認 Nuxt 4 / package baseline，包含 `package.json`、必要 scripts、Nuxt 4 dependency 與 typecheck / test script strategy，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
-- [X] T009 [Foundation] 建立或確認 Nuxt UI、Tailwind CSS v4、Pinia、vee-validate 基礎設定，並記錄實際初始化結果於 `docs/architecture/internal-assistant/project-initialization.md`
-- [X] T010 [Foundation] 建立或確認 Vitest、Vue Test Utils、Playwright 測試基線與測試 scripts，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
-- [X] T011 [Foundation] 建立或確認 `nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue` baseline，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
-- [X] T012 [Foundation] 建立或確認 `app/features/assistant/`、`app/features/assistant/components/`、`app/features/assistant/composables/`、`app/services/`、`app/stores/assistant/`、`app/utils/assistant/`、`app/types/assistant/` production source directories
-- [X] T013 [Foundation] 建立或確認 `tests/unit/assistant/`、`tests/component/assistant/`、`tests/contract/assistant/`、`tests/fixtures/assistant-api/`、`tests/fixtures/assistant-sse/` test directories
-- [X] T014 [Foundation] 更新 `docs/architecture/internal-assistant/project-initialization.md` 與 `docs/architecture/internal-assistant/module-boundaries.md`，記錄實際初始化結果、source root、scripts、`app/services/index.ts` / `app/services/api/assistant.ts` 角色，以及禁止 `app/lib/assistant/` 與 `app/components/assistant/cards/`
+- [x] T001 [Foundation] 定義暫定 Nuxt 4 production source 結構與 source-root reconciliation 規則於 `docs/architecture/internal-assistant/source-structure.md`
+- [x] T002 [Foundation] 建立 UI reference implementation boundary 說明，明確禁止直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `docs/architecture/internal-assistant/reference-ui-boundary.md`
+- [x] T003 [Foundation] 建立 backend contract handoff source-of-truth 索引於 `docs/architecture/internal-assistant/backend-contract-sources.md`
+- [x] T004 [Foundation] 規劃 production module boundary 與責任切分於 `docs/architecture/internal-assistant/module-boundaries.md`
+- [x] T005 [Foundation] 規劃 assistant production naming convention，固定使用 reference-aligned component names 與 assistant-specific logic names 於 `docs/architecture/internal-assistant/naming-conventions.md`
+- [x] T006 [Foundation] 規劃測試與 fixture 目錄結構於 `tests/fixtures/assistant-api/README.md`、`tests/fixtures/assistant-sse/README.md`、`tests/contract/assistant/README.md`
+- [x] T007 [Foundation] 建立 implementation kickoff checklist，要求若實際 source root 與 `app/` 不同則先完成對齊於 `docs/architecture/internal-assistant/implementation-kickoff-checklist.md`
+- [x] T008 [Foundation] 建立或確認 Nuxt 4 / package baseline，包含 `package.json`、必要 scripts、Nuxt 4 dependency 與 typecheck / test script strategy，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
+- [x] T009 [Foundation] 建立或確認 Nuxt UI、Tailwind CSS v4、Pinia、vee-validate 基礎設定，並記錄實際初始化結果於 `docs/architecture/internal-assistant/project-initialization.md`
+- [x] T010 [Foundation] 建立或確認 Vitest、Vue Test Utils、Playwright 測試基線與測試 scripts，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
+- [x] T011 [Foundation] 建立或確認 `nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue` baseline，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
+- [x] T012 [Foundation] 建立或確認 `app/features/assistant/`、`app/features/assistant/components/`、`app/features/assistant/composables/`、`app/services/`、`app/stores/assistant/`、`app/utils/assistant/`、`app/types/assistant/` production source directories
+- [x] T013 [Foundation] 建立或確認 `tests/unit/assistant/`、`tests/component/assistant/`、`tests/contract/assistant/`、`tests/fixtures/assistant-api/`、`tests/fixtures/assistant-sse/` test directories
+- [x] T014 [Foundation] 更新 `docs/architecture/internal-assistant/project-initialization.md` 與 `docs/architecture/internal-assistant/module-boundaries.md`，記錄實際初始化結果、source root、scripts、`app/services/index.ts` / `app/services/api/assistant.ts` 角色，以及禁止 `app/lib/assistant/` 與 `app/components/assistant/cards/`
 
 **Checkpoint**: project initialization、source-root、package scripts baseline、UI reference implementation boundary、fixture、naming strategy 已明確；後續任務可安全落地。
 
@@ -72,15 +72,15 @@
 
 **Completion Criteria**: types 與 fixtures 能直接支撐 host / session / SSE / UI 任務，且不發明 handoff 未保證的新 final state 或 raw payload UI contract。
 
-- [ ] T015 [P] [Foundation] 建立 assistant contract types 與 public enum 定義於 `app/types/assistant/contracts.ts`
-- [ ] T016 [P] [Foundation] 建立 UI normalized message / session / streaming state types 於 `app/types/assistant/ui.ts`
-- [ ] T017 [P] [Foundation] 建立 evidence types，支援 `EvidenceRefSummary[] | string[]` 與 `EvidenceReferenceDisplay` 於 `app/types/assistant/evidence.ts`
-- [ ] T018 [P] [Foundation] 建立 ActionDraft、ApprovalRequest display-only、Feedback request / state types 於 `app/types/assistant/actions.ts`
-- [ ] T019 [P] [Foundation] 建立 response envelope / error envelope / request metadata types 於 `app/types/assistant/envelopes.ts`
-- [ ] T020 [Foundation] 建立 contract-aligned mock API responses，涵蓋 session、history、feedback、ActionDraft、ApprovalRequest 於 `tests/fixtures/assistant-api/responses.ts`
-- [ ] T021 [Foundation] 建立 contract-aligned mock SSE fixtures，涵蓋 `tool_call_started`、`tool_call_completed`、`tool_call_blocked`、`tool_call_failed`、`evidence_attached`、`answer_delta`、`confirmation_required`、`approval_required`、`escalation_required`、`final`、`error` 於 `tests/fixtures/assistant-sse/events.ts`
-- [ ] T022 [Foundation] 建立 fixture scenario matrix，覆蓋 answered structured lookup、answered document retrieval、clarification required、no answer / no evidence、no answer / tool failure、permission denied、confirmation required、approval required、escalation required、stream interrupted、error after partial answer、unknown SSE event、history pagination、session expired / invisible 於 `tests/fixtures/assistant-api/README.md` 與 `tests/fixtures/assistant-sse/README.md`
-- [ ] T023 [Foundation] 建立 unit tests，驗證 `tool_failure` 僅作為 `NoAnswerReason`、`ApprovalRequest` 僅為 display-only、`string[] evidenceRefs` 不可被補造 summary / title / snippet / sourceType 於 `tests/unit/assistant/contracts.spec.ts`
+- [x] T015 [P] [Foundation] 建立 assistant contract types 與 public enum 定義於 `app/types/assistant/contracts.ts`
+- [x] T016 [P] [Foundation] 建立 UI normalized message / session / streaming state types 於 `app/types/assistant/ui.ts`
+- [x] T017 [P] [Foundation] 建立 evidence types，支援 `EvidenceRefSummary[] | string[]` 與 `EvidenceReferenceDisplay` 於 `app/types/assistant/evidence.ts`
+- [x] T018 [P] [Foundation] 建立 ActionDraft、ApprovalRequest display-only、Feedback request / state types 於 `app/types/assistant/actions.ts`
+- [x] T019 [P] [Foundation] 建立 response envelope / error envelope / request metadata types 於 `app/types/assistant/envelopes.ts`
+- [x] T020 [Foundation] 建立 contract-aligned mock API responses，涵蓋 session、history、feedback、ActionDraft、ApprovalRequest 於 `tests/fixtures/assistant-api/responses.ts`
+- [x] T021 [Foundation] 建立 contract-aligned mock SSE fixtures，涵蓋 `tool_call_started`、`tool_call_completed`、`tool_call_blocked`、`tool_call_failed`、`evidence_attached`、`answer_delta`、`confirmation_required`、`approval_required`、`escalation_required`、`final`、`error` 於 `tests/fixtures/assistant-sse/events.ts`
+- [x] T022 [Foundation] 建立 fixture scenario matrix，覆蓋 answered structured lookup、answered document retrieval、clarification required、no answer / no evidence、no answer / tool failure、permission denied、confirmation required、approval required、escalation required、stream interrupted、error after partial answer、unknown SSE event、history pagination、session expired / invisible 於 `tests/fixtures/assistant-api/README.md` 與 `tests/fixtures/assistant-sse/README.md`
+- [x] T023 [Foundation] 建立 unit tests，驗證 `tool_failure` 僅作為 `NoAnswerReason`、`ApprovalRequest` 僅為 display-only、`string[] evidenceRefs` 不可被補造 summary / title / snippet / sourceType 於 `tests/unit/assistant/contracts.spec.ts`
 
 **Checkpoint**: foundation types 與 fixtures 已可作為後續 contract tests、parser、message renderers 的唯一型別與 scenario 基礎。
 
@@ -353,17 +353,17 @@
 
 ## Plan Phase Mapping
 
-| Plan Phase | Tasks Coverage | Notes |
-|---|---|---|
-| Plan Phase 0: Project Initialization, Source Structure, and Contract Preparation | T001-T014 | actual Nuxt 4 project initialization、package scripts baseline、Nuxt UI、Tailwind CSS v4、Pinia、TypeScript strict、vee-validate、Vitest、Vue Test Utils、Playwright、`nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue`、source-root reconciliation、UI reference implementation boundary、naming、fixture directories |
-| Plan Phase 1: Core Types, Contract Models, and Fixtures | T015-T023 | contract types、UI models、SSE event union、evidence models、ActionDraft / ApprovalRequest / feedback models、fixtures、contract type tests |
-| Plan Phase 2: Host Context Provider and Session Scope Foundation | T024-T032 | HostContextProvider、identity headers、latest PageContext、sanitizer、default session scope resolver、scope key、host-managed sessionId、`onOpenApprovalDetail` |
-| Plan Phase 3: Session Manager and History Restore | T033-T038, T053-T056 | `app/services/index.ts` session/history JSON foundation、`AssistantService` session/history skeleton、`sessionStorage` scoped fallback、session recovery、`useAssistantSessionStore`、`useAssistantSession`、history restore / history UI |
-| Plan Phase 4: HTTP Service, Assistant Domain Service, and SSE Parser Foundation | T039-T046, T057-T062 | HTTP stream extension、`AssistantService.sendMessageStream()`、requestId、assistantSseParser、useAssistantSseStream、send-message SSE flow、partial / final handling |
-| Plan Phase 5: Core Store and Orchestration Foundation | T035-T036, T048, T054, T058, T075, T079, T083, T097-T099 | stores、useChatWidgetStore、useAssistantSessionStore、useAssistantSession、useChat orchestration、feedback state、ActionDraft / ApprovalRequest state、degraded state、retry / cancel separation |
-| Plan Phase 6: Reference-guided UI Shell and Message Registry Implementation | T047-T052, T055, T059-T071, T076-T086 | ChatWidget、ChatPanel、ChatMessageArea、ChatInputBar、AiStreamingItem、AiMessageItem、safe state message renderers、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage、reference-guided UI implementation |
-| Plan Phase 7: Safe State, Feedback, ActionDraft, Approval Display | T063-T086 | AnswerDecision、EvidenceDisplay、safe state message renderers、feedback API integration、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage |
-| Plan Phase 8: Accessibility, Degraded UX, and Final Contract Validation | T095-T104 | degraded / interrupted / retry UX、privacy guard、accessibility regression、UI reference implementation boundary regression、final fixture coverage review |
+| Plan Phase                                                                       | Tasks Coverage                                           | Notes                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Plan Phase 0: Project Initialization, Source Structure, and Contract Preparation | T001-T014                                                | actual Nuxt 4 project initialization、package scripts baseline、Nuxt UI、Tailwind CSS v4、Pinia、TypeScript strict、vee-validate、Vitest、Vue Test Utils、Playwright、`nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue`、source-root reconciliation、UI reference implementation boundary、naming、fixture directories |
+| Plan Phase 1: Core Types, Contract Models, and Fixtures                          | T015-T023                                                | contract types、UI models、SSE event union、evidence models、ActionDraft / ApprovalRequest / feedback models、fixtures、contract type tests                                                                                                                                                                                                |
+| Plan Phase 2: Host Context Provider and Session Scope Foundation                 | T024-T032                                                | HostContextProvider、identity headers、latest PageContext、sanitizer、default session scope resolver、scope key、host-managed sessionId、`onOpenApprovalDetail`                                                                                                                                                                            |
+| Plan Phase 3: Session Manager and History Restore                                | T033-T038, T053-T056                                     | `app/services/index.ts` session/history JSON foundation、`AssistantService` session/history skeleton、`sessionStorage` scoped fallback、session recovery、`useAssistantSessionStore`、`useAssistantSession`、history restore / history UI                                                                                                  |
+| Plan Phase 4: HTTP Service, Assistant Domain Service, and SSE Parser Foundation  | T039-T046, T057-T062                                     | HTTP stream extension、`AssistantService.sendMessageStream()`、requestId、assistantSseParser、useAssistantSseStream、send-message SSE flow、partial / final handling                                                                                                                                                                       |
+| Plan Phase 5: Core Store and Orchestration Foundation                            | T035-T036, T048, T054, T058, T075, T079, T083, T097-T099 | stores、useChatWidgetStore、useAssistantSessionStore、useAssistantSession、useChat orchestration、feedback state、ActionDraft / ApprovalRequest state、degraded state、retry / cancel separation                                                                                                                                           |
+| Plan Phase 6: Reference-guided UI Shell and Message Registry Implementation      | T047-T052, T055, T059-T071, T076-T086                    | ChatWidget、ChatPanel、ChatMessageArea、ChatInputBar、AiStreamingItem、AiMessageItem、safe state message renderers、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage、reference-guided UI implementation                                                                                                                      |
+| Plan Phase 7: Safe State, Feedback, ActionDraft, Approval Display                | T063-T086                                                | AnswerDecision、EvidenceDisplay、safe state message renderers、feedback API integration、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage                                                                                                                                                                                     |
+| Plan Phase 8: Accessibility, Degraded UX, and Final Contract Validation          | T095-T104                                                | degraded / interrupted / retry UX、privacy guard、accessibility regression、UI reference implementation boundary regression、final fixture coverage review                                                                                                                                                                                 |
 
 ---
 
