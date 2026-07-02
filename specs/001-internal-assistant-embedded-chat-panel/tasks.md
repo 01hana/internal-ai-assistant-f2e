@@ -116,12 +116,12 @@
 
 **Completion Criteria**: restore 優先順序與 pagination contract 明確落地；`AssistantService` 的 session/history skeleton 已先於 stream foundation 建立；且不使用 `/history`、`order=desc`、`hasMore` 或 localStorage token primary strategy。
 
-- [ ] T033 [Foundation] 建立 `app/services/index.ts` shared HTTP client 的 session/history 基礎能力，支援 baseURL、default headers、extra headers merge、GET params / non-GET body、JSON request 與 error envelope handling
-- [ ] T034 [Foundation] 建立 `AssistantService` session/history skeleton 於 `app/services/api/assistant.ts`，包含 `createSession()`、`getSession()`、`getSessionMessages()`，並使用相對於 `/api/v1` baseURL 的 path，例如 `assistant/sessions`
-- [ ] T035 [Foundation] 建立 `sessionStorageSessionMap` 與 `sessionRecovery` helpers，處理 `SessionScopeKey -> sessionId` 最小必要保存、expired / closed / invisible session 與 scoped fallback 清除，落點為 `app/utils/assistant/sessionStorageSessionMap.ts` 與 `app/utils/assistant/sessionRecovery.ts`
-- [ ] T036 [Foundation] 建立 `useAssistantSessionStore` 的 session / history / nextCursor / contextReady / lastError 基礎 state，並在 `app/features/assistant/composables/useAssistantSession.ts` 透過 `AssistantService.createSession()`、`getSession()`、`getSessionMessages()` 落地 restore / create / restart flow
-- [ ] T037 [Foundation] 建立 unit tests，驗證 host-managed sessionId restore priority、`sessionStorage` fallback、scoped fallback 清除、no localStorage token primary strategy 與 `sessionStorage` 只保存最小 continuity state，落點於 `tests/unit/assistant/session-restore.spec.ts`
-- [ ] T038 [Foundation] 建立 contract tests，驗證 history endpoint 只能是 `/api/v1/assistant/sessions/:sessionId/messages`、只支援 `order=asc` / `nextCursor`、不使用 `/history` / `order=desc` / `hasMore`，落點於 `tests/contract/assistant/session-history.contract.spec.ts`
+- [x] T033 [Foundation] 建立 `app/services/index.ts` shared HTTP client 的 session/history 基礎能力，支援 baseURL、default headers、extra headers merge、GET params / non-GET body、JSON request 與 error envelope handling
+- [x] T034 [Foundation] 建立 `AssistantService` session/history skeleton 於 `app/services/api/assistant.ts`，包含 `createSession()`、`getSession()`、`getSessionMessages()`，並使用相對於 `/api/v1` baseURL 的 path，例如 `assistant/sessions`
+- [x] T035 [Foundation] 建立 `sessionStorageSessionMap` 與 `sessionRecovery` helpers，處理 `SessionScopeKey -> sessionId` 最小必要保存、expired / closed / invisible session 與 scoped fallback 清除，落點為 `app/utils/assistant/sessionStorageSessionMap.ts` 與 `app/utils/assistant/sessionRecovery.ts`
+- [x] T036 [Foundation] 建立 `useAssistantSessionStore` 的 session / history / nextCursor / contextReady / lastError 基礎 state，並在 `app/features/assistant/composables/useAssistantSession.ts` 透過 `AssistantService.createSession()`、`getSession()`、`getSessionMessages()` 落地 restore / create / restart flow
+- [x] T037 [Foundation] 建立 unit tests，驗證 host-managed sessionId restore priority、`sessionStorage` fallback、scoped fallback 清除、no localStorage token primary strategy 與 `sessionStorage` 只保存最小 continuity state，落點於 `tests/unit/assistant/session-restore.spec.ts`
+- [x] T038 [Foundation] 建立 contract tests，驗證 history endpoint 只能是 `/api/v1/assistant/sessions/:sessionId/messages`、只支援 `order=asc` / `nextCursor`、不使用 `/history` / `order=desc` / `hasMore`，落點於 `tests/contract/assistant/session-history.contract.spec.ts`
 
 **Checkpoint**: session/history service skeleton、session create / restore / history loading 已可獨立驗證，且完全遵守 handoff contract。
 
