@@ -94,15 +94,15 @@
 
 **Completion Criteria**: send-message 與 session-restore 可在不猜測資料、不暴露 raw context 的前提下取得 latest host context。
 
-- [ ] T024 [P] [Foundation] 定義 `AssistantHostContextProvider`、`HostAdapter`、context readiness、`onOpenApprovalDetail` contract 於 `app/types/assistant/host-context.ts`
-- [ ] T025 [P] [Foundation] 定義 identity headers 與 actor / organization / host app boundary model 於 `app/types/assistant/identity-headers.ts`
-- [ ] T026 [P] [Foundation] 建立 demo / test props adapter，僅作為 demo / test fallback，不取代正式 provider 於 `app/features/assistant/composables/useAssistantHostContextAdapter.ts`
-- [ ] T027 [Foundation] 建立 latest `PageContext` getter 與 readiness façade 於 `app/features/assistant/composables/useAssistantHostContext.ts`
-- [ ] T028 [Foundation] 建立 `pageContextSanitizer`，限制 `selectedRows`、`activeFilters`、`visibleColumns`、`userVisibleState` 只輸出 visible、non-secret summary 於 `app/utils/assistant/pageContextSanitizer.ts`
-- [ ] T029 [Foundation] 建立 `defaultSessionScopeResolver`，固定套用 `entityType + entityId -> entity`、`route / screenId -> page`、fallback -> `global`、host override wins 於 `app/utils/assistant/defaultSessionScopeResolver.ts`
-- [ ] T030 [Foundation] 建立 `sessionScopeKeyGenerator` 於 `app/utils/assistant/sessionScopeKeyGenerator.ts`
-- [ ] T031 [Foundation] 建立 host context fixtures，覆蓋 `global` / `page` / `entity` / host override / context not ready 於 `tests/fixtures/assistant-api/host-context.ts`
-- [ ] T032 [Foundation] 建立 unit tests，驗證 sanitizer、default session scope resolver、scope key generator、host-managed sessionId 與 `onOpenApprovalDetail` contract 於 `tests/unit/assistant/host-context.spec.ts`
+- [x] T024 [P] [Foundation] 定義 `AssistantHostContextProvider`、`HostAdapter`、context readiness、`onOpenApprovalDetail` contract 於 `app/types/assistant/host-context.ts`
+- [x] T025 [P] [Foundation] 定義 identity headers 與 actor / organization / host app boundary model 於 `app/types/assistant/identity-headers.ts`
+- [x] T026 [P] [Foundation] 建立 demo / test props adapter，僅作為 demo / test fallback，不取代正式 provider 於 `app/features/assistant/composables/useAssistantHostContextAdapter.ts`
+- [x] T027 [Foundation] 建立 latest `PageContext` getter 與 readiness façade 於 `app/features/assistant/composables/useAssistantHostContext.ts`
+- [x] T028 [Foundation] 建立 `pageContextSanitizer`，限制 `selectedRows`、`activeFilters`、`visibleColumns`、`userVisibleState` 只輸出 visible、non-secret summary 於 `app/utils/assistant/pageContextSanitizer.ts`
+- [x] T029 [Foundation] 建立 `defaultSessionScopeResolver`，固定套用 `entityType + entityId -> entity`、`route / screenId -> page`、fallback -> `global`、host override wins 於 `app/utils/assistant/defaultSessionScopeResolver.ts`
+- [x] T030 [Foundation] 建立 `sessionScopeKeyGenerator` 於 `app/utils/assistant/sessionScopeKeyGenerator.ts`
+- [x] T031 [Foundation] 建立 host context fixtures，覆蓋 `global` / `page` / `entity` / host override / context not ready 於 `tests/fixtures/assistant-api/host-context.ts`
+- [x] T032 [Foundation] 建立 unit tests，驗證 sanitizer、default session scope resolver、scope key generator、host-managed sessionId 與 `onOpenApprovalDetail` contract 於 `tests/unit/assistant/host-context.spec.ts`
 
 **Checkpoint**: host context、sanitizer、scope resolver 已完成，且可透過 `app/services/index.ts` 的 extra headers merge 傳入 `AssistantService` request options。
 

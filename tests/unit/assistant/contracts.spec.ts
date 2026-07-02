@@ -2,17 +2,23 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 import type {
   AnswerDecisionStatus,
   AssistantErrorEnvelope,
+  AssistantHostContextSnapshot,
+  AssistantIdentityContext,
   AssistantIdentityHeaders,
+  AssistantSessionScope,
   FeedbackRating,
   NoAnswerReason,
   ResolvedAssistantIdentityHeaders,
   SessionMessagesResponse,
 } from '../../../app/types/assistant'
+import * as hostContextFixtures from '../../fixtures/assistant-api/host-context'
 import * as apiFixtures from '../../fixtures/assistant-api/responses'
 import { assistantFixtureScenarios } from '../../fixtures/assistant-api/scenarios'
 import * as sseFixtures from '../../fixtures/assistant-sse/events'
 
 const forbiddenFixtureKeys = [
+  'rawHostState',
+  'rawPageState',
   'rawPayload',
   'rawEvidence',
   'rawDocument',
@@ -25,6 +31,9 @@ const forbiddenFixtureKeys = [
   'secret',
   'apiKey',
   'databaseUrl',
+  'accessToken',
+  'refreshToken',
+  'cookie',
 ] as const
 
 function collectObjectKeys(value: unknown, keys: string[] = []): string[] {
@@ -190,6 +199,42 @@ describe('assistant contract type guardrails', () => {
     expectTypeOf(resolvedHeaders).toMatchTypeOf<ResolvedAssistantIdentityHeaders>()
   })
 
+  it('exports typed host context, identity, and session scope fixtures', () => {
+    expectTypeOf(
+      hostContextFixtures.globalHostContextSnapshot,
+    ).toMatchTypeOf<AssistantHostContextSnapshot>()
+    expectTypeOf(
+      hostContextFixtures.hostIdentityContextFixture,
+    ).toMatchTypeOf<AssistantIdentityContext>()
+    expectTypeOf(
+      hostContextFixtures.entitySessionScopeFixture,
+    ).toMatchTypeOf<AssistantSessionScope>()
+  })
+
+  it('keeps not-ready and host override fixtures explicit and safe', () => {
+    expect(hostContextFixtures.contextNotReadySnapshot).toMatchObject({
+      readiness: {
+        status: 'not_ready',
+        reason: 'identity_missing',
+      },
+      identityHeaders: null,
+      pageContext: null,
+    })
+    expect(hostContextFixtures.hostOverrideSessionScopeFixture.source).toBe(
+      'host_override',
+    )
+  })
+
+  it('keeps approval detail integration callback-only', () => {
+    const approvalDetailSnapshot =
+      hostContextFixtures.approvalDetailHostContextSnapshot
+
+    expect(typeof approvalDetailSnapshot.onOpenApprovalDetail).toBe('function')
+    expect(approvalDetailSnapshot).not.toHaveProperty('approve')
+    expect(approvalDetailSnapshot).not.toHaveProperty('reject')
+    expect(approvalDetailSnapshot).not.toHaveProperty('cancel')
+  })
+
   it('accepts an error envelope without statusCode', () => {
     expectTypeOf(
       apiFixtures.backendErrorWithoutStatusCodeResponse,
@@ -267,6 +312,7 @@ describe('assistant contract type guardrails', () => {
     const fixtureCorpus = {
       apiFixtures,
       assistantFixtureScenarios,
+      hostContextFixtures,
       sseFixtures,
     }
     const fixtureKeys = collectObjectKeys(fixtureCorpus)
