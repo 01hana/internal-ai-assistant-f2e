@@ -135,14 +135,14 @@
 
 **Completion Criteria**: API / SSE 邏輯不散落於 components；`AssistantService` 的 stream 方法在 Phase 3 skeleton 之上擴充完成；partial answer 不會被提升為 final；unknown event 有 safe fallback。
 
-- [ ] T039 [Foundation] 擴充 `app/services/index.ts` shared HTTP client，加入 `rawRequest()`、`stream()`、`AbortSignal`、silent / safe error mode，並維持其為唯一 HTTP client，禁止 `createChatClient` / `createAssistantClient`
-- [ ] T040 [Foundation] 擴充 `app/services/api/assistant.ts` 的 `AssistantService`，新增 `sendMessageStream()`，並維持 domain service 不直接 import `$fetch`、不拆 `sessions.ts` / `messages.ts` / `feedback.ts` / `actionDrafts.ts` / `approvalRequests.ts`
-- [ ] T041 [Foundation] 建立 `requestIdGenerator` 於 `app/utils/assistant/requestIdGenerator.ts`
-- [ ] T042 [Foundation] 建立 `assistantSseParser`，支援 known event union、`sequence` ordering / de-dup、unknown event safe fallback，且 final state 只看 `final.data.answerDecision` 於 `app/utils/assistant/assistantSseParser.ts`
-- [ ] T043 [Foundation] 建立 `useAssistantSseStream`，處理 connect / stream / interrupt / timeout / error-after-partial lifecycle，並呼叫 `AssistantService.sendMessageStream()` 於 `app/features/assistant/composables/useAssistantSseStream.ts`
-- [ ] T044 [Foundation] 建立 contract tests，驗證 `POST /api/v1/assistant/sessions/:sessionId/messages` 使用 request `Content-Type: application/json`、request `Accept: text/event-stream`、response `Content-Type: text/event-stream`，且 `sendMessageStream()` 回傳 raw `Response` 或 `ReadableStream` 於 `tests/contract/assistant/send-message.contract.spec.ts`
-- [ ] T045 [Foundation] 建立 unit tests，驗證 parser 的 `sequence` ordering / de-dup、unknown event fallback、`error` 不當 answered、不能從 `onDone` / stream close / answer presence 推測 final state 於 `tests/unit/assistant/sse-parser.spec.ts`
-- [ ] T046 [Foundation] 建立 contract / unit tests，驗證 stream foundation 不會覆蓋 Phase 3 的 session/history skeleton 行為，且 `sendMessageStream()` 只負責 stream，不重複定義 feedback / action / approval methods 於 `tests/contract/assistant/send-message.contract.spec.ts` 與 `tests/unit/assistant/sse-parser.spec.ts`
+- [x] T039 [Foundation] 擴充 `app/services/index.ts` shared HTTP client，加入 `rawRequest()`、`stream()`、`AbortSignal`、silent / safe error mode，並維持其為唯一 HTTP client，禁止 `createChatClient` / `createAssistantClient`
+- [x] T040 [Foundation] 擴充 `app/services/api/assistant.ts` 的 `AssistantService`，新增 `sendMessageStream()`，並維持 domain service 不直接 import `$fetch`、不拆 `sessions.ts` / `messages.ts` / `feedback.ts` / `actionDrafts.ts` / `approvalRequests.ts`
+- [x] T041 [Foundation] 建立 `requestIdGenerator` 於 `app/utils/assistant/requestIdGenerator.ts`
+- [x] T042 [Foundation] 建立 `assistantSseParser`，支援 known event union、`sequence` ordering / de-dup、unknown event safe fallback，且 final state 只看 `final.data.answerDecision` 於 `app/utils/assistant/assistantSseParser.ts`
+- [x] T043 [Foundation] 建立 `useAssistantSseStream`，處理 connect / stream / interrupt / timeout / error-after-partial lifecycle，並呼叫 `AssistantService.sendMessageStream()` 於 `app/features/assistant/composables/useAssistantSseStream.ts`
+- [x] T044 [Foundation] 建立 contract tests，驗證 `POST /api/v1/assistant/sessions/:sessionId/messages` 使用 request `Content-Type: application/json`、request `Accept: text/event-stream`、response `Content-Type: text/event-stream`，且 `sendMessageStream()` 回傳 raw `Response` 或 `ReadableStream` 於 `tests/contract/assistant/send-message.contract.spec.ts`
+- [x] T045 [Foundation] 建立 unit tests，驗證 parser 的 `sequence` ordering / de-dup、unknown event fallback、`error` 不當 answered、不能從 `onDone` / stream close / answer presence 推測 final state 於 `tests/unit/assistant/sse-parser.spec.ts`
+- [x] T046 [Foundation] 建立 contract / unit tests，驗證 stream foundation 不會覆蓋 Phase 3 的 session/history skeleton 行為，且 `sendMessageStream()` 只負責 stream，不重複定義 feedback / action / approval methods 於 `tests/contract/assistant/send-message.contract.spec.ts` 與 `tests/unit/assistant/sse-parser.spec.ts`
 
 **Checkpoint**: `app/services/index.ts` stream extension、`AssistantService.sendMessageStream()`、SSE parser、stream controller 已可供後續 orchestration 與 UI 安全使用。
 

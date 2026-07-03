@@ -5,6 +5,7 @@ import type {
   AssistantSessionId,
   AssistantSuccessEnvelope,
   CreateAssistantSessionRequest,
+  SendAssistantMessageRequest,
   SessionMessagesResponse,
 } from '../../types/assistant'
 import {
@@ -47,6 +48,7 @@ export class AssistantService {
       body: request,
       headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
+      silent: options.silent,
     })
   }
 
@@ -59,6 +61,7 @@ export class AssistantService {
       path: `assistant/sessions/${encodeURIComponent(sessionId)}`,
       headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
+      silent: options.silent,
     })
   }
 
@@ -77,6 +80,25 @@ export class AssistantService {
       },
       headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  sendMessageStream(
+    sessionId: AssistantSessionId,
+    request: SendAssistantMessageRequest,
+    options: AssistantApiRequestOptions,
+  ): Promise<Response> {
+    const headers = toRequestHeaders(options.identityHeaders)
+    headers.set('accept', 'text/event-stream')
+
+    return this.httpClient.stream({
+      method: 'POST',
+      path: `assistant/sessions/${encodeURIComponent(sessionId)}/messages`,
+      body: request,
+      headers,
+      signal: options.signal,
+      silent: options.silent,
     })
   }
 }
