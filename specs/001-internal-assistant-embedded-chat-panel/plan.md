@@ -47,6 +47,7 @@ backend API contract handoff > design.md > spec.md > Known Decisions > docs/refe
 
 - backend assistant API contract handoff 是唯一 API surface source
 - `design.md` 是本 plan 的 frontend architecture source of truth
+- `spec.md`、`design.md`、`plan.md`、`tasks.md` 共同構成本 feature 的 frontend Spec Kit source of truth
 - `docs/reference/legacy-chatbot-widget/raw/` 只作為 UI reference implementation，用於視覺、排版、互動節奏與 component behavior 參考
 - reference UI files 不能覆蓋 backend contract
 - reference UI files 不能覆蓋 `design.md` 的 Nuxt 4 architecture decisions
@@ -65,6 +66,7 @@ backend API contract handoff > design.md > spec.md > Known Decisions > docs/refe
 - API service 應使用 `app/services/index.ts` 與 `app/services/api/assistant.ts`。
 - reference UI files 不得直接 import、copy 或 move。
 - source root / Nuxt app structure 仍需在 implementation 前確認。
+- Phase 0 architecture notes 已收斂於 `spec.md`、`design.md`、`plan.md`、`tasks.md`，不再維護平行 `docs/architecture/internal-assistant/*` source-of-truth 文件。
 
 ## 4. Technical Context
 
@@ -270,9 +272,9 @@ Nuxt 4 / Vue 3 / TypeScript / Nuxt UI / Tailwind CSS v4 / Pinia / vee-validate /
 | US3：送出 message + PageContext + SSE streaming | Phase 2, Phase 4, Phase 5 | latest `PageContext`、`requestId`、`AssistantService.sendMessageStream`、`assistantSseParser`、`answer_delta`、`final` | request body 是 JSON，response 是 SSE，final state 只看 `final.data.answerDecision` |
 | US4：呈現 evidence / AnswerDecision | Phase 1, Phase 5, Phase 7 | AnswerDecision mapper、evidence normalization、`AiMessageItem`、evidence display | `string[] evidenceRefs` 只能顯示 safe chip / id |
 | US5：處理 clarification / no-answer / permission denied / tool failure | Phase 1, Phase 5, Phase 7 | safe state message renderers、`NoAnswerReason`、permission denied state、tool failure message renderer | `tool_failure` 是 `noAnswerReason`，不得建立 `tool_failed` final state |
-| US6：送出 message-level feedback | Phase 1, Phase 5, Phase 7 | feedback API integration、`feedbackStates`、`messageId` / `requestId` linkage | 前端不得自行建立 `ReviewItem` |
-| US7：處理 confirmation_required / ActionDraft confirm / cancel | Phase 1, Phase 4, Phase 5, Phase 7 | `confirmation_required` event、`ActionDraftConfirmationMessage`、confirm / cancel、`idempotencyKey` | `pending_execution_guard` 不代表 side-effect 已安全完成 |
-| US8：處理 approval_required status display | Phase 1, Phase 4, Phase 5, Phase 7 | `approval_required` event、`ApprovalRequestDisplayMessage`、`onOpenApprovalDetail` | 不得有 inline approve / reject / cancel |
+| US6：送出 message-level feedback | Phase 1, Phase 5, Phase 7 | `AssistantService.submitFeedback()`、message-level feedback request / state、feedback success / failed / retry UI、`messageId` / `requestId` linkage | 前端不得自行建立 `ReviewItem` |
+| US7：處理 confirmation_required / ActionDraft confirm / cancel | Phase 1, Phase 5, Phase 7 | `AssistantService.getActionDraft()`、`AssistantService.confirmActionDraft()`、`AssistantService.cancelActionDraft()`、`confirmation_required` event、`ActionDraftConfirmationMessage`、confirm / cancel、`idempotencyKey` | `pending_execution_guard` 不代表 side-effect 已安全完成，且需涵蓋 expired / failed / cancelled state |
+| US8：處理 approval_required status display | Phase 1, Phase 5, Phase 7 | `AssistantService.getApprovalRequest()`、`approval_required` event、`ApprovalRequestDisplayMessage`、`onOpenApprovalDetail` | 不得有 inline approve / reject / cancel，且不得實作 approval management UI |
 | US9：處理 network / SSE interrupted / backend degraded | Phase 4, Phase 5, Phase 8 | stream interrupted、timeout、error after partial、degraded / unavailable state | partial answer 不得被當成 final answer |
 
 ## 8. Phases / Milestones
@@ -478,16 +480,12 @@ full history cache
 - `AssistantService.getSession()`
 - `AssistantService.getSessionMessages()`
 - `AssistantService.sendMessageStream()`
-- `AssistantService.submitFeedback()`
-- `AssistantService.getActionDraft()`
-- `AssistantService.confirmActionDraft()`
-- `AssistantService.cancelActionDraft()`
-- `AssistantService.getApprovalRequest()`
 - requestId generation / propagation
 - `assistantSseParser`
 - `sequence` ordering / de-dup
 - known event types handling
 - unknown event safe fallback
+- `useAssistantSseStream`
 - stream interrupted / timeout / error-after-partial handling
 
 **固定規則**：

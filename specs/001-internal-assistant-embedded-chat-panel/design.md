@@ -4,6 +4,8 @@
 
 本文件描述 `001-internal-assistant-embedded-chat-panel` 的前端技術設計，用於支撐後續 `plan.md`、`tasks.md` 與實作批次。
 
+本 feature 的 frontend architecture / module boundary / naming / reference UI boundary 已收斂於 Spec Kit 文件；`design.md`、`plan.md`、`tasks.md` 為正式規格來源，不再依賴第二套 `docs/architecture/internal-assistant/*` 架構文件。
+
 本 feature 是企業內部後台 AI 助理的 embedded chat widget / chat panel，不是 public chatbot，不是客服 widget，不是 lead capture，不是 customer handoff flow，不是 backend assistant core，不是真實 connector layer，也不是 approval management UI。
 
 本 design 採用：
@@ -148,6 +150,8 @@ assistant widget 採 feature-local 組織方式，專屬 UI 與專屬 orchestrat
 跨 domain 共用 UI / composables 不混入 assistant 專屬業務邏輯。
 
 API 串接統一透過 `app/services/index.ts` 與 `app/services/api/assistant.ts`。
+
+若實際 repo source root 與 `app/` 不同，必須先完成 source-root reconciliation，再依本 design 的相同 module boundary 與 naming strategy 落地；不得透過額外 architecture memo 建立平行規格。
 
 建議目錄結構如下：
 

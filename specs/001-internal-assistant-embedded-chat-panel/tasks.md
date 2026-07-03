@@ -45,22 +45,22 @@
 
 **Completion Criteria**: Nuxt 4 source structure 已確認或已建立；package scripts baseline 已確認；`app/features/assistant/` production target 已建立或明確；`app/services/index.ts` 已建立或明確作為唯一 HTTP client；`app/services/api/assistant.ts` 已建立或明確作為單一 assistant domain service；no `app/lib/assistant/`；no `app/components/assistant/cards/`；reference UI files 不得直接 import / copy / move。
 
-- [x] T001 [Foundation] 定義暫定 Nuxt 4 production source 結構與 source-root reconciliation 規則於 `docs/architecture/internal-assistant/source-structure.md`
-- [x] T002 [Foundation] 建立 UI reference implementation boundary 說明，明確禁止直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `docs/architecture/internal-assistant/reference-ui-boundary.md`
-- [x] T003 [Foundation] 建立 backend contract handoff source-of-truth 索引於 `docs/architecture/internal-assistant/backend-contract-sources.md`
-- [x] T004 [Foundation] 規劃 production module boundary 與責任切分於 `docs/architecture/internal-assistant/module-boundaries.md`
-- [x] T005 [Foundation] 規劃 assistant production naming convention，固定使用 reference-aligned component names 與 assistant-specific logic names 於 `docs/architecture/internal-assistant/naming-conventions.md`
+- [x] T001 [Foundation] 定義暫定 Nuxt 4 production source 結構與 source-root reconciliation 規則，並收斂於 `design.md`、`plan.md`、`tasks.md`
+- [x] T002 [Foundation] 定義 UI reference implementation boundary，明確禁止直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/`，並收斂於 `design.md`、`plan.md`、`tasks.md`
+- [x] T003 [Foundation] 定義 backend contract handoff source-of-truth 使用規則與優先順序，並收斂於 `plan.md`、`design.md`、`tasks.md`
+- [x] T004 [Foundation] 定義 production module boundary 與責任切分，並收斂於 `design.md`、`plan.md`、`tasks.md`
+- [x] T005 [Foundation] 定義 assistant production naming convention，固定使用 reference-aligned component names 與 assistant-specific logic names，並收斂於 `design.md`、`plan.md`、`tasks.md`
 - [x] T006 [Foundation] 規劃測試與 fixture 目錄結構於 `tests/fixtures/assistant-api/README.md`、`tests/fixtures/assistant-sse/README.md`、`tests/contract/assistant/README.md`
-- [x] T007 [Foundation] 建立 implementation kickoff checklist，要求若實際 source root 與 `app/` 不同則先完成對齊於 `docs/architecture/internal-assistant/implementation-kickoff-checklist.md`
-- [x] T008 [Foundation] 建立或確認 Nuxt 4 / package baseline，包含 `package.json`、必要 scripts、Nuxt 4 dependency 與 typecheck / test script strategy，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
-- [x] T009 [Foundation] 建立或確認 Nuxt UI、Tailwind CSS v4、Pinia、vee-validate 基礎設定，並記錄實際初始化結果於 `docs/architecture/internal-assistant/project-initialization.md`
-- [x] T010 [Foundation] 建立或確認 Vitest、Vue Test Utils、Playwright 測試基線與測試 scripts，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
-- [x] T011 [Foundation] 建立或確認 `nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue` baseline，並記錄於 `docs/architecture/internal-assistant/project-initialization.md`
+- [x] T007 [Foundation] 建立 implementation kickoff / boundary / initialization 驗收規則，要求若實際 source root 與 `app/` 不同則先完成對齊，並收斂於 `tasks.md`
+- [x] T008 [Foundation] 建立或確認 Nuxt 4 / package baseline，包含 `package.json`、必要 scripts、Nuxt 4 dependency 與 typecheck / test script strategy，並以 repo 實際檔案與 `plan.md` Phase 0 策略為準
+- [x] T009 [Foundation] 建立或確認 Nuxt UI、Tailwind CSS v4、Pinia、vee-validate 基礎設定，並以 repo 實際檔案與 `plan.md` 的 initialization strategy 為準
+- [x] T010 [Foundation] 建立或確認 Vitest、Vue Test Utils、Playwright 測試基線與測試 scripts，並以 repo 實際檔案與 `tasks.md` 驗收規則為準
+- [x] T011 [Foundation] 建立或確認 `nuxt.config.ts`、`app.config.ts`、`layouts/default.vue`、`error.vue` baseline，並以 repo 實際檔案與 `plan.md` Phase 0 策略為準
 - [x] T012 [Foundation] 建立或確認 `app/features/assistant/`、`app/features/assistant/components/`、`app/features/assistant/composables/`、`app/services/`、`app/stores/assistant/`、`app/utils/assistant/`、`app/types/assistant/` production source directories
 - [x] T013 [Foundation] 建立或確認 `tests/unit/assistant/`、`tests/component/assistant/`、`tests/contract/assistant/`、`tests/fixtures/assistant-api/`、`tests/fixtures/assistant-sse/` test directories
-- [x] T014 [Foundation] 更新 `docs/architecture/internal-assistant/project-initialization.md` 與 `docs/architecture/internal-assistant/module-boundaries.md`，記錄實際初始化結果、source root、scripts、`app/services/index.ts` / `app/services/api/assistant.ts` 角色，以及禁止 `app/lib/assistant/` 與 `app/components/assistant/cards/`
+- [x] T014 [Foundation] 對齊實際初始化結果、source root、scripts、`app/services/index.ts` / `app/services/api/assistant.ts` 角色，以及禁止 `app/lib/assistant/` 與 `app/components/assistant/cards/` 的規則，並收斂於 Spec Kit 文件與 repo 實際檔案
 
-**Checkpoint**: project initialization、source-root、package scripts baseline、UI reference implementation boundary、fixture、naming strategy 已明確；後續任務可安全落地。
+**Checkpoint**: project initialization、source-root、package scripts baseline、UI reference implementation boundary、fixture、naming strategy 已明確；後續任務可安全落地。Phase 0 architecture notes have been consolidated into spec-kit documents.
 
 ---
 
@@ -145,29 +145,6 @@
 - [x] T046 [Foundation] 建立 contract / unit tests，驗證 stream foundation 不會覆蓋 Phase 3 的 session/history skeleton 行為，且 `sendMessageStream()` 只負責 stream，不重複定義 feedback / action / approval methods 於 `tests/contract/assistant/send-message.contract.spec.ts` 與 `tests/unit/assistant/sse-parser.spec.ts`
 
 **Checkpoint**: `app/services/index.ts` stream extension、`AssistantService.sendMessageStream()`、SSE parser、stream controller 已可供後續 orchestration 與 UI 安全使用。
-
----
-
-## Host Integration Deliverables: Internal System Embedding
-
-這一組任務屬於 integration foundation，應在 US1 panel shell 進入正式整合前完成。
-
-- 這些任務不是 ERP / MES / WMS / SCM / CRM connector。
-- 這些任務不是 backend。
-- 這些任務不是 approval management UI。
-- 這些任務只定義 host app 如何 mount panel、provide context、provide identity、handle approval detail callback、provide theme / layout constraints、validate embedded behavior。
-- `docs/reference/legacy-chatbot-widget/raw/` 只作為 UI reference implementation。
-- Host integration docs 不得要求 host app import / copy / move reference UI files。
-- Host integration docs 必須對齊 `app/features/assistant/`、`app/services/index.ts`、`app/services/api/assistant.ts`。
-
-- [ ] T087 [Foundation] [US1,US2,US3,US8] 建立 host integration public API 文件，定義 host app 如何掛載 panel、提供 `AssistantHostContextProvider`、identity headers、latest `PageContext`、session scope override、host-managed sessionId、`onOpenApprovalDetail`、theme / layout hooks，輸出於 `docs/integration/internal-assistant-host-integration.md`
-- [ ] T088 [Foundation] [US1] 建立 host app embedding guide，說明其他內部系統如何 import / mount / configure internal assistant panel，包含 embedded container、launcher mode、context ready / not ready、narrow container、focus / z-index / layout 注意事項，輸出於 `docs/integration/internal-assistant-embedding-guide.md`
-- [ ] T089 [Foundation] [US2,US3] 建立 PageContext integration examples，覆蓋 list page、detail page、selected rows、active filters、visible columns、entity scope、page scope、global scope、context not ready、sanitized userVisibleState，輸出於 `docs/integration/page-context-examples.md`
-- [ ] T090 [Foundation] [US2,US3] 建立 identity headers handoff guide，說明 host app 如何提供 `x-request-id`、`x-actor-id`、`x-organization-id`、`x-host-app`、`x-role`、`x-permission-scopes`，以及前端如何只轉交 identity context、不自行判斷權限，輸出於 `docs/integration/identity-headers-handoff.md`
-- [ ] T091 [Foundation] [US8] 建立 ApprovalRequest detail callback integration guide，說明 host app 如何實作 `onOpenApprovalDetail`、如何開啟既有 approval detail route / modal / drawer、如何處理 `approvalRequestId`、如何維持 display-only boundary，輸出於 `docs/integration/approval-detail-callback.md`
-- [ ] T092 [Foundation] [US1,US9] 建立 host theme / layout integration checklist，涵蓋 design token、container width、height、overflow、z-index、focus trap / focus management、keyboard navigation、ARIA live region、reduced motion、high contrast、degraded state readability，輸出於 `docs/integration/host-theme-layout-checklist.md`
-- [ ] T093 [Foundation] [US1,US2,US3,US8,US9] 規劃 demo host / playground fixture，用於驗證 host integration public API、embedded mode、launcher mode、context ready / not ready、entity / page / global scope、latest `PageContext`、`onOpenApprovalDetail` callback、degraded state，輸出於 `docs/integration/demo-host-playground-plan.md`
-- [ ] T094 [Foundation] [US1,US2,US3,US8,US9] 建立 host integration acceptance checklist，驗證 host app 可 mount panel、provider 可提供 context、send / retry 取得 latest `PageContext`、session scope resolver 正確、identity headers 可傳遞、`onOpenApprovalDetail` 可觸發、theme / layout 不破壞 host app，輸出於 `docs/integration/host-integration-acceptance-checklist.md`
 
 ---
 
@@ -323,11 +300,11 @@
 
 **Contract Surface**: stream interrupted、timeout、error-after-partial、degraded / unavailable、retry / resend、cancel stream != cancel action。
 
-- [ ] T095 [P] [US9] 建立 unit / component tests，覆蓋 stream interrupted、final timeout、error-after-partial、backend degraded、retry / resend、unknown event fallback 於 `tests/component/assistant/degraded-states.spec.ts`
-- [ ] T096 [US9] 建立 `DegradedMessage` 與 `InterruptedMessage`，顯示 retry / resend / safe fallback 說明 於 `app/features/assistant/components/DegradedMessage.vue` 與 `app/features/assistant/components/InterruptedMessage.vue`
-- [ ] T097 [US9] 在 `useAssistantSessionStore` 建立 degraded / unavailable / interrupted / failed message state，並保留 safe terminal behavior 於 `app/stores/assistant/useAssistantSessionStore.ts`
-- [ ] T098 [US9] 在 `ChatInputBar` 與 `useChat` 實作 retry / resend UX，要求重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope 於 `app/features/assistant/components/ChatInputBar.vue` 與 `app/features/assistant/composables/useChat.ts`
-- [ ] T099 [US9] 在 `useAssistantSseStream` 與 `useAssistantSessionStore` 隔離 cancel stream、cancel ActionDraft、ApprovalRequest display-only 狀態，避免 cancel stream 誤取消 ActionDraft 或 ApprovalRequest 於 `app/features/assistant/composables/useAssistantSseStream.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
+- [ ] T087 [P] [US9] 建立 unit / component tests，覆蓋 stream interrupted、final timeout、error-after-partial、backend degraded、retry / resend、unknown event fallback 於 `tests/component/assistant/degraded-states.spec.ts`
+- [ ] T088 [US9] 建立 `DegradedMessage` 與 `InterruptedMessage`，顯示 retry / resend / safe fallback 說明 於 `app/features/assistant/components/DegradedMessage.vue` 與 `app/features/assistant/components/InterruptedMessage.vue`
+- [ ] T089 [US9] 在 `useAssistantSessionStore` 建立 degraded / unavailable / interrupted / failed message state，並保留 safe terminal behavior 於 `app/stores/assistant/useAssistantSessionStore.ts`
+- [ ] T090 [US9] 在 `ChatInputBar` 與 `useChat` 實作 retry / resend UX，要求重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope 於 `app/features/assistant/components/ChatInputBar.vue` 與 `app/features/assistant/composables/useChat.ts`
+- [ ] T091 [US9] 在 `useAssistantSseStream` 與 `useAssistantSessionStore` 隔離 cancel stream、cancel ActionDraft、ApprovalRequest display-only 狀態，避免 cancel stream 誤取消 ActionDraft 或 ApprovalRequest 於 `app/features/assistant/composables/useAssistantSseStream.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
 
 **Checkpoint**: degraded / interrupted / retry UX 已獨立可驗收，且不會把 partial answer 當成 final。
 
@@ -341,11 +318,11 @@
 
 **Completion Criteria**: 主要 user stories 完成後，cross-cutting regression 與治理條件都能被自動化驗證。
 
-- [ ] T100 [P] 建立 no-public-chatbot-semantics regression tests，驗證 UI 中不存在 lead / handoff / phone / email / contact-us / customer-service copy 於 `tests/component/assistant/no-public-chatbot-semantics.spec.ts`
-- [ ] T101 [P] 建立 privacy guard tests，驗證不持久化 raw evidence、raw tool output、full prompt、sensitive payload、localStorage token primary strategy 於 `tests/unit/assistant/privacy-guards.spec.ts`
-- [ ] T102 [P] 建立 accessibility regression tests，覆蓋 keyboard navigation、focus management、ARIA labels、live region、confirmation / approval message renderers 可操作性 於 `tests/component/assistant/accessibility.spec.ts`
-- [ ] T103 [P] 建立 UI reference implementation boundary regression tests，驗證 production modules 不直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `tests/unit/assistant/reference-boundary.spec.ts`
-- [ ] T104 對齊最終 source-root、module-boundary、fixture coverage 與 story completion notes，更新 `docs/architecture/internal-assistant/source-structure.md`、`docs/architecture/internal-assistant/module-boundaries.md`、`tests/fixtures/assistant-api/README.md`
+- [ ] T092 [P] 建立 no-public-chatbot-semantics regression tests，驗證 UI 中不存在 lead / handoff / phone / email / contact-us / customer-service copy 於 `tests/component/assistant/no-public-chatbot-semantics.spec.ts`
+- [ ] T093 [P] 建立 privacy guard tests，驗證不持久化 raw evidence、raw tool output、full prompt、sensitive payload、localStorage token primary strategy 於 `tests/unit/assistant/privacy-guards.spec.ts`
+- [ ] T094 [P] 建立 accessibility regression tests，覆蓋 keyboard navigation、focus management、ARIA labels、live region、confirmation / approval message renderers 可操作性 於 `tests/component/assistant/accessibility.spec.ts`
+- [ ] T095 [P] 建立 UI reference implementation boundary regression tests，驗證 production modules 不直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `tests/unit/assistant/reference-boundary.spec.ts`
+- [ ] T096 對齊最終 source-root、module-boundary、fixture coverage 與 story completion notes，回寫 `design.md`、`plan.md`、`tasks.md` 與 `tests/fixtures/assistant-api/README.md`，避免建立平行 architecture source-of-truth
 
 **Checkpoint**: cross-cutting concerns 已完成，整體功能可依 constitution / spec / design / plan 驗證。
 
@@ -360,10 +337,10 @@
 | Plan Phase 2: Host Context Provider and Session Scope Foundation                 | T024-T032                                                | HostContextProvider、identity headers、latest PageContext、sanitizer、default session scope resolver、scope key、host-managed sessionId、`onOpenApprovalDetail`                                                                                                                                                                            |
 | Plan Phase 3: Session Manager and History Restore                                | T033-T038, T053-T056                                     | `app/services/index.ts` session/history JSON foundation、`AssistantService` session/history skeleton、`sessionStorage` scoped fallback、session recovery、`useAssistantSessionStore`、`useAssistantSession`、history restore / history UI                                                                                                  |
 | Plan Phase 4: HTTP Service, Assistant Domain Service, and SSE Parser Foundation  | T039-T046, T057-T062                                     | HTTP stream extension、`AssistantService.sendMessageStream()`、requestId、assistantSseParser、useAssistantSseStream、send-message SSE flow、partial / final handling                                                                                                                                                                       |
-| Plan Phase 5: Core Store and Orchestration Foundation                            | T035-T036, T048, T054, T058, T075, T079, T083, T097-T099 | stores、useChatWidgetStore、useAssistantSessionStore、useAssistantSession、useChat orchestration、feedback state、ActionDraft / ApprovalRequest state、degraded state、retry / cancel separation                                                                                                                                           |
+| Plan Phase 5: Core Store and Orchestration Foundation                            | T035-T036, T048, T054, T058, T075, T079, T083, T089-T091 | stores、useChatWidgetStore、useAssistantSessionStore、useAssistantSession、useChat orchestration、feedback state、ActionDraft / ApprovalRequest state、degraded state、retry / cancel separation                                                                                                                                           |
 | Plan Phase 6: Reference-guided UI Shell and Message Registry Implementation      | T047-T052, T055, T059-T071, T076-T086                    | ChatWidget、ChatPanel、ChatMessageArea、ChatInputBar、AiStreamingItem、AiMessageItem、safe state message renderers、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage、reference-guided UI implementation                                                                                                                      |
 | Plan Phase 7: Safe State, Feedback, ActionDraft, Approval Display                | T063-T086                                                | AnswerDecision、EvidenceDisplay、safe state message renderers、feedback API integration、ActionDraftConfirmationMessage、ApprovalRequestDisplayMessage                                                                                                                                                                                     |
-| Plan Phase 8: Accessibility, Degraded UX, and Final Contract Validation          | T095-T104                                                | degraded / interrupted / retry UX、privacy guard、accessibility regression、UI reference implementation boundary regression、final fixture coverage review                                                                                                                                                                                 |
+| Plan Phase 8: Accessibility, Degraded UX, and Final Contract Validation          | T087-T096                                                | degraded / interrupted / retry UX、privacy guard、accessibility regression、UI reference implementation boundary regression、final fixture coverage review                                                                                                                                                                                 |
 
 ---
 
@@ -376,7 +353,6 @@
 - **Phase 2**: 依賴 Phase 1；建立 host context 與 session scope foundation
 - **Phase 3**: 依賴 Phase 2；建立 session/history service skeleton、session manager、history restore
 - **Phase 4**: 依賴 Phase 1 與 Phase 3；擴充 HTTP stream support、`sendMessageStream()`、SSE parser、`useAssistantSseStream`
-- **Host Integration Deliverables**: 依賴 Phase 0～2 的 source structure、host context types、scope resolver foundation；可與 Phase 3 / Phase 4 的 session / API / SSE foundation 部分平行，但在 US1～US3 驗收前必須完成
 - **US1～US9**: 全部依賴 Phase 0～4 完成後才能開始
 - **Final Phase**: 依賴所有目標 user stories 完成
 
@@ -389,30 +365,24 @@
 - **US5**: 依賴 US3 message registry 與 US4 state mapping
 - **US6**: 依賴 US4 final assistant message rendering
 - **US7**: 依賴 US3 orchestration、US4 message rendering
-- **US8**: 依賴 US3 orchestration、US4 message rendering，且 T091 approval detail callback guide 必須在驗收前完成
+- **US8**: 依賴 US3 orchestration、US4 message rendering
 - **US9**: 依賴 US3 stream lifecycle、US7 / US8 state isolation guard，且不得依賴 Phase 4 之外的新增 service 首次建立
-- **Host Integration Readiness**: Host Integration Deliverables 必須在 US1 shell 正式 integration 前完成
-- **Theme / Layout Validation**: T092 必須在 US1 / US9 / accessibility regression 前完成
-- **Final Acceptance**: T094 必須在 Final Phase 前完成
 
 ### Recommended Delivery Order
 
 1. Phase 0～4 shared foundation
-2. Host integration deliverables
-3. US1 shell
-4. US2 restore / history
-5. US3 send-message streaming
-6. US4 evidence / AnswerDecision
-7. US5 safe states
-8. US6 feedback
-9. US7 ActionDraft confirmation
-10. US8 ApprovalRequest display-only
-11. US9 degraded / interrupted / retry
-12. Final cross-cutting polish
+2. US1 shell
+3. US2 restore / history
+4. US3 send-message streaming
+5. US4 evidence / AnswerDecision
+6. US5 safe states
+7. US6 feedback
+8. US7 ActionDraft confirmation
+9. US8 ApprovalRequest display-only
+10. US9 degraded / interrupted / retry
+11. Final cross-cutting polish
 
-Recommended integration preparation:
-
-After Phase 0～2, complete Host Integration Deliverables before or alongside Phase 3～4 foundation work, and use those integration deliverables to guide US1～US3 implementation. Host integration deliverables 必須對齊 `app/features/assistant/`、`app/services/index.ts`、`app/services/api/assistant.ts`、`AssistantHostContextProvider`。Phase 3 不得依賴 Phase 4 才首次建立的 `AssistantService`。
+Host integration requirements are already covered by Spec Kit and validated through US1～US9 implementation plus Final Validation Checklist.
 
 ## Parallel Execution Examples
 
@@ -484,7 +454,7 @@ T051 app/features/assistant/components/ChatMessageArea.vue
 
 ## Testing Policy: Pragmatic TDD
 
-本專案不要求所有前端 UI 都採 pixel-perfect TDD，但 contract-sensitive logic、pure logic、API / SSE / history、store / orchestration 與重要 UI behavior 必須有對應測試。docs-only integration tasks 則以 acceptance checklist 驗收，不要求 unit / component TDD。
+本專案不要求所有前端 UI 都採 pixel-perfect TDD，但 contract-sensitive logic、pure logic、API / SSE / history、store / orchestration 與重要 UI behavior 必須有對應測試。docs-only changes, if any, use acceptance checklist validation and do not require unit / component tests.
 
 ### 規則 1：Contract-sensitive logic 必須 test-first 或同批完成 tests
 
@@ -604,30 +574,14 @@ Behavior-focused tests 至少要驗證：
 不要求每個 CSS class 都有測試。
 不要求所有 UI 樣式都採 strict TDD。
 
-### 規則 6：Docs-only integration tasks 使用 acceptance checklist 驗收
-
-Docs-only integration tasks 使用 acceptance checklist 驗收，不需要 unit / component TDD。
-
-Docs-only integration tasks 包含：
-
-- T087 host integration public API document
-- T088 host app embedding guide
-- T089 PageContext integration examples
-- T090 identity headers handoff guide
-- T091 ApprovalRequest detail callback integration guide
-- T092 host theme / layout integration checklist
-- T093 demo host / playground fixture plan
-- T094 host integration acceptance checklist
-
-這些 task 完成條件是文件內容完整、涵蓋指定 scenarios、符合 contract guardrails，並可被 Final Validation Checklist 對應項目驗收。
-
 ## Implementation Strategy
 
 ### Foundation First
 
 1. 完成 Phase 0～4，先建立 project initialization、source-root、contract models、host / session foundation、HTTP service / AssistantService / SSE foundation
-2. 完成 Host Integration Deliverables，補齊 host integration public API、embedding guide、PageContext / identity handoff、approval detail callback、theme / layout checklist、demo host / playground plan、host integration acceptance checklist
-3. 確認 contract tests、fixture matrix、scope resolver、parser 行為通過後，再進入 story UI
+2. 確認 contract tests、fixture matrix、scope resolver、parser 行為通過後，再進入 story UI
+
+Host integration requirements are validated through US1 embedded shell, US2 / US3 latest `PageContext` and identity handoff, US8 `onOpenApprovalDetail` display-only flow, US9 degraded / layout behavior, and Final Validation Checklist.
 
 ### MVP Interaction Slice
 
@@ -653,7 +607,7 @@ Docs-only integration tasks 包含：
 - specs/001-internal-assistant-embedded-chat-panel/plan.md
 - specs/001-internal-assistant-embedded-chat-panel/tasks.md
 - docs/contracts/backend-assistant-core/ 下的 backend contract handoff
-- 若本批涉及 host integration，請一併閱讀 relevant integration docs / fixtures if applicable
+- 若本批涉及 host integration，請一併閱讀 Spec Kit 內對應的 host integration / PageContext / identity / approval callback / acceptance coverage 段落
 
 # 本批任務
 - TXXX ...
@@ -730,7 +684,7 @@ Docs-only integration tasks 包含：
 
 ### Foundation batch guidance
 
-適用 T001-T046 / T087-T094：
+適用 T001-T046：
 
 - 必須先建立或確認 Nuxt 4 project initialization
 - 必須建立 `app/features/assistant/`
@@ -775,7 +729,7 @@ Docs-only integration tasks 包含：
 
 ### Degraded / final validation batch guidance
 
-適用 US9（T095-T099）/ Final Phase（T100-T104）：
+適用 US9（T087-T091）/ Final Phase（T092-T096）：
 
 - interrupted / timeout / partial-after-error / unknown event 必須分別測
 - partial answer 不得 final
@@ -832,21 +786,21 @@ Docs-only integration tasks 包含：
 - [ ] component tests cover `ChatWidget` / `ChatPanel` / `ChatMessageArea` / `ChatInputBar` / message items / safe state message renderers
 - [ ] accessibility baseline covers keyboard / focus / ARIA / live region
 - [ ] privacy guards prevent sensitive payload persistence or logging
-- [ ] host integration public API is documented
-- [ ] host app embedding guide is documented
+- [ ] host integration public API readiness reviewed
+- [ ] host app embedding coverage confirmed in Spec Kit
 - [ ] PageContext examples cover list / detail / selectedRows / filters / visibleColumns / entity / page / global
-- [ ] identity headers handoff is documented
-- [ ] onOpenApprovalDetail integration is documented
-- [ ] host theme / layout integration checklist is documented
-- [ ] demo host / playground plan is documented
-- [ ] host integration acceptance checklist is documented
+- [ ] identity headers handoff coverage confirmed in Spec Kit
+- [ ] onOpenApprovalDetail integration coverage confirmed in Spec Kit
+- [ ] host theme / layout coverage confirmed in Spec Kit
+- [ ] demo host / playground validation strategy coverage confirmed in Spec Kit
+- [ ] host integration acceptance coverage confirmed in Spec Kit
 - [ ] host app can mount panel in embedded mode
 - [ ] host app can mount panel in launcher mode
 - [ ] host app can provide context ready / not ready state
 - [ ] host app can provide latest PageContext at send time
 - [ ] host app can provide identity headers without frontend permission decisions
 - [ ] host app can override session scope
-- [ ] host-managed sessionId flow is documented
+- [ ] host-managed sessionId flow is covered in Spec Kit
 - [ ] onOpenApprovalDetail missing / failed state is safe
 - [ ] theme / layout constraints are validated for narrow container and focus behavior
 - [ ] Testing Policy: Pragmatic TDD followed
@@ -857,7 +811,6 @@ Docs-only integration tasks 包含：
 - [ ] API / SSE / history have contract tests
 - [ ] UI components have behavior-focused component tests
 - [ ] store / orchestration flows have state transition tests
-- [ ] docs-only integration tasks are validated by acceptance checklist
 - [ ] no pixel-perfect TDD requirement was introduced
 - [ ] Nuxt 4 project initialization covered
 - [ ] Phase 0 contains executable project initialization tasks, not only planning docs
