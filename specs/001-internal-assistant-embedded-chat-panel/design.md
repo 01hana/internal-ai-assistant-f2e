@@ -38,7 +38,7 @@
 
 - internal assistant embedded chat widget / chat panel 核心功能
 - host app 嵌入 chat panel
-- open / close / embedded / launcher mode
+- right-bottom floating launcher / toggleable chat panel
 - host context provider
 - session create / restore / history
 - message send
@@ -283,14 +283,14 @@ reference UI 只負責指引排版、視覺與互動節奏；session、history�
 
 | Reference file | UI / interaction aspect to mirror | Must adapt for internal assistant | Target module | Do not carry over | Implementation note |
 |---|---|---|---|---|---|
-| `ChatWidget.vue` | widget root、launcher / panel 切換、open / close transition、外層尺寸感 | 支援 embedded mode / launcher mode、host layout constraints、internal assistant wording | `app/features/assistant/components/ChatWidget.vue` | public copy、fixed-only 假設、客服語意、anonymous visitor assumptions | 以 reference shell 節奏對齊 UI，但 open state 與 host integration 仍依本 design 與 store 設計重建 |
-| `ChatPanel.vue` | panel header / body / footer 分層、scroll region、input 固定位置 | header 改為 context summary / degraded status / host theme token | `app/features/assistant/components/ChatPanel.vue` | phone / email / contact-us、客服 disclaimer、public customer service info bar | 對齊 panel 結構與空間節奏，不帶入對外客服資訊列 |
+| `ChatWidget.vue` | widget root、launcher / panel 切換、open / close transition、外層尺寸感 | 作為嵌入 host app 的右下角 floating launcher widget，預設關閉 panel，並使用 internal assistant wording | `app/features/assistant/components/ChatWidget.vue` | public copy、inline panel mode、客服語意、anonymous visitor assumptions | 以 reference shell 節奏對齊 UI；`embedded` 只表示 host integration，MVP presentation 固定為 floating launcher |
+| `ChatPanel.vue` | panel header / body / footer 分層、scroll region、input 固定位置 | 建立由 launcher 控制的 floating dialog，header 顯示 context summary / degraded status / host theme token | `app/features/assistant/components/ChatPanel.vue` | inline region、phone / email / contact-us、客服 disclaimer、public customer service info bar | 對齊 panel 結構與空間節奏，不帶入對外客服資訊列 |
 | `ChatMessageArea.vue` | message registry、auto-scroll、empty state layout、message list rhythm | message renderer 依 `AnswerDecision` / `noAnswerReason` / ActionDraft / ApprovalRequest / degraded state 決定 | `app/features/assistant/components/ChatMessageArea.vue` | lead / handoff / public fallback message types | 保留 registry pattern 與訊息節奏，行為映射一律依 internal assistant contract |
 | `ChatInputBar.vue` | textarea、send / cancel、Enter / Shift+Enter、disabled / loading interaction | disabled state 由 context / session / streaming / degraded / confirmation state 決定 | `app/features/assistant/components/ChatInputBar.vue` | public fallback wording、customer support semantics | 對齊 composer 互動感，但 send / cancel 行為由 assistant orchestration 主導 |
 | `UserMessageItem.vue` | user bubble、對齊方式、timestamp 呈現 | 對齊 `messageId` / `createdAt` / internal theme token | `app/features/assistant/components/UserMessageItem.vue` | public chatbot styling assumption | 可高度對齊視覺，但資料來源與型別依本 feature types |
 | `AiStreamingItem.vue` | typing indicator、partial response bubble、cursor animation | content 由 `answer_delta` 驅動，finalization 必須等待 `final` event | `app/features/assistant/components/AiStreamingItem.vue` | token / done stream finalization、`onDone = final` | mirror streaming 體感，但 streaming terminal semantics 只能依 SSE contract |
 | `AiMessageItem.vue` | assistant bubble、markdown rendering、feedback UI 外觀 | 加入 `AnswerDecision`、evidence display、backend feedback contract | `app/features/assistant/components/AiMessageItem.vue` | local-only up / down toggle、public quick replies / handoff semantics | 對齊已回答訊息的呈現外觀，feedback 與 evidence 行為需完全依 contract |
-| `useChatWidgetStore.ts` | open / close / toggle / display mode 的狀態管理形態 | mode 改為 `normal / context_not_ready / degraded / unavailable` | `app/stores/assistant/useChatWidgetStore.ts` | public fallback mode semantics | mirror 狀態管理形態，不帶入 public fallback 狀態語意 |
+| `useChatWidgetStore.ts` | open / close / toggle 的狀態管理形態 | 只管理 `isOpen` 與 `normal / context_not_ready / degraded / unavailable` availability | `app/stores/assistant/useChatWidgetStore.ts` | embedded / launcher display mode、public fallback semantics | mirror 狀態管理形態，不把 host integration 誤建模成 UI mode |
 | `useChatSessionStore.ts` | session / message / streaming state 的整理方式 | 改為 `sessionId`、history cursor、feedback、ActionDraft、ApprovalRequest display state | `app/stores/assistant/useAssistantSessionStore.ts` | lead / handoff / public quick replies / long-term local token assumptions | 只參考狀態分組方式，正式 state shape 依本 design 重建 |
 | `useChatSession.ts` | create / restore / restart orchestration 節奏 | 改為 host-managed sessionId priority、`sessionStorage` scoped fallback、history asc restore | `app/features/assistant/composables/useAssistantSession.ts` | localStorage token model、`/history` assumptions、full local history restore | mirror 互動節奏；session / history 規則完全依 backend contract |
 | `useStreaming.ts` | cancel、timeout、interrupted、streaming placeholder update 的使用者體驗 | SSE lifecycle 重建為 assistant event union；final state only from `final.data.answerDecision` | `app/features/assistant/composables/useAssistantSseStream.ts` + `app/utils/assistant/assistantSseParser.ts` | token / done event contract、`onDone` finalization | mirror streaming UX，邏輯則依 parser 與 stream controller 分層重建 |
@@ -331,7 +331,7 @@ reference UI 只負責指引排版、視覺與互動節奏；session、history�
 - lead capture quick replies
 - public customer service disclaimer
 - localStorage 長期敏感 session strategy
-- fixed bottom-right 為唯一掛載模式
+- inline panel presentation assumptions
 
 ## 11. API Service Architecture
 
@@ -602,7 +602,8 @@ app/stores/assistant/
 
 `useChatWidgetStore`
 
-- open / close / display mode
+- open / close / toggle
+- panel availability
 
 `useAssistantSessionStore`
 
@@ -770,7 +771,7 @@ feedback 必須關聯：
 
 `layouts/default.vue`：
 
-- 極簡 layout，提供 internal assistant widget / embedded panel 掛載點，不含後台導覽
+- 極簡 layout，提供 host-embedded floating assistant widget 掛載點，不含後台導覽
 
 `layouts/admin.vue`：
 
@@ -783,7 +784,7 @@ feedback 必須關聯：
 
 固定規則：
 
-- 本 feature 僅實作 `default` layout 下的 chat widget / embedded panel
+- 本 feature 僅實作 `default` layout 下的 host-embedded floating chat widget
 - `admin.vue` 僅作為後續 admin feature 的預留設計，不應被本期 plan / tasks 實作
 
 ## 20. Route / Entry Strategy
@@ -904,7 +905,7 @@ Contract tests 用於：
 
 Playwright 用於：
 
-- embedded host playground smoke
+- host-embedded floating launcher smoke
 - open panel / send / stream / retry / degraded
 
 固定規則：

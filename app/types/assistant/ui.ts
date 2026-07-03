@@ -100,8 +100,6 @@ export type AssistantUiMessage =
   | ToolFailureUiMessage
   | AssistantSystemStateMessage
 
-export type AssistantWidgetMode = 'embedded' | 'launcher'
-
 export type AssistantPanelAvailability =
   | 'normal'
   | 'context_not_ready'

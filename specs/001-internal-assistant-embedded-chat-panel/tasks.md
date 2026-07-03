@@ -150,18 +150,18 @@
 
 ## Phase 5: User Story 1 - 嵌入 host app 並開啟 chat panel (Priority: P1) 🎯
 
-**Goal**: 在 host app 中提供可嵌入的 assistant shell，支援 embedded / launcher mode、basic accessibility、context not-ready fallback。
+**Goal**: 在 host app 中提供右下角 floating assistant launcher，支援 toggleable dialog、basic accessibility、context not-ready fallback；`embedded` 僅表示 host integration，不是 inline display mode。
 
-**Independent Test**: 在 host app fixture 中掛載 panel，驗證 context ready / not ready、窄容器、鍵盤操作與無 public chatbot copy。
+**Independent Test**: 在 host app fixture 中掛載 `ChatWidget`，驗證 launcher 預設顯示且 panel 預設關閉，launcher / close / Escape 可切換 dialog，並覆蓋 context ready / not ready、窄 viewport、鍵盤操作與無 public chatbot copy。
 
-**Contract Surface**: embedded shell、context readiness、reference-aligned component naming、no public chatbot semantics。
+**Contract Surface**: host-embedded floating launcher shell、context readiness、reference-aligned component naming、no public chatbot semantics。
 
-- [ ] T047 [P] [US1] 建立 component tests，覆蓋 panel open、context not ready、narrow container、keyboard focus 與 no fixed bottom-right assumption 於 `tests/component/assistant/ChatWidget.shell.spec.ts`
-- [ ] T048 [US1] 建立 `useChatWidgetStore`，管理 panel open / close / toggle 與 internal assistant display modes 於 `app/stores/assistant/useChatWidgetStore.ts`
-- [ ] T049 [US1] 參考 `docs/reference/legacy-chatbot-widget/raw/` 的 widget shell 節奏，在 production source 建立 reference-guided `ChatWidget` 於 `app/features/assistant/components/ChatWidget.vue`
-- [ ] T050 [US1] 建立 `ChatPanel` layout，支援 embedded / launcher mode、header context summary、ARIA live region 與 focus management 於 `app/features/assistant/components/ChatPanel.vue`
-- [ ] T051 [US1] 建立 base `ChatMessageArea` registry skeleton，預留 user / streaming / answered / safe state message renderer slots 於 `app/features/assistant/components/ChatMessageArea.vue`
-- [ ] T052 [US1] 移除或禁止 public chatbot copy、lead / handoff / support disclaimer semantics 於 `app/features/assistant/components/ChatWidget.vue` 與 `app/features/assistant/components/ChatPanel.vue`
+- [x] T047 [P] [US1] 建立 component tests，覆蓋 bottom-right launcher、panel toggle、context not ready、narrow viewport、keyboard focus 與 dialog accessibility 於 `tests/component/assistant/ChatWidget.shell.spec.ts`
+- [x] T048 [US1] 建立 `useChatWidgetStore`，管理 panel open / close / toggle 與 internal assistant availability 於 `app/stores/assistant/useChatWidgetStore.ts`
+- [x] T049 [US1] 參考 `docs/reference/legacy-chatbot-widget/raw/` 的 widget shell 節奏，在 production source 建立 host-embedded bottom-right floating launcher `ChatWidget` 於 `app/features/assistant/components/ChatWidget.vue`
+- [x] T050 [US1] 建立 floating dialog `ChatPanel` layout，支援 header context summary、ARIA live region、Escape close 與 focus management 於 `app/features/assistant/components/ChatPanel.vue`
+- [x] T051 [US1] 建立 base `ChatMessageArea` registry skeleton，預留 user / streaming / answered / safe state message renderer slots 於 `app/features/assistant/components/ChatMessageArea.vue`
+- [x] T052 [US1] 移除或禁止 public chatbot copy、lead / handoff / support disclaimer semantics 於 `app/features/assistant/components/ChatWidget.vue` 與 `app/features/assistant/components/ChatPanel.vue`
 
 **Checkpoint**: panel shell 可在 host app 中獨立掛載與開啟，且不帶 public chatbot semantics。
 
@@ -794,8 +794,8 @@ Host integration requirements are validated through US1 embedded shell, US2 / US
 - [ ] host theme / layout coverage confirmed in Spec Kit
 - [ ] demo host / playground validation strategy coverage confirmed in Spec Kit
 - [ ] host integration acceptance coverage confirmed in Spec Kit
-- [ ] host app can mount panel in embedded mode
-- [ ] host app can mount panel in launcher mode
+- [ ] host app can mount the host-embedded floating assistant widget
+- [ ] bottom-right launcher toggles the chat panel dialog
 - [ ] host app can provide context ready / not ready state
 - [ ] host app can provide latest PageContext at send time
 - [ ] host app can provide identity headers without frontend permission decisions

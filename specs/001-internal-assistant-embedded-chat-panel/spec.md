@@ -26,7 +26,7 @@
 
 ## Product Context
 
-這是企業內部後台 AI 助理的前端 embedded panel，不是 public chatbot，也不是 backend assistant core。
+這是嵌入企業內部後台的 AI 助理 floating launcher widget，不是 public chatbot，也不是 backend assistant core。`embedded` 僅描述 host app integration / installation model，不代表 inline panel display mode；MVP UI 固定由右下角 launcher button 開啟或收合 floating chat panel。
 
 此前端 feature 依賴 backend assistant API contract handoff，並以前端整合契約作為唯一 API surface 依據。前端只負責 host context 收集、對話 UI、session restore、SSE 消費、evidence / decision 狀態呈現與有限的人機確認流程。
 
@@ -52,17 +52,19 @@
 
 ### User Story 1 - 嵌入 host app 並開啟 chat panel (Priority: P1)
 
-已登入的內部使用者可以在 ERP、MES、WMS、SCM、CRM、Admin 等宿主頁面中開啟 AI 助理面板，並在不同容器寬度與基本無障礙操作條件下正常使用。
+已登入的內部使用者可以在 ERP、MES、WMS、SCM、CRM、Admin 等宿主頁面中，透過右下角 floating launcher 開啟或收合 AI 助理面板，並在窄 viewport 與基本無障礙操作條件下正常使用。
 
 **Why this priority**: 若 panel 無法在 host app 中穩定掛載與開啟，後續所有 session、message 與 SSE 互動都無法發生。
 
-**Independent Test**: 可在一個已登入的 host app 頁面中掛載 panel，分別驗證 host context ready、provider not ready、窄容器與鍵盤操作情境，確認面板能顯示正確初始狀態與安全 fallback。
+**Independent Test**: 可在一個已登入的 host app 頁面中掛載 `ChatWidget`，驗證預設只顯示右下角 launcher、點擊後開啟 dialog、再次點擊 / close / Escape 可關閉，以及 host context ready、provider not ready、窄 viewport 與鍵盤操作下的安全 fallback。
 
 **Acceptance Scenarios**:
 
-1. **Given** host app 已提供必要 identity headers 與可用的 `AssistantHostContextProvider`，**When** 使用者開啟 chat panel，**Then** 系統必須顯示可互動的 assistant 面板，並準備後續 session 與 send-message 流程。
-2. **Given** host app 尚未準備好 context provider 或必要 host context，**When** 使用者開啟 chat panel，**Then** 系統必須顯示安全的 not-ready 狀態，而不是用猜測資料進入可送訊息模式。
-3. **Given** panel 被嵌入窄寬度容器或使用者以鍵盤與輔助技術操作，**When** 使用者開啟 panel，**Then** 系統必須維持基本可用性、可聚焦性與可理解的狀態提示。
+1. **Given** host app 已掛載 `ChatWidget`，**When** 頁面完成載入，**Then** 系統預設只顯示右下角 floating launcher，不直接顯示 chat panel。
+2. **Given** floating launcher 已顯示，**When** 使用者點擊 launcher，**Then** 系統必須開啟可互動的 assistant dialog，並準備後續 session 與 send-message 流程。
+3. **Given** assistant dialog 已開啟，**When** 使用者再次點擊 launcher、點擊 close button 或按下 Escape，**Then** dialog 必須關閉並維持可再次開啟的 launcher。
+4. **Given** host app 尚未準備好 context provider 或必要 host context，**When** 使用者開啟 chat panel，**Then** 系統必須顯示安全的 not-ready 狀態，而不是用猜測資料進入可送訊息模式。
+5. **Given** viewport 較窄或使用者以鍵盤與輔助技術操作，**When** 使用者開啟 panel，**Then** 系統必須維持基本可用性、可聚焦性與可理解的狀態提示。
 
 ---
 
@@ -212,7 +214,7 @@
 
 ### Functional Requirements
 
-- **FR-001**: 系統 MUST 提供可嵌入企業內部宿主系統的 embedded chat panel / widget，供已登入的內部人員使用。
+- **FR-001**: 系統 MUST 提供可嵌入企業內部宿主系統的 floating launcher widget，供已登入的內部人員使用；`embedded` 僅代表 host integration，MVP presentation MUST 為右下角 launcher + toggleable dialog，且 panel 預設關閉。
 - **FR-002**: 系統 MUST 將 `.specify/memory/constitution.md` 中定義的 internal-only、backend-source-of-truth、secure-by-default、SSE-first、evidence-visible 與 human-control-for-risky-actions 原則視為此 feature 的強制約束。
 - **FR-003**: 系統 MUST 以 backend assistant API handoff 作為唯一 contract 依據，不得自行發明未被 handoff 保證的 endpoint、event type、response field 或 final state。
 - **FR-004**: 系統 MUST 提供 `AssistantHostContextProvider` 或等效 host adapter 概念，作為 chat panel 取得 actor context、host app、organization boundary 與最新 `pageContext` 的標準整合介面。
@@ -292,7 +294,7 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: 已登入的內部使用者可在支援的 host app 頁面中開啟 chat panel，並在單一操作流程內完成送出第一則訊息與看到最終回應狀態。
+- **SC-001**: 已登入的內部使用者可在支援的 host app 頁面中透過右下角 floating launcher 開啟與關閉 chat panel，並在單一操作流程內完成送出第一則訊息與看到最終回應狀態。
 - **SC-002**: 一般 send-message flow 必須向使用者清楚呈現 sending、connecting、streaming 與 final 或 error 狀態，且最終狀態以 `final.data.answerDecision` 對齊 backend contract。
 - **SC-003**: 在存在可見 session 的情況下，使用者可成功 restore session 並看到從 backend 載入的 history；當 `nextCursor` 非空時，使用者可成功載入更多訊息。
 - **SC-004**: `global`、`page`、`entity` 三種 session scope 的 context injection 與 restore 行為皆有自動化測試覆蓋，且 message send 能攜帶當次最新 `pageContext`。

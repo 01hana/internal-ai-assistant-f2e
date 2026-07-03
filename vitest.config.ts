@@ -1,3 +1,4 @@
+import { defineVitestProject } from "@nuxt/test-utils/config";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -18,13 +19,17 @@ export default defineConfig({
           environment: "node",
         },
       },
-      {
+      await defineVitestProject({
         test: {
           name: "component",
           include: ["tests/component/**/*.spec.ts"],
-          environment: "jsdom",
+          environmentOptions: {
+            nuxt: {
+              domEnvironment: "jsdom",
+            },
+          },
         },
-      },
+      }),
     ],
   },
 });

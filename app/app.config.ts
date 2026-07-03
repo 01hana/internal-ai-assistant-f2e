@@ -4,7 +4,7 @@ export default defineAppConfig({
       base: "w-full max-w-1280",
     },
     colors: {
-      primary: "sky",
+      primary: "emerald",
       neutral: "zinc",
       success: "emerald",
       warning: "amber",
@@ -144,9 +144,5 @@ export default defineAppConfig({
       nuxt: "logos:nuxt-icon",
     },
     cssLayer: "base",
-  },
-  assistant: {
-    widgetMode: "embedded",
-    allowReferenceUiImport: false,
   },
 });

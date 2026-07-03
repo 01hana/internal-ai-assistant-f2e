@@ -267,7 +267,7 @@ Nuxt 4 / Vue 3 / TypeScript / Nuxt UI / Tailwind CSS v4 / Pinia / vee-validate /
 
 | User Story | Primary Phases | Covered Capabilities | Validation Notes |
 |---|---|---|---|
-| US1：嵌入 host app 並開啟 chat panel | Phase 0, Phase 6, Phase 8 | embedded / launcher mode、`ChatWidget` / `ChatPanel` shell、layout、accessibility | 確認不假設 fixed bottom-right，reference UI 不得帶入 public chatbot semantics |
+| US1：嵌入 host app 並開啟 chat panel | Phase 0, Phase 6, Phase 8 | host-embedded floating launcher、toggleable `ChatWidget` / `ChatPanel` dialog、layout、accessibility | `embedded` 僅表示 host integration；MVP 固定為 bottom-right launcher，reference UI 不得帶入 public chatbot semantics |
 | US2：建立 / 還原 session 與載入 history | Phase 2, Phase 3 | `AssistantHostContextProvider`、session scope resolver、host-managed sessionId、`sessionStorage` fallback、history loading | history 必須使用 `GET /api/v1/assistant/sessions/:sessionId/messages`、`order=asc`、`nextCursor` |
 | US3：送出 message + PageContext + SSE streaming | Phase 2, Phase 4, Phase 5 | latest `PageContext`、`requestId`、`AssistantService.sendMessageStream`、`assistantSseParser`、`answer_delta`、`final` | request body 是 JSON，response 是 SSE，final state 只看 `final.data.answerDecision` |
 | US4：呈現 evidence / AnswerDecision | Phase 1, Phase 5, Phase 7 | AnswerDecision mapper、evidence normalization、`AiMessageItem`、evidence display | `string[] evidenceRefs` 只能顯示 safe chip / id |
@@ -653,7 +653,7 @@ full history cache
 
 **主要工作**：
 
-- embedded layout / launcher mode / narrow container
+- host-embedded floating launcher / toggleable dialog / narrow viewport
 - keyboard / focus / ARIA / live region
 - degraded / unavailable / retry strategy
 - contract-oriented regression validation
@@ -787,7 +787,7 @@ full history cache
 
 - `app/features/assistant/components/`
 - `ChatWidget` open / close
-- `ChatPanel` embedded / launcher mode
+- `ChatWidget` bottom-right floating launcher 與 `ChatPanel` dialog toggle
 - `ChatInputBar` send / cancel / disabled states
 - `ChatMessageArea` registry
 - `UserMessageItem`
@@ -879,7 +879,7 @@ full history cache
 - reference UI 的哪些 spacing / animation / shell behavior 是 must-have，哪些可由 Nuxt UI / Tailwind 重建時調整？
 - prompt suggestions 是否要保留 quick replies 的 UI 外觀？
 - feedback reason / intent 的 UX 呈現方式要使用 chips、select 還是 modal？
-- embedded mode 與 launcher mode 是否都要在第一版實作，或 launcher mode 作為後續增強？
+- floating launcher placement 是否在後續版本支援 bottom-left 或 host override？
 - host theme / design token override 的最低第一版支援範圍是什麼？
 
 ## 14. Task Generation Guidance
