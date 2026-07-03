@@ -2,7 +2,10 @@
 import type {
   AssistantMessageRendererKind,
   AssistantUiMessage,
+  HistoryMessageSummary,
 } from '../../../types/assistant'
+
+type AssistantRenderableMessage = AssistantUiMessage | HistoryMessageSummary
 
 type AssistantRendererSlot =
   | 'user'
@@ -10,17 +13,45 @@ type AssistantRendererSlot =
   | 'answered'
   | 'safe-state'
 
-withDefaults(defineProps<{
-  messages?: AssistantUiMessage[]
+const props = withDefaults(defineProps<{
+  messages?: AssistantRenderableMessage[]
   contextReady?: boolean
+  nextCursor?: string | null
+  historyLoading?: boolean
+  historyLoadingMore?: boolean
 }>(), {
   messages: () => [],
   contextReady: true,
+  nextCursor: null,
+  historyLoading: false,
+  historyLoadingMore: false,
 })
 
+defineEmits<{
+  loadMore: []
+}>()
+
+function isUiMessage(
+  message: AssistantRenderableMessage,
+): message is AssistantUiMessage {
+  return 'kind' in message
+}
+
 function getRendererSlot(
-  kind: AssistantMessageRendererKind,
+  message: AssistantRenderableMessage,
 ): AssistantRendererSlot {
+  if (!isUiMessage(message)) {
+    if (message.role === 'user') {
+      return 'user'
+    }
+
+    return message.answerDecision === 'answered'
+      ? 'answered'
+      : 'safe-state'
+  }
+
+  const kind: AssistantMessageRendererKind = message.kind
+
   switch (kind) {
     case 'user':
       return 'user'
@@ -31,6 +62,14 @@ function getRendererSlot(
     default:
       return 'safe-state'
   }
+}
+
+function getMessageKey(message: AssistantRenderableMessage): string {
+  return isUiMessage(message) ? message.key : message.messageId
+}
+
+function getMessageKind(message: AssistantRenderableMessage): string {
+  return isUiMessage(message) ? message.kind : `history_${message.role}`
 }
 </script>
 
@@ -54,6 +93,16 @@ function getRendererSlot(
       />
     </slot>
 
+    <UAlert
+      v-else-if="historyLoading && messages.length === 0"
+      icon="i-lucide-loader-circle"
+      color="neutral"
+      variant="subtle"
+      title="正在還原對話"
+      description="助理正在安全地載入這個 session 的訊息摘要。"
+      data-testid="assistant-history-loading"
+    />
+
     <slot
       v-else-if="messages.length === 0"
       name="empty"
@@ -67,27 +116,45 @@ function getRendererSlot(
       />
     </slot>
 
-    <ol
+    <div
       v-else
-      class="grid list-none gap-3 p-0"
-      aria-label="對話訊息"
+      class="grid gap-3"
     >
-      <li
-        v-for="(message, index) in messages"
-        :key="message.key"
-        class="min-w-0"
-        :data-message-kind="message.kind"
+      <ol
+        class="grid list-none gap-3 p-0"
+        aria-label="對話訊息"
       >
-        <slot
-          :name="getRendererSlot(message.kind)"
-          :message="message"
-          :index="index"
+        <li
+          v-for="(message, index) in props.messages"
+          :key="getMessageKey(message)"
+          class="min-w-0"
+          :data-message-kind="getMessageKind(message)"
         >
-          <article class="max-w-[85%] [overflow-wrap:anywhere] rounded-2xl border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm">
-            {{ message.content }}
-          </article>
-        </slot>
-      </li>
-    </ol>
+          <slot
+            :name="getRendererSlot(message)"
+            :message="message"
+            :index="index"
+          >
+            <article class="max-w-[85%] [overflow-wrap:anywhere] rounded-2xl border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm">
+              {{ message.content }}
+            </article>
+          </slot>
+        </li>
+      </ol>
+
+      <UButton
+        v-if="nextCursor"
+        class="justify-self-center"
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-history"
+        :loading="historyLoadingMore"
+        :disabled="historyLoadingMore"
+        data-testid="assistant-history-load-more"
+        @click="$emit('loadMore')"
+      >
+        載入更多訊息
+      </UButton>
+    </div>
   </section>
 </template>

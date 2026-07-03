@@ -63,6 +63,7 @@ export interface UseAssistantSessionOptions {
   hostContext: AssistantSessionHostContext
   sessionMap?: SessionStorageSessionMap
   historyLimit?: number
+  terminalRecoveryMode?: 'automatic_create' | 'manual_restart'
 }
 
 const DEFAULT_HISTORY_LIMIT = 30
@@ -94,6 +95,8 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
   const assistantService = options.assistantService ?? new AssistantService()
   const sessionMap = options.sessionMap ?? createSessionStorageSessionMap()
   const historyLimit = options.historyLimit ?? DEFAULT_HISTORY_LIMIT
+  const terminalRecoveryMode
+    = options.terminalRecoveryMode ?? 'automatic_create'
   const store = useAssistantSessionStore()
 
   async function getLatestIdentityHeaders():
@@ -266,9 +269,22 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
 
         if (
           shouldClearScopedSessionFallback(reason)
-          && candidate.sessionId === storedSessionId
+          && (
+            candidate.sessionId === storedSessionId
+            || terminalRecoveryMode === 'manual_restart'
+          )
         ) {
           sessionMap.clear(sessionScope.key)
+        }
+
+        if (
+          shouldClearScopedSessionFallback(reason)
+          && terminalRecoveryMode === 'manual_restart'
+        ) {
+          store.setSession(null)
+          store.setMessages([], null)
+          store.setError(createRecoveryError(reason), reason)
+          return
         }
 
         if (!shouldClearScopedSessionFallback(reason)) {
@@ -281,9 +297,22 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
 
         if (
           shouldClearScopedSessionFallback(reason)
-          && candidate.sessionId === storedSessionId
+          && (
+            candidate.sessionId === storedSessionId
+            || terminalRecoveryMode === 'manual_restart'
+          )
         ) {
           sessionMap.clear(sessionScope.key)
+        }
+
+        if (
+          shouldClearScopedSessionFallback(reason)
+          && terminalRecoveryMode === 'manual_restart'
+        ) {
+          store.setSession(null)
+          store.setMessages([], null)
+          store.setError(createRecoveryError(reason), reason)
+          return
         }
 
         if (!shouldClearScopedSessionFallback(reason)) {
@@ -304,7 +333,7 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
       return
     }
 
-    store.setLoadingHistory()
+    store.setLoadingHistory('more')
     const identityHeaders = await getLatestIdentityHeaders()
 
     if (!identityHeaders) {
@@ -371,10 +400,17 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     await createNewSession(sessionScope)
   }
 
+  async function clearScopedFallback(): Promise<void> {
+    const sessionScope = await options.hostContext
+      .getResolvedSessionScope('restore')
+    sessionMap.clear(sessionScope.key)
+  }
+
   return {
     store,
     restoreOrCreateSession,
     loadMoreHistory,
     restartSession,
+    clearScopedFallback,
   }
 }

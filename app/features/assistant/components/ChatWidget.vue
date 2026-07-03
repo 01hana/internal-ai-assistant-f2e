@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { AssistantPanelAvailability } from "../../../types/assistant";
+import type {
+  AssistantHostContextProvider,
+  AssistantPanelAvailability,
+} from "../../../types/assistant";
 
 interface ChatPanelExposed {
   focus: () => void;
@@ -9,16 +12,29 @@ const props = withDefaults(
   defineProps<{
     availability?: AssistantPanelAvailability;
     contextSummary?: string;
+    hostContextProvider?: AssistantHostContextProvider;
     title?: string;
   }>(),
   {
     availability: undefined,
     contextSummary: undefined,
+    hostContextProvider: undefined,
     title: "AI 助理",
   },
 );
 
 const widgetStore = useChatWidgetStore();
+const chat = useChat({
+  hostContextProvider: props.hostContextProvider,
+});
+const {
+  messages,
+  nextCursor,
+  historyLoading,
+  historyLoadingMore,
+  isBootstrapping,
+  recoveryState,
+} = chat;
 const { isOpen, availability: storeAvailability } = storeToRefs(widgetStore);
 const widgetRoot = useTemplateRef<HTMLElement>("widgetRoot");
 const panelRef = useTemplateRef<ChatPanelExposed>("panelRef");
@@ -44,6 +60,7 @@ async function openPanel() {
   widgetStore.open();
   await nextTick();
   panelRef.value?.focus();
+  void chat.bootstrapOnPanelOpen();
 }
 
 async function closePanel() {
@@ -83,7 +100,15 @@ async function togglePanel() {
         :availability="storeAvailability"
         :title="title"
         :context-summary="contextSummary"
+        :messages="messages"
+        :next-cursor="nextCursor"
+        :history-loading="historyLoading"
+        :history-loading-more="historyLoadingMore"
+        :session-loading="isBootstrapping"
+        :recovery-state="recoveryState"
         @close="closePanel"
+        @load-more-history="chat.loadMoreHistory"
+        @restart-session="chat.restartSession"
       />
     </Transition>
 

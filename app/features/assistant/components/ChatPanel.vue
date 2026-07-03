@@ -2,24 +2,42 @@
 import type {
   AssistantPanelAvailability,
   AssistantUiMessage,
+  HistoryMessageSummary,
 } from "../../../types/assistant";
+import type { AssistantSessionRecoveryReason } from "../../../utils/assistant/sessionRecovery";
+
+interface AssistantSessionRecoveryViewState {
+  reason: AssistantSessionRecoveryReason;
+}
 
 const props = withDefaults(
   defineProps<{
     availability: AssistantPanelAvailability;
     title?: string;
     contextSummary?: string;
-    messages?: AssistantUiMessage[];
+    messages?: Array<AssistantUiMessage | HistoryMessageSummary>;
+    nextCursor?: string | null;
+    historyLoading?: boolean;
+    historyLoadingMore?: boolean;
+    sessionLoading?: boolean;
+    recoveryState?: AssistantSessionRecoveryViewState | null;
   }>(),
   {
     title: "AI 助理",
     contextSummary: undefined,
     messages: () => [],
+    nextCursor: null,
+    historyLoading: false,
+    historyLoadingMore: false,
+    sessionLoading: false,
+    recoveryState: null,
   },
 );
 
 const emit = defineEmits<{
   close: [];
+  loadMoreHistory: [];
+  restartSession: [];
 }>();
 
 const panelRoot = useTemplateRef<HTMLElement>("panelRoot");
@@ -132,7 +150,21 @@ defineExpose({
 
       <div class="h-full overflow-y-auto overscroll-contain">
         <slot name="content">
-          <ChatMessageArea :messages="messages" :context-ready="contextReady" />
+          <SessionRecoveryMessage
+            v-if="contextReady && recoveryState"
+            :reason="recoveryState.reason"
+            :busy="sessionLoading"
+            @restart="emit('restartSession')"
+          />
+          <ChatMessageArea
+            v-else
+            :messages="messages"
+            :context-ready="contextReady"
+            :next-cursor="nextCursor"
+            :history-loading="sessionLoading || historyLoading"
+            :history-loading-more="historyLoadingMore"
+            @load-more="emit('loadMoreHistory')"
+          />
         </slot>
       </div>
 
