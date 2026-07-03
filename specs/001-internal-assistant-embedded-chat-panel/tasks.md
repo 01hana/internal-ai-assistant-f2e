@@ -175,10 +175,10 @@
 
 **Contract Surface**: session restore priority、history endpoint、`order=asc`、`nextCursor`、session fail-safe。
 
-- [ ] T053 [P] [US2] 建立 component / integration tests，覆蓋 host-managed sessionId restore、`sessionStorage` fallback、`nextCursor` load-more、expired / invisible fail-safe 於 `tests/component/assistant/session-history.spec.ts`
-- [ ] T054 [US2] 在 `useChat` bootstrap flow 中整合 `useAssistantSession`，於 panel 開啟時執行 controlled restore / create 於 `app/features/assistant/composables/useChat.ts`
-- [ ] T055 [US2] 在 `ChatMessageArea` 實作 history rendering 與 `nextCursor` 載入更多 UX，且只依 asc messages / `nextCursor` 判斷是否續載 於 `app/features/assistant/components/ChatMessageArea.vue`
-- [ ] T056 [US2] 建立 `SessionRecoveryMessage`，處理 session expired / invisible / closed 與 restart path 於 `app/features/assistant/components/SessionRecoveryMessage.vue`
+- [x] T053 [P] [US2] 建立 component / integration tests，覆蓋 host-managed sessionId restore、`sessionStorage` fallback、`nextCursor` load-more、expired / invisible fail-safe 於 `tests/component/assistant/session-history.spec.ts`
+- [x] T054 [US2] 在 `useChat` bootstrap flow 中整合 `useAssistantSession`，於 panel 開啟時執行 controlled restore / create 於 `app/features/assistant/composables/useChat.ts`
+- [x] T055 [US2] 在 `ChatMessageArea` 實作 history rendering 與 `nextCursor` 載入更多 UX，且只依 asc messages / `nextCursor` 判斷是否續載 於 `app/features/assistant/components/ChatMessageArea.vue`
+- [x] T056 [US2] 建立 `SessionRecoveryMessage`，處理 session expired / invisible / closed 與 restart path 於 `app/features/assistant/components/SessionRecoveryMessage.vue`
 
 **Checkpoint**: session restore / history 可獨立驗收，且不使用 local cached full history 作回退。
 
