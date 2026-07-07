@@ -9,6 +9,7 @@ import type {
   EscalationRequestId,
   IsoDateTime,
   NoAnswerReason,
+  ToolCallId,
 } from './contracts'
 import type { EvidenceReferenceDisplay } from './evidence'
 
@@ -60,12 +61,33 @@ export type AssistantStreamingStatus =
   | 'failed'
   | 'cancelled'
 
+export type AssistantStreamingActivityKind =
+  | 'tool_running'
+  | 'tool_completed'
+  | 'tool_blocked'
+  | 'tool_failed'
+  | 'stream_error'
+  | 'unknown_event'
+
+export interface AssistantStreamingActivity {
+  key: string
+  kind: AssistantStreamingActivityKind
+  sequence: number
+  label: string
+  toolCallId?: ToolCallId
+}
+
 export interface AssistantStreamingUiMessage extends AssistantUiMessageBase {
   kind: 'assistant_streaming'
   role: 'assistant'
   status: AssistantStreamingStatus
   lastSequence: number | null
+  typingVisibleUntil?: number | null
+  pendingContent?: string
+  pendingFinalAnswerDecision?: AnswerDecisionStatus
   evidence: EvidenceReferenceDisplay[]
+  activities?: AssistantStreamingActivity[]
+  finalAnswerDecision?: AnswerDecisionStatus
 }
 
 export type AssistantSystemStateKind = Exclude<

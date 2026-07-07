@@ -7,7 +7,7 @@ import {
   type AssistantSessionHostContext,
   type AssistantSessionService,
 } from '../../../app/features/assistant/composables/useAssistantSession'
-import { useAssistantSessionStore } from '../../../app/stores/assistant/session'
+import { useAssistantSessionStore } from '../../../app/stores/assistant/useSessionStore'
 import {
   createSessionStorageSessionMap,
   type AssistantSessionStorageLike,
@@ -43,11 +43,8 @@ function createMemoryStorage(initial: Record<string, string> = {}) {
 
 function createSession(status: string): AssistantSession {
   return {
-    id: `session-${status}`,
-    title: 'Synthetic session',
+    sessionId: `session-${status}`,
     status,
-    createdAt: '2026-07-02T00:00:00.000Z',
-    updatedAt: '2026-07-02T00:00:00.000Z',
   }
 }
 
@@ -89,16 +86,16 @@ function createFakeService(): AssistantSessionService {
     createSession: vi.fn(async request => ({
       requestId: 'request-create-001',
       data: {
-        ...createSession('open'),
-        id: 'session-created',
+        ...createSession('active'),
+        sessionId: 'session-created',
         pageContext: request.pageContext ?? null,
       },
     })),
     getSession: vi.fn(async sessionId => ({
       requestId: 'request-get-001',
       data: {
-        ...createSession('open'),
-        id: sessionId,
+        ...createSession('active'),
+        sessionId,
       },
     })),
     getSessionMessages: vi.fn(async sessionId => ({
@@ -295,7 +292,7 @@ describe('sessionRecovery', () => {
     ])
   })
 
-  it.each(['open', 'active', 'ready'])(
+  it.each(['active'])(
     'treats %s sessions as reusable',
     (status) => {
       expect(isReusableAssistantSession(createSession(status))).toBe(true)
@@ -376,7 +373,7 @@ describe('useAssistantSessionStore', () => {
 
   it('supports lifecycle, session, history, error, and reset transitions', () => {
     const store = useAssistantSessionStore()
-    const session = createSession('open')
+    const session = createSession('active')
 
     store.setRestoring()
     expect(store.status).toBe('restoring')
@@ -392,6 +389,7 @@ describe('useAssistantSessionStore', () => {
     expect(store.status).toBe('ready')
     expect(store.sessionScope).toEqual(sessionScope)
     expect(store.session).toEqual(session)
+    expect(store.sessionId).toBe(session.sessionId)
     expect(store.messages).toEqual(historyMessages)
     expect(store.nextCursor).toBe('message-002')
 
@@ -412,6 +410,7 @@ describe('useAssistantSessionStore', () => {
       lastError: null,
       recoveryReason: null,
     })
+    expect(store.sessionId).toBeNull()
   })
 })
 
@@ -500,7 +499,7 @@ describe('useAssistantSession', () => {
       { pageContext: sessionScope.pageContext },
       { identityHeaders },
     )
-    expect(assistantSession.store.session?.id).toBe('session-created')
+    expect(assistantSession.store.session?.sessionId).toBe('session-created')
     expect(assistantSession.store.messages).toEqual([])
     expect(assistantSession.store.nextCursor).toBeNull()
     expect(sessionMap.write).toHaveBeenCalledWith(
@@ -517,7 +516,7 @@ describe('useAssistantSession', () => {
         requestId: 'request-get-unusable',
         data: {
           ...createSession(status),
-          id: 'session-stored',
+          sessionId: 'session-stored',
         },
       })
       const sessionMap = createFakeSessionMap('session-stored')
@@ -617,7 +616,7 @@ describe('useAssistantSession', () => {
 
     await assistantSession.restoreOrCreateSession()
 
-    expect(assistantSession.store.session?.id).toBe('session-stored')
+    expect(assistantSession.store.session?.sessionId).toBe('session-stored')
     expect(assistantSession.store.messages).toEqual([])
     expect(assistantSession.store.status).toBe('ready')
     expect(assistantSession.store.lastError).not.toBeNull()
@@ -691,7 +690,7 @@ describe('useAssistantSession', () => {
       hostContext,
       sessionMap,
     })
-    assistantSession.store.setSession(createSession('open'))
+    assistantSession.store.setSession(createSession('active'))
     assistantSession.store.setMessages(historyMessages, 'message-002')
 
     await assistantSession.restartSession()

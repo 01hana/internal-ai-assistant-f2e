@@ -22,29 +22,17 @@ interface FeedbackAcceptedData {
 export const createSessionSuccessResponse = {
   requestId: 'req-session-create-001',
   data: {
-    id: 'session-001',
-    title: 'Order status follow-up',
-    status: 'open',
-    createdAt: '2026-06-23T09:00:00.000Z',
-    updatedAt: '2026-06-23T09:00:00.000Z',
-    pageContext: {
-      module: 'orders',
-      route: '/orders/SO-10001',
-      screenId: 'order-detail',
-      entityType: 'order',
-      entityId: 'SO-10001',
-      activeFilters: [{ field: 'status', value: 'confirmed' }],
-      visibleColumns: ['status', 'customerName'],
-    },
+    sessionId: 'session-001',
+    status: 'active',
   },
 } satisfies AssistantSuccessEnvelope<AssistantSession>
 
 export const getSessionSuccessResponse = {
   requestId: 'req-session-get-001',
   data: {
-    id: 'session-001',
+    sessionId: 'session-001',
     title: 'Order status follow-up',
-    status: 'open',
+    status: 'active',
     createdAt: '2026-06-23T09:00:00.000Z',
     updatedAt: '2026-06-23T09:02:00.000Z',
     latestMessageId: 'msg-assistant-001',

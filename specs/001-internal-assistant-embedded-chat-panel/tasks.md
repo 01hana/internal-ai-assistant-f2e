@@ -192,12 +192,12 @@
 
 **Contract Surface**: `POST /api/v1/assistant/sessions/:sessionId/messages`、JSON request、SSE response、latest `pageContext`、`requestId`、`answer_delta`、`final`。
 
-- [ ] T057 [P] [US3] 建立 component tests，覆蓋 send / cancel / streaming / final flow 與 unknown event safe fallback 於 `tests/component/assistant/send-message-streaming.spec.ts`
-- [ ] T058 [US3] 建立 `useChat` send orchestration，固定執行 validate text、get latest host context、ensure session、generate requestId、append user message、append assistant placeholder、call SSE stream 於 `app/features/assistant/composables/useChat.ts`
-- [ ] T059 [US3] 參考 reference UI composer 互動節奏，在 production source 建立 `ChatInputBar`，支援 textarea、send、cancel stream、Enter / Shift+Enter 與 context / session / degraded-aware disabled rule 於 `app/features/assistant/components/ChatInputBar.vue`
-- [ ] T060 [US3] 在 `ChatMessageArea` 實作 `answer_delta` append、streaming placeholder、tool call status event registry wiring 於 `app/features/assistant/components/ChatMessageArea.vue`
-- [ ] T061 [US3] 建立 `AiStreamingItem`，只在收到 `final` 後完成最終化，不以 stream close 或 `onDone` 推測完成 於 `app/features/assistant/components/AiStreamingItem.vue`
-- [ ] T062 [US3] 建立 unit tests，驗證 retry / resend 會重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope，不沿用 stale snapshot 於 `tests/unit/assistant/retry-context.spec.ts`
+- [x] T057 [P] [US3] 建立 component tests，覆蓋 send / cancel / streaming / final flow 與 unknown event safe fallback 於 `tests/component/assistant/send-message-streaming.spec.ts`
+- [x] T058 [US3] 建立 `useChat` send orchestration，固定執行 validate text、get latest host context、ensure session、generate requestId、append user message、append assistant placeholder、call SSE stream 於 `app/features/assistant/composables/useChat.ts`
+- [x] T059 [US3] 參考 reference UI composer 互動節奏，在 production source 建立 `ChatInputBar`，支援 textarea、send、cancel stream、Enter / Shift+Enter 與 context / session / degraded-aware disabled rule 於 `app/features/assistant/components/ChatInputBar.vue`
+- [x] T060 [US3] 在 `ChatMessageArea` 實作 `answer_delta` append、streaming placeholder、tool call status event registry wiring 於 `app/features/assistant/components/ChatMessageArea.vue`
+- [x] T061 [US3] 建立 `AiStreamingItem`，只在收到 `final` 後完成最終化，不以 stream close 或 `onDone` 推測完成 於 `app/features/assistant/components/AiStreamingItem.vue`
+- [x] T062 [US3] 建立 unit tests，驗證 retry / resend 會重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope，不沿用 stale snapshot 於 `tests/unit/assistant/retry-context.spec.ts`
 
 **Checkpoint**: send-message streaming flow 已可獨立驗收，並完全遵守 JSON request + SSE response contract。
 

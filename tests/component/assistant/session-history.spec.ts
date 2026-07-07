@@ -4,7 +4,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import ChatWidget from '../../../app/features/assistant/components/ChatWidget.vue'
-import { useAssistantSessionStore } from '../../../app/stores/assistant/session'
+import { useAssistantSessionStore } from '../../../app/stores/assistant/useSessionStore'
 import { useChatWidgetStore } from '../../../app/stores/assistant/useChatWidgetStore'
 import { createSessionStorageSessionMap } from '../../../app/utils/assistant/sessionStorageSessionMap'
 import {
@@ -23,9 +23,9 @@ import type {
 const mountedWrappers: VueWrapper[] = []
 
 const openSession = {
-  id: 'session-restored-001',
+  sessionId: 'session-restored-001',
   title: 'Restored session',
-  status: 'open',
+  status: 'active',
   createdAt: '2026-07-03T01:00:00.000Z',
   updatedAt: '2026-07-03T01:05:00.000Z',
 } satisfies AssistantSession
@@ -33,7 +33,7 @@ const openSession = {
 const firstHistoryPage = {
   requestId: 'request-history-first',
   data: {
-    sessionId: openSession.id,
+    sessionId: openSession.sessionId,
     messages: [
       {
         messageId: 'message-001',
@@ -56,7 +56,7 @@ const firstHistoryPage = {
 const finalHistoryPage = {
   requestId: 'request-history-final',
   data: {
-    sessionId: openSession.id,
+    sessionId: openSession.sessionId,
     messages: [
       {
         messageId: 'message-003',
@@ -88,7 +88,7 @@ function createJsonResponse(payload: unknown, status = 200): Response {
 
 function createSessionEnvelope(session: AssistantSession) {
   return {
-    requestId: `request-${session.id}`,
+    requestId: `request-${session.sessionId}`,
     data: session,
   } satisfies AssistantSuccessEnvelope<AssistantSession>
 }
@@ -173,6 +173,7 @@ describe('panel-open session bootstrap and history', () => {
     expect(getRequestUrl(fetchMock.mock.calls[0]!)).toBe(
       '/api/v1/assistant/sessions',
     )
+    expect(useAssistantSessionStore().sessionId).toBe(openSession.sessionId)
 
     await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
     await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
@@ -208,7 +209,7 @@ describe('panel-open session bootstrap and history', () => {
     const fetchMock = installFetchQueue(
       createJsonResponse(createSessionEnvelope({
         ...openSession,
-        id: 'session-host-managed-001',
+        sessionId: 'session-host-managed-001',
       })),
       createJsonResponse({
         ...firstHistoryPage,
@@ -239,7 +240,7 @@ describe('panel-open session bootstrap and history', () => {
     const sessionMap = createSessionStorageSessionMap({
       storage: window.sessionStorage,
     })
-    sessionMap.write(pageSessionScopeFixture.key, openSession.id)
+    sessionMap.write(pageSessionScopeFixture.key, openSession.sessionId)
 
     const fetchMock = installFetchQueue(
       createJsonResponse(createSessionEnvelope(openSession)),
@@ -250,7 +251,7 @@ describe('panel-open session bootstrap and history', () => {
     await openPanel(wrapper)
 
     expect(getRequestUrl(fetchMock.mock.calls[0]!)).toBe(
-      `/api/v1/assistant/sessions/${openSession.id}`,
+      `/api/v1/assistant/sessions/${openSession.sessionId}`,
     )
     expect(localStorageGet).not.toHaveBeenCalled()
     expect(localStorageSet).not.toHaveBeenCalled()
@@ -260,7 +261,7 @@ describe('panel-open session bootstrap and history', () => {
     const sessionMap = createSessionStorageSessionMap({
       storage: window.sessionStorage,
     })
-    sessionMap.write(pageSessionScopeFixture.key, openSession.id)
+    sessionMap.write(pageSessionScopeFixture.key, openSession.sessionId)
 
     const fetchMock = installFetchQueue(
       createJsonResponse(createSessionEnvelope(openSession)),
@@ -273,7 +274,7 @@ describe('panel-open session bootstrap and history', () => {
 
     const firstHistoryUrl = getRequestUrl(fetchMock.mock.calls[1]!)
     expect(firstHistoryUrl).toContain(
-      `/api/v1/assistant/sessions/${openSession.id}/messages?`,
+      `/api/v1/assistant/sessions/${openSession.sessionId}/messages?`,
     )
     expect(firstHistoryUrl).toContain('limit=30')
     expect(firstHistoryUrl).toContain('order=asc')
@@ -308,7 +309,7 @@ describe('panel-open session bootstrap and history', () => {
       const sessionMap = createSessionStorageSessionMap({
         storage: window.sessionStorage,
       })
-      sessionMap.write(pageSessionScopeFixture.key, openSession.id)
+      sessionMap.write(pageSessionScopeFixture.key, openSession.sessionId)
       const fetchMock = installFetchQueue(
         createJsonResponse(createSessionEnvelope({
           ...openSession,
@@ -316,7 +317,7 @@ describe('panel-open session bootstrap and history', () => {
         })),
         createJsonResponse(createSessionEnvelope({
           ...openSession,
-          id: 'session-restarted-001',
+          sessionId: 'session-restarted-001',
         })),
       )
       const wrapper = await mountWidget(createProvider())
@@ -359,7 +360,7 @@ describe('panel-open session bootstrap and history', () => {
       const sessionMap = createSessionStorageSessionMap({
         storage: window.sessionStorage,
       })
-      sessionMap.write(pageSessionScopeFixture.key, openSession.id)
+      sessionMap.write(pageSessionScopeFixture.key, openSession.sessionId)
       const fetchMock = installFetchQueue(
         createJsonResponse({
           requestId: `request-${code}`,
@@ -392,7 +393,7 @@ describe('panel-open session bootstrap and history', () => {
     const sessionMap = createSessionStorageSessionMap({
       storage: window.sessionStorage,
     })
-    sessionMap.write(pageSessionScopeFixture.key, openSession.id)
+    sessionMap.write(pageSessionScopeFixture.key, openSession.sessionId)
     const wrapper = await mountWidget(createProvider())
 
     await openPanel(wrapper)

@@ -30,13 +30,17 @@ export type NoAnswerReason =
   | 'missing_page_context'
   | 'unsupported_scope'
 
+export interface PageContextSelectedRow {
+  id: string
+}
+
 export interface PageContext {
   module?: string
   route?: string
   screenId?: string
   entityType?: string
   entityId?: string
-  selectedRows?: Array<Record<string, unknown>>
+  selectedRows?: PageContextSelectedRow[]
   activeFilters?: unknown[]
   visibleColumns?: string[]
   userVisibleState?: Record<string, unknown>
@@ -52,11 +56,11 @@ export interface SendAssistantMessageRequest {
 }
 
 export interface AssistantSession {
-  id: AssistantSessionId
-  title: string
+  sessionId: AssistantSessionId
   status: string
-  createdAt: IsoDateTime
-  updatedAt: IsoDateTime
+  title?: string
+  createdAt?: IsoDateTime
+  updatedAt?: IsoDateTime
   latestMessageId?: AssistantMessageId | null
   pageContext?: PageContext | null
 }

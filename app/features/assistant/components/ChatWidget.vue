@@ -34,6 +34,10 @@ const {
   historyLoadingMore,
   isBootstrapping,
   recoveryState,
+  canSend,
+  sendDisabledReason,
+  isSending,
+  isStreaming,
 } = chat;
 const { isOpen, availability: storeAvailability } = storeToRefs(widgetStore);
 const widgetRoot = useTemplateRef<HTMLElement>("widgetRoot");
@@ -99,16 +103,21 @@ async function togglePanel() {
         ref="panelRef"
         :availability="storeAvailability"
         :title="title"
-        :context-summary="contextSummary"
         :messages="messages"
         :next-cursor="nextCursor"
         :history-loading="historyLoading"
         :history-loading-more="historyLoadingMore"
         :session-loading="isBootstrapping"
         :recovery-state="recoveryState"
+        :can-send="canSend"
+        :send-disabled-reason="sendDisabledReason"
+        :is-sending="isSending"
+        :is-streaming="isStreaming"
         @close="closePanel"
         @load-more-history="chat.loadMoreHistory"
         @restart-session="chat.restartSession"
+        @send-message="chat.sendMessage"
+        @cancel-stream="chat.cancelStream"
       />
     </Transition>
 
@@ -116,7 +125,7 @@ async function togglePanel() {
       data-testid="assistant-launcher"
       aria-haspopup="dialog"
       :aria-expanded="isOpen"
-      class="w-14 h-14 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center justify-center bg-gradient-to-r from-primary-900 to-primary-500 text-white"
+      class="w-14 h-14 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center justify-center bg-gradient-to-r from-primary-800 to-primary-600 text-white"
       @click="togglePanel"
     >
       <UIcon name="fluent:chat-24-regular" size="24" />

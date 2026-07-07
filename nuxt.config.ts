@@ -1,12 +1,18 @@
 export default defineNuxtConfig({
-  modules: ["@nuxt/ui", "@pinia/nuxt", "@nuxt/eslint", "@vueuse/nuxt"],
+  modules: [
+    "@nuxt/ui",
+    "@pinia/nuxt",
+    "@nuxt/eslint",
+    "@vueuse/nuxt",
+    "@nuxt/icon",
+  ],
   css: ["~/assets/css/main.css"],
   devtools: {
     enabled: true,
   },
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE ?? "",
+      apiBase: process.env.NUXT_API_URL ?? "",
     },
   },
   pinia: {
@@ -21,6 +27,5 @@ export default defineNuxtConfig({
   imports: {
     dirs: ["composables", "utils", "features/assistant/composables"],
   },
-
   compatibilityDate: "2026-07-01",
 });

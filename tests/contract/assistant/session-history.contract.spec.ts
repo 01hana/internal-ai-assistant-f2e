@@ -48,6 +48,24 @@ function createService(payload: unknown, status = 200) {
 }
 
 describe('AssistantService session contract', () => {
+  it('uses an absolute shared-client base URL with domain-relative service paths', async () => {
+    const fetcher = vi.fn<typeof fetch>(
+      async () => jsonResponse(createSessionSuccessResponse, 201),
+    )
+    const service = new AssistantService({
+      httpClient: createHttpClient({
+        baseURL: 'http://localhost:3000/api/v1',
+        fetcher,
+      }),
+    })
+
+    await service.createSession({}, { identityHeaders })
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      'http://localhost:3000/api/v1/assistant/sessions',
+    )
+  })
+
   it('creates a session with JSON and merged identity headers', async () => {
     const { fetcher, service } = createService(createSessionSuccessResponse, 201)
     const pageContext = {
@@ -84,6 +102,39 @@ describe('AssistantService session contract', () => {
     expect(url).toBe('/api/v1/assistant/sessions/session%2Fwith%20space')
     expect(init?.method).toBe('GET')
     expect(init?.body).toBeUndefined()
+  })
+})
+
+describe('shared HTTP client URL normalization', () => {
+  it('removes boundary slashes without changing an absolute base URL', async () => {
+    const fetcher = vi.fn<typeof fetch>(
+      async () => jsonResponse(createSessionSuccessResponse),
+    )
+    const httpClient = createHttpClient({
+      baseURL: 'http://localhost:3000/api/v1/',
+      fetcher,
+    })
+
+    await httpClient.request({
+      path: '/assistant/sessions',
+    })
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      'http://localhost:3000/api/v1/assistant/sessions',
+    )
+  })
+
+  it('keeps the same-origin /api/v1 fallback when no base URL is provided', async () => {
+    const fetcher = vi.fn<typeof fetch>(
+      async () => jsonResponse(createSessionSuccessResponse),
+    )
+    const httpClient = createHttpClient({ fetcher })
+
+    await httpClient.request({
+      path: 'assistant/sessions',
+    })
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe('/api/v1/assistant/sessions')
   })
 })
 

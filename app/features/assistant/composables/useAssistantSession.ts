@@ -14,7 +14,7 @@ import { AssistantService } from '../../../services/api/assistant'
 import {
   useAssistantSessionStore,
   type AssistantSessionSafeError,
-} from '../../../stores/assistant/session'
+} from '../../../stores/assistant/useSessionStore'
 import {
   isReusableAssistantSession,
   resolveSessionRecoveryReason,
@@ -204,7 +204,7 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
       store.setSession(response.data)
       store.setMessages([], null)
       store.clearError()
-      sessionMap.write(sessionScope.key, response.data.id)
+      sessionMap.write(sessionScope.key, response.data.sessionId)
       store.setReady()
     }
     catch (error) {
@@ -260,8 +260,8 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
 
         if (isReusableAssistantSession(response.data)) {
           store.setSession(response.data)
-          sessionMap.write(sessionScope.key, response.data.id)
-          await loadInitialHistory(response.data.id)
+          sessionMap.write(sessionScope.key, response.data.sessionId)
+          await loadInitialHistory(response.data.sessionId)
           return
         }
 
@@ -326,7 +326,7 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
   }
 
   async function loadMoreHistory(): Promise<void> {
-    const sessionId = store.session?.id
+    const sessionId = store.session?.sessionId
     const cursor = store.nextCursor
 
     if (!sessionId || !cursor) {

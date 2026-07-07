@@ -1,12 +1,36 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createPinia, setActivePinia } from 'pinia'
 import type { VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
+import AiStreamingItem from '../../../app/features/assistant/components/AiStreamingItem.vue'
 import ChatMessageArea from '../../../app/features/assistant/components/ChatMessageArea.vue'
 import ChatWidget from '../../../app/features/assistant/components/ChatWidget.vue'
 import { useChatWidgetStore } from '../../../app/stores/assistant/useChatWidgetStore'
-import type { AssistantUiMessage } from '../../../app/types/assistant'
+import type {
+  AssistantStreamingStatus,
+  AssistantStreamingUiMessage,
+  AssistantUiMessage,
+  HistoryMessageSummary,
+} from '../../../app/types/assistant'
+
+const createdAt = '2026-07-06T08:30:00.000Z'
+
+function createStreamingMessage(
+  overrides: Partial<AssistantStreamingUiMessage> = {},
+): AssistantStreamingUiMessage {
+  return {
+    key: 'stream:req-message-items',
+    kind: 'assistant_streaming',
+    role: 'assistant',
+    content: '',
+    createdAt,
+    status: 'connecting',
+    lastSequence: null,
+    evidence: [],
+    ...overrides,
+  }
+}
 
 const messages: AssistantUiMessage[] = [
   {
@@ -50,6 +74,8 @@ const messages: AssistantUiMessage[] = [
 
 const mountedWrappers: VueWrapper[] = []
 let originalInnerWidth = window.innerWidth
+let scrollToMock: ReturnType<typeof vi.fn>
+let scrollIntoViewMock: ReturnType<typeof vi.fn>
 
 async function mountWidget(
   props: Record<string, unknown> = {},
@@ -61,6 +87,32 @@ async function mountWidget(
   mountedWrappers.push(wrapper)
   return wrapper
 }
+
+beforeEach(() => {
+  originalInnerWidth = window.innerWidth
+  scrollToMock = vi.fn()
+  scrollIntoViewMock = vi.fn()
+
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    value: scrollToMock,
+  })
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scrollIntoViewMock,
+  })
+})
+
+afterEach(() => {
+  for (const wrapper of mountedWrappers.splice(0)) {
+    wrapper.unmount()
+  }
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: originalInnerWidth,
+  })
+  document.body.innerHTML = ''
+})
 
 describe('useChatWidgetStore', () => {
   beforeEach(() => {
@@ -93,19 +145,7 @@ describe('useChatWidgetStore', () => {
 
 describe('ChatWidget floating launcher shell', () => {
   beforeEach(() => {
-    originalInnerWidth = window.innerWidth
     useChatWidgetStore().reset()
-  })
-
-  afterEach(() => {
-    for (const wrapper of mountedWrappers.splice(0)) {
-      wrapper.unmount()
-    }
-    Object.defineProperty(window, 'innerWidth', {
-      configurable: true,
-      value: originalInnerWidth,
-    })
-    document.body.innerHTML = ''
   })
 
   it('defaults to a bottom-right launcher with the panel closed', async () => {
@@ -186,6 +226,7 @@ describe('ChatWidget floating launcher shell', () => {
     await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
 
     expect(wrapper.get('[data-testid="assistant-panel-header"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-panel-main"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="assistant-message-area"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="assistant-panel-footer"]').exists()).toBe(true)
   })
@@ -214,12 +255,6 @@ describe('ChatWidget floating launcher shell', () => {
 })
 
 describe('ChatMessageArea registry skeleton', () => {
-  afterEach(() => {
-    for (const wrapper of mountedWrappers.splice(0)) {
-      wrapper.unmount()
-    }
-  })
-
   it('renders its empty and context-not-ready states', async () => {
     const empty = await mountSuspended(ChatMessageArea)
     mountedWrappers.push(empty)
@@ -232,6 +267,32 @@ describe('ChatMessageArea registry skeleton', () => {
     })
     mountedWrappers.push(notReady)
     expect(notReady.get('[data-testid="assistant-message-context-not-ready"]').exists()).toBe(true)
+  })
+
+  it('auto-scrolls via the message container and does not use scrollIntoView', async () => {
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    await wrapper.setProps({
+      messages: [
+        {
+          key: 'user-scroll-001',
+          messageId: 'message-scroll-001',
+          kind: 'user',
+          role: 'user',
+          content: '查詢目前待處理訂單',
+          createdAt,
+        } satisfies AssistantUiMessage,
+      ],
+    })
+    await nextTick()
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled()
+    expect(scrollToMock).toHaveBeenCalled()
   })
 
   it('routes messages through the four renderer slot categories', async () => {
@@ -256,5 +317,172 @@ describe('ChatMessageArea registry skeleton', () => {
     expect(wrapper.findAll('[data-renderer="streaming"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-renderer="answered"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-renderer="safe-state"]')).toHaveLength(1)
+  })
+
+  it('renders current and history messages on the correct conversation side', async () => {
+    const currentMessages: AssistantUiMessage[] = [
+      {
+        key: 'local-user:req-current',
+        messageId: 'local-user:req-current',
+        requestId: 'req-current',
+        kind: 'user',
+        role: 'user',
+        content: '查詢目前待處理訂單',
+        createdAt,
+      },
+      {
+        key: 'answer-current',
+        messageId: 'message-current',
+        requestId: 'req-current',
+        kind: 'assistant_answer',
+        role: 'assistant',
+        content: '目前有三筆待處理訂單。',
+        createdAt,
+        answerDecision: 'answered',
+        evidence: [],
+      },
+    ]
+    const historyMessages: HistoryMessageSummary[] = [
+      {
+        messageId: 'message-history-user',
+        role: 'user',
+        content: '昨天有幾筆訂單？',
+        createdAt,
+      },
+      {
+        messageId: 'message-history-assistant',
+        role: 'assistant',
+        content: '昨天共有五筆訂單。',
+        createdAt,
+        answerDecision: 'answered',
+      },
+      {
+        messageId: 'message-history-safe-assistant',
+        role: 'assistant',
+        content: '目前沒有足夠資訊可安全回答。',
+        createdAt,
+        answerDecision: 'no_answer',
+      },
+    ]
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [...currentMessages, ...historyMessages],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    const listItems = wrapper.findAll('li[data-message-kind]')
+    expect(listItems.map(item => item.attributes('data-message-kind'))).toEqual([
+      'user',
+      'assistant_answer',
+      'history_user',
+      'history_assistant',
+      'history_assistant',
+    ])
+
+    const userMessages = wrapper.findAll(
+      '[data-testid="assistant-user-message"]',
+    )
+    const assistantMessages = wrapper.findAll(
+      '[data-testid="assistant-ai-message"]',
+    )
+
+    expect(userMessages).toHaveLength(2)
+    expect(assistantMessages).toHaveLength(3)
+    expect(userMessages.every(message => message.classes().includes('justify-end'))).toBe(true)
+    expect(assistantMessages.every(message => message.classes().includes('justify-start'))).toBe(true)
+    expect(wrapper.text()).toContain('查詢目前待處理訂單')
+    expect(wrapper.text()).toContain('昨天共有五筆訂單。')
+    expect(wrapper.text()).toContain('目前沒有足夠資訊可安全回答。')
+  })
+
+  it('keeps history system safe-state messages on the fallback renderer without an assistant avatar', async () => {
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [
+          {
+            messageId: 'message-history-system',
+            role: 'system',
+            content: '系統已記錄本次查詢。',
+            createdAt,
+          } satisfies HistoryMessageSummary,
+        ],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assistant-user-message"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('系統已記錄本次查詢。')
+  })
+
+  it('shows an accessible typing indicator before the first token', async () => {
+    const wrapper = await mountSuspended(AiStreamingItem, {
+      props: {
+        message: createStreamingMessage(),
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(wrapper.get('[data-testid="assistant-typing-indicator"]').text()).toContain(
+      'AI 助理正在輸入',
+    )
+    expect(wrapper.findAll('[data-testid="assistant-typing-dot"]')).toHaveLength(3)
+    expect(wrapper.find('[data-testid="assistant-streaming-content"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assistant-streaming-cursor"]').exists()).toBe(false)
+  })
+
+  it('replaces typing with streamed content and removes the cursor after final', async () => {
+    const wrapper = await mountSuspended(AiStreamingItem, {
+      props: {
+        message: createStreamingMessage(),
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    await wrapper.setProps({
+      message: createStreamingMessage({
+        content: '正在整理訂單資料',
+        status: 'streaming',
+        lastSequence: 1,
+      }),
+    })
+
+    expect(wrapper.find('[data-testid="assistant-typing-indicator"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-streaming-content"]').text()).toContain(
+      '正在整理訂單資料',
+    )
+    expect(wrapper.find('[data-testid="assistant-streaming-cursor"]').exists()).toBe(true)
+
+    await wrapper.setProps({
+      message: createStreamingMessage({
+        messageId: 'message-final',
+        content: '訂單資料已整理完成。',
+        status: 'completed',
+        lastSequence: 2,
+        finalAnswerDecision: 'answered',
+      }),
+    })
+
+    expect(wrapper.find('[data-testid="assistant-streaming-cursor"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-streaming-finalized"]').text()).toContain(
+      '回應已完成',
+    )
+  })
+
+  it.each<AssistantStreamingStatus>([
+    'cancelled',
+    'failed',
+    'interrupted',
+  ])('does not keep typing after an empty %s terminal state', async (status) => {
+    const wrapper = await mountSuspended(AiStreamingItem, {
+      props: {
+        message: createStreamingMessage({ status }),
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(wrapper.find('[data-testid="assistant-typing-indicator"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assistant-streaming-status"]').exists()).toBe(true)
   })
 })

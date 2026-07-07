@@ -27,7 +27,7 @@ export interface ResolveSessionRestoreCandidatesInput {
   storedSessionId?: AssistantSessionId | null
 }
 
-const REUSABLE_SESSION_STATUSES = new Set(['open', 'active', 'ready'])
+const REUSABLE_SESSION_STATUSES = new Set(['active'])
 
 function normalizeValue(value: string): string {
   return value.trim().toLowerCase()

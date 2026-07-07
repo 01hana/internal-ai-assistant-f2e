@@ -34,6 +34,7 @@ describe('pageContextSanitizer', () => {
       entityId: ' SO-10001 ',
       selectedRows: [
         {
+          id: ' SO-10001 ',
           orderNumber: ' SO-10001 ',
           status: ' confirmed ',
           hiddenInternal: 'remove-me',
@@ -65,7 +66,7 @@ describe('pageContextSanitizer', () => {
         cookie: 'remove-me',
         nested: { value: 'remove-me' },
       },
-    } satisfies PageContext
+    } as unknown as PageContext
     const original = structuredClone(pageContext)
 
     expect(sanitizePageContext(pageContext)).toEqual({
@@ -76,8 +77,7 @@ describe('pageContextSanitizer', () => {
       entityId: 'SO-10001',
       selectedRows: [
         {
-          orderNumber: 'SO-10001',
-          status: 'confirmed',
+          id: 'SO-10001',
         },
       ],
       activeFilters: [
@@ -94,10 +94,26 @@ describe('pageContextSanitizer', () => {
     expect(pageContext).toEqual(original)
   })
 
-  it('omits selected rows when visible columns are unavailable', () => {
+  it('keeps ID-only selected rows without requiring visible columns', () => {
     const result = sanitizePageContext({
-      selectedRows: [{ orderNumber: 'SO-10001' }],
+      selectedRows: [{ id: 'SO-10001' }],
     })
+
+    expect(result).toEqual({
+      selectedRows: [{ id: 'SO-10001' }],
+    })
+  })
+
+  it('omits selected rows without a valid string ID', () => {
+    const rawPageContext = {
+      selectedRows: [
+        { id: '' },
+        { id: '   ' },
+        { id: 10001 },
+        { orderNumber: 'SO-10001' },
+      ],
+    } as unknown as PageContext
+    const result = sanitizePageContext(rawPageContext)
 
     expect(result).toBeNull()
   })
@@ -107,8 +123,8 @@ describe('pageContextSanitizer', () => {
       {
         module: ' inventory ',
         selectedRows: [
-          { sku: 'ABCDEFGHIJ', quantity: 2 },
-          { sku: 'SECOND', quantity: 3 },
+          { id: 'ABCDEFGHIJ', sku: 'FIRST', quantity: 2 },
+          { id: 'SECOND', sku: 'SECOND', quantity: 3 },
         ],
         activeFilters: [
           { field: 'warehouse', value: 'NORTH-WAREHOUSE' },
@@ -119,7 +135,7 @@ describe('pageContextSanitizer', () => {
           selectedTab: 'overview',
           density: 'compact',
         },
-      },
+      } as unknown as PageContext,
       {
         maxSelectedRows: 1,
         maxActiveFilters: 1,
@@ -131,7 +147,7 @@ describe('pageContextSanitizer', () => {
 
     expect(result).toEqual({
       module: 'inven',
-      selectedRows: [{ sku: 'ABCDE' }],
+      selectedRows: [{ id: 'ABCDE' }],
       activeFilters: [{ field: 'wareh', value: 'NORTH' }],
       visibleColumns: ['sku'],
       userVisibleState: {
@@ -317,7 +333,7 @@ describe('sessionScopeKeyGenerator', () => {
       pageContext: {
         route: '/orders?accessToken=remove-me',
         screenId: 'orders-list',
-        selectedRows: [{ orderNumber: 'DO-NOT-INCLUDE' }],
+        selectedRows: [{ id: 'DO-NOT-INCLUDE' }],
         activeFilters: [{ value: 'DO-NOT-INCLUDE' }],
         userVisibleState: { selectedTab: 'DO-NOT-INCLUDE' },
       },
@@ -425,11 +441,17 @@ describe('useAssistantHostContext', () => {
   })
 
   it('stores a sanitized copy and hides page context when readiness is not ready', async () => {
-    const rawPageContext: PageContext = {
+    const rawPageContext = {
       route: '/inventory?token=synthetic#private',
       visibleColumns: ['sku'],
-      selectedRows: [{ sku: 'A-100', hiddenSecret: 'synthetic-value' }],
-    }
+      selectedRows: [
+        {
+          id: 'A-100',
+          sku: 'A-100',
+          hiddenSecret: 'synthetic-value',
+        },
+      ],
+    } as unknown as PageContext
     const provider = useAssistantHostContextAdapter({
       getSnapshot: vi
         .fn<AssistantHostContextProvider['getSnapshot']>()
@@ -447,7 +469,7 @@ describe('useAssistantHostContext', () => {
     expect(sanitized.pageContext).toEqual({
       route: '/inventory',
       visibleColumns: ['sku'],
-      selectedRows: [{ sku: 'A-100' }],
+      selectedRows: [{ id: 'A-100' }],
     })
     await expect(hostContext.getLatestPageContext('retry')).resolves.toBeNull()
   })

@@ -1,27 +1,85 @@
-import type { AssistantHostContextProvider } from '../../../types/assistant'
-import type { AssistantSessionRecoveryReason } from '../../../utils/assistant/sessionRecovery'
+import { createHttpClient } from "../../../services";
+import { AssistantService } from "../../../services/api/assistant";
+import type {
+  AssistantHostContextProvider,
+  AssistantHostContextReadPurpose,
+  AssistantHostContextSnapshot,
+  AssistantSessionScope,
+  AssistantStreamingUiMessage,
+  ResolvedAssistantIdentityHeaders,
+  UserUiMessage,
+} from "../../../types/assistant";
+import { resolveDefaultSessionScope } from "../../../utils/assistant/defaultSessionScopeResolver";
+import { generateAssistantRequestId } from "../../../utils/assistant/requestIdGenerator";
+import type { AssistantSessionRecoveryReason } from "../../../utils/assistant/sessionRecovery";
 
 export interface UseChatOptions {
-  hostContextProvider?: AssistantHostContextProvider
+  hostContextProvider?: AssistantHostContextProvider;
 }
 
+export interface AssistantSendContextReader {
+  getLatestSnapshot: (
+    purpose: AssistantHostContextReadPurpose,
+  ) => Promise<AssistantHostContextSnapshot>;
+}
+
+export interface ResolvedAssistantSendContext {
+  snapshot: AssistantHostContextSnapshot;
+  scope: AssistantSessionScope;
+}
+
+export async function resolveLatestAssistantSendContext(
+  hostContext: AssistantSendContextReader,
+  purpose: Extract<AssistantHostContextReadPurpose, "send" | "retry">,
+): Promise<ResolvedAssistantSendContext> {
+  const snapshot = await hostContext.getLatestSnapshot(purpose);
+  const scope = resolveDefaultSessionScope({
+    pageContext: snapshot.pageContext,
+    identityHeaders: snapshot.identityHeaders,
+    sessionScopeOverride: snapshot.sessionScopeOverride,
+  });
+
+  return {
+    snapshot,
+    scope,
+  };
+}
+
+export type AssistantSendDisabledReason =
+  | "panel_closed"
+  | "context_not_ready"
+  | "session_not_ready"
+  | "bootstrapping"
+  | "streaming"
+  | "empty_message"
+  | "degraded"
+  | "unavailable"
+  | "scope_changed";
+
 const TERMINAL_RECOVERY_REASONS = new Set<AssistantSessionRecoveryReason>([
-  'expired',
-  'closed',
-  'invisible',
-  'not_found',
-])
+  "expired",
+  "closed",
+  "invisible",
+  "not_found",
+]);
 
 export function useChat(options: UseChatOptions = {}) {
-  const widgetStore = useChatWidgetStore()
-  const hostContextProvider = options.hostContextProvider
-    ?? useAssistantHostContextAdapter()
-  const hostContext = useAssistantHostContext(hostContextProvider)
+  const widgetStore = useChatWidgetStore();
+  const hostContextProvider =
+    options.hostContextProvider ?? useAssistantHostContextAdapter();
+  const hostContext = useAssistantHostContext(hostContextProvider);
+  const config = useRuntimeConfig();
+  const assistantService = new AssistantService({
+    httpClient: createHttpClient({
+      baseURL: config.public.apiBase || "/api/v1",
+    }),
+  });
   const assistantSession = useAssistantSession({
     hostContext,
-    terminalRecoveryMode: 'manual_restart',
-  })
-  const sessionStore = assistantSession.store
+    assistantService,
+    terminalRecoveryMode: "manual_restart",
+  });
+  const sessionStore = assistantSession.store;
   const {
     messages,
     nextCursor,
@@ -29,96 +87,314 @@ export function useChat(options: UseChatOptions = {}) {
     historyLoadingMore,
     contextReady,
     recoveryReason,
-  } = storeToRefs(sessionStore)
+    activeRequestId,
+  } = storeToRefs(sessionStore);
 
-  let bootstrapTask: Promise<void> | null = null
+  const scopeChanged = ref(false);
+  const sendInFlight = ref(false);
+  const stream = useAssistantSseStream({
+    assistantService,
+    callbacks: {
+      onEvent: (event) => {
+        if (event.eventType !== "final") {
+          sessionStore.applyStreamingEvent(event);
+        }
+      },
+      onUnknownEvent: ({ event }) => {
+        sessionStore.recordUnknownStreamingEvent(
+          event.requestId,
+          event.messageId,
+          event.sequence,
+        );
+      },
+      onFinal: (event) => {
+        sessionStore.finalizeActiveStreamingMessage(event);
+      },
+      onComplete: () => {
+        sessionStore.clearStreamingState();
+      },
+      onAbort: () => {
+        sessionStore.markStreamingCancelled();
+        sessionStore.clearStreamingState();
+      },
+      onInterrupted: () => {
+        sessionStore.markStreamingInterrupted();
+        sessionStore.clearStreamingState();
+      },
+      onTimeout: () => {
+        sessionStore.markStreamingFailed();
+        sessionStore.clearStreamingState();
+      },
+      onTransportError: () => {
+        sessionStore.markStreamingFailed();
+        sessionStore.clearStreamingState();
+      },
+    },
+  });
 
-  const isBootstrapping = computed(() =>
-    sessionStore.status === 'restoring'
-    || sessionStore.status === 'creating'
-    || (sessionStore.status === 'loading_history'
-      && !sessionStore.historyLoadingMore),
-  )
-  const sessionReady = computed(() =>
-    sessionStore.status === 'ready'
-    && sessionStore.sessionId !== null,
-  )
+  let bootstrapTask: Promise<void> | null = null;
+
+  const isBootstrapping = computed(
+    () =>
+      sessionStore.status === "restoring" ||
+      sessionStore.status === "creating" ||
+      (sessionStore.status === "loading_history" &&
+        !sessionStore.historyLoadingMore),
+  );
+  const sessionReady = computed(
+    () => sessionStore.status === "ready" && sessionStore.sessionId !== null,
+  );
+  const isStreaming = stream.isStreaming;
+  const isSending = computed(
+    () => sendInFlight.value || activeRequestId.value !== null,
+  );
+  const sendDisabledReason = computed<AssistantSendDisabledReason | null>(
+    () => {
+      if (scopeChanged.value) {
+        return "scope_changed";
+      }
+
+      if (!widgetStore.isOpen) {
+        return "panel_closed";
+      }
+
+      if (widgetStore.availability === "degraded") {
+        return "degraded";
+      }
+
+      if (widgetStore.availability === "unavailable") {
+        return "unavailable";
+      }
+
+      if (!contextReady.value) {
+        return "context_not_ready";
+      }
+
+      if (isBootstrapping.value) {
+        return "bootstrapping";
+      }
+
+      if (!sessionReady.value) {
+        return "session_not_ready";
+      }
+
+      if (isSending.value || isStreaming.value) {
+        return "streaming";
+      }
+
+      return null;
+    },
+  );
+  const canSend = computed(() => sendDisabledReason.value === null);
   const recoveryState = computed(() => {
     if (
-      !contextReady.value
-      || sessionStore.status !== 'error'
-      || !recoveryReason.value
-      || !TERMINAL_RECOVERY_REASONS.has(recoveryReason.value)
+      !contextReady.value ||
+      sessionStore.status !== "error" ||
+      !recoveryReason.value ||
+      !TERMINAL_RECOVERY_REASONS.has(recoveryReason.value)
     ) {
-      return null
+      return null;
     }
 
     return {
       reason: recoveryReason.value,
-    }
-  })
+    };
+  });
 
   watch(
     hostContext.readiness,
     (readiness) => {
-      const ready = readiness.status === 'ready'
-      sessionStore.setContextReady(ready)
+      const ready = readiness.status === "ready";
+      sessionStore.setContextReady(ready);
 
-      if (readiness.status === 'degraded') {
-        widgetStore.setAvailability('degraded')
-      }
-      else {
-        widgetStore.setAvailability(ready ? 'normal' : 'context_not_ready')
+      if (readiness.status === "degraded") {
+        widgetStore.setAvailability("degraded");
+      } else {
+        widgetStore.setAvailability(ready ? "normal" : "context_not_ready");
       }
     },
     { immediate: true },
-  )
+  );
 
   async function bootstrapOnPanelOpen(): Promise<void> {
     if (!widgetStore.isOpen || sessionReady.value) {
-      return
+      return;
     }
 
     if (
-      recoveryReason.value
-      && TERMINAL_RECOVERY_REASONS.has(recoveryReason.value)
+      recoveryReason.value &&
+      TERMINAL_RECOVERY_REASONS.has(recoveryReason.value)
     ) {
-      return
+      return;
     }
 
     if (bootstrapTask) {
-      return bootstrapTask
+      return bootstrapTask;
     }
 
-    bootstrapTask = assistantSession.restoreOrCreateSession()
+    bootstrapTask = assistantSession.restoreOrCreateSession();
 
     try {
-      await bootstrapTask
-    }
-    finally {
-      bootstrapTask = null
+      await bootstrapTask;
+    } finally {
+      bootstrapTask = null;
     }
   }
 
   async function loadMoreHistory(): Promise<void> {
     if (!nextCursor.value || historyLoadingMore.value) {
-      return
+      return;
     }
 
-    await assistantSession.loadMoreHistory()
+    await assistantSession.loadMoreHistory();
   }
 
   async function restartSession(): Promise<void> {
     if (isBootstrapping.value) {
-      return
+      return;
     }
 
-    await assistantSession.restartSession()
+    scopeChanged.value = false;
+    await assistantSession.restartSession();
+  }
+
+  async function sendMessageWithPurpose(
+    text: string,
+    purpose: "send" | "retry",
+  ): Promise<boolean> {
+    const normalizedText = text.trim();
+
+    if (
+      !normalizedText ||
+      !widgetStore.isOpen ||
+      sendInFlight.value ||
+      isStreaming.value
+    ) {
+      return false;
+    }
+
+    if (!contextReady.value) {
+      return false;
+    }
+
+    sendInFlight.value = true;
+
+    try {
+      if (!sessionReady.value) {
+        await bootstrapOnPanelOpen();
+      }
+
+      const sessionId = sessionStore.sessionId;
+      if (!sessionReady.value || !sessionId) {
+        return false;
+      }
+
+      const { snapshot: latestSnapshot, scope: latestScope } =
+        await resolveLatestAssistantSendContext(hostContext, purpose);
+      if (
+        latestSnapshot.readiness.status !== "ready" ||
+        !latestSnapshot.identityHeaders
+      ) {
+        sessionStore.setContextReady(false);
+        widgetStore.setAvailability("context_not_ready");
+        return false;
+      }
+
+      if (latestScope.key !== sessionStore.sessionScope?.key) {
+        scopeChanged.value = true;
+        return false;
+      }
+
+      const requestId = generateAssistantRequestId();
+      const identityHeaders = {
+        ...latestSnapshot.identityHeaders,
+        "x-request-id": requestId,
+      } satisfies ResolvedAssistantIdentityHeaders;
+      const createdAt = new Date().toISOString();
+      const userMessageKey = `local-user:${requestId}`;
+      const assistantMessageKey = `stream:${requestId}`;
+      const userMessage = {
+        key: userMessageKey,
+        messageId: userMessageKey,
+        requestId,
+        kind: "user",
+        role: "user",
+        content: normalizedText,
+        createdAt,
+      } satisfies UserUiMessage;
+      const assistantPlaceholder = {
+        key: assistantMessageKey,
+        requestId,
+        kind: "assistant_streaming",
+        role: "assistant",
+        content: "",
+        createdAt,
+        status: "sending",
+        lastSequence: null,
+        typingVisibleUntil: Date.now() + 600,
+        pendingContent: "",
+        evidence: [],
+        activities: [],
+      } satisfies AssistantStreamingUiMessage;
+
+      sessionStore.appendUserMessage(userMessage);
+      sessionStore.appendAssistantStreamingPlaceholder(assistantPlaceholder);
+      sessionStore.setStreamingRequest(requestId, assistantMessageKey);
+      sessionStore.markStreamingStarted();
+
+      await stream.start({
+        sessionId,
+        request: latestSnapshot.pageContext
+          ? {
+              message: normalizedText,
+              pageContext: latestSnapshot.pageContext,
+            }
+          : {
+              message: normalizedText,
+            },
+        options: {
+          identityHeaders,
+        },
+      });
+
+      return true;
+    } finally {
+      sendInFlight.value = false;
+    }
+  }
+
+  async function sendMessage(text: string): Promise<boolean> {
+    return sendMessageWithPurpose(text, "send");
+  }
+
+  async function resendMessage(text: string): Promise<boolean> {
+    scopeChanged.value = false;
+    return sendMessageWithPurpose(text, "retry");
+  }
+
+  async function retryLastMessage(): Promise<boolean> {
+    const latestUserMessage = [...messages.value]
+      .reverse()
+      .find((message) => message.role === "user" && message.content.trim());
+
+    if (!latestUserMessage) {
+      return false;
+    }
+
+    return resendMessage(latestUserMessage.content);
+  }
+
+  async function cancelStream(): Promise<void> {
+    await stream.cancel();
   }
 
   return {
     isBootstrapping,
     sessionReady,
+    isSending,
+    isStreaming,
+    canSend,
+    sendDisabledReason,
     messages,
     nextCursor,
     historyLoading,
@@ -128,5 +404,9 @@ export function useChat(options: UseChatOptions = {}) {
     bootstrapOnPanelOpen,
     loadMoreHistory,
     restartSession,
-  }
+    sendMessage,
+    resendMessage,
+    retryLastMessage,
+    cancelStream,
+  };
 }

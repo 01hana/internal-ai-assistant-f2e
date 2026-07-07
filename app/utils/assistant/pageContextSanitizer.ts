@@ -1,4 +1,7 @@
-import type { PageContext } from '../../types/assistant'
+import type {
+  PageContext,
+  PageContextSelectedRow,
+} from '../../types/assistant'
 
 export interface PageContextSanitizerOptions {
   maxSelectedRows?: number
@@ -249,26 +252,34 @@ function sanitizeVisibleColumns(
 
 function sanitizeSelectedRows(
   rows: PageContext['selectedRows'],
-  visibleColumns: readonly string[] | undefined,
   options: Required<PageContextSanitizerOptions>,
-): Array<Record<string, SafePrimitive>> | undefined {
-  if (!Array.isArray(rows) || visibleColumns === undefined) {
+): PageContextSelectedRow[] | undefined {
+  if (!Array.isArray(rows)) {
     return undefined
   }
 
-  const allowedKeys = new Set(visibleColumns)
   const sanitized = rows
     .slice(0, options.maxSelectedRows)
-    .map(row =>
-      sanitizeShallowObject(
-        row,
-        options.maxStringLength,
-        Number.POSITIVE_INFINITY,
-        allowedKeys,
-      ),
-    )
+    .map((row): PageContextSelectedRow | undefined => {
+      if (
+        row === null
+        || typeof row !== 'object'
+        || Array.isArray(row)
+      ) {
+        return undefined
+      }
+
+      const rawId = row.id
+      if (typeof rawId !== 'string') {
+        return undefined
+      }
+
+      const id = sanitizeString(rawId, options.maxStringLength)
+
+      return id === undefined ? undefined : { id }
+    })
     .filter(
-      (row): row is Record<string, SafePrimitive> => row !== undefined,
+      (row): row is PageContextSelectedRow => row !== undefined,
     )
 
   return sanitized.length > 0 ? sanitized : undefined
@@ -347,7 +358,6 @@ export function sanitizePageContext(
     : sanitizeString(pageContext.entityId, resolvedOptions.maxStringLength)
   const selectedRows = sanitizeSelectedRows(
     pageContext.selectedRows,
-    visibleColumns,
     resolvedOptions,
   )
   const activeFilters = sanitizeActiveFilters(

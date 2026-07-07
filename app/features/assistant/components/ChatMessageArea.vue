@@ -3,86 +3,110 @@ import type {
   AssistantMessageRendererKind,
   AssistantUiMessage,
   HistoryMessageSummary,
-} from '../../../types/assistant'
+} from "../../../types/assistant";
 
-type AssistantRenderableMessage = AssistantUiMessage | HistoryMessageSummary
+type AssistantRenderableMessage = AssistantUiMessage | HistoryMessageSummary;
 
-type AssistantRendererSlot =
-  | 'user'
-  | 'streaming'
-  | 'answered'
-  | 'safe-state'
+type AssistantRendererSlot = "user" | "streaming" | "answered" | "safe-state";
 
-const props = withDefaults(defineProps<{
-  messages?: AssistantRenderableMessage[]
-  contextReady?: boolean
-  nextCursor?: string | null
-  historyLoading?: boolean
-  historyLoadingMore?: boolean
-}>(), {
-  messages: () => [],
-  contextReady: true,
-  nextCursor: null,
-  historyLoading: false,
-  historyLoadingMore: false,
-})
+const props = withDefaults(
+  defineProps<{
+    messages?: AssistantRenderableMessage[];
+    contextReady?: boolean;
+    nextCursor?: string | null;
+    historyLoading?: boolean;
+    historyLoadingMore?: boolean;
+  }>(),
+  {
+    messages: () => [],
+    contextReady: true,
+    nextCursor: null,
+    historyLoading: false,
+    historyLoadingMore: false,
+  },
+);
 
 defineEmits<{
-  loadMore: []
-}>()
+  loadMore: [];
+}>();
+
+const messageAreaRef = ref<HTMLElement | null>(null);
+
+async function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+  await nextTick();
+
+  const container = messageAreaRef.value;
+  if (!container || props.messages.length === 0) {
+    return;
+  }
+
+  if (typeof container.scrollTo === "function") {
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior,
+    });
+    return;
+  }
+
+  container.scrollTop = container.scrollHeight;
+}
+
+watch(
+  [() => props.messages.length, () => props.messages.at(-1)?.content],
+  () => {
+    void scrollToBottom("smooth");
+  },
+  { flush: "post" },
+);
 
 function isUiMessage(
   message: AssistantRenderableMessage,
 ): message is AssistantUiMessage {
-  return 'kind' in message
+  return "kind" in message;
 }
 
 function getRendererSlot(
   message: AssistantRenderableMessage,
 ): AssistantRendererSlot {
   if (!isUiMessage(message)) {
-    if (message.role === 'user') {
-      return 'user'
+    if (message.role === "user") {
+      return "user";
     }
 
-    return message.answerDecision === 'answered'
-      ? 'answered'
-      : 'safe-state'
+    return message.role === "assistant" ? "answered" : "safe-state";
   }
 
-  const kind: AssistantMessageRendererKind = message.kind
+  const kind: AssistantMessageRendererKind = message.kind;
 
   switch (kind) {
-    case 'user':
-      return 'user'
-    case 'assistant_streaming':
-      return 'streaming'
-    case 'assistant_answer':
-      return 'answered'
+    case "user":
+      return "user";
+    case "assistant_streaming":
+      return "streaming";
+    case "assistant_answer":
+      return "answered";
     default:
-      return 'safe-state'
+      return "safe-state";
   }
 }
 
 function getMessageKey(message: AssistantRenderableMessage): string {
-  return isUiMessage(message) ? message.key : message.messageId
+  return isUiMessage(message) ? message.key : message.messageId;
 }
 
 function getMessageKind(message: AssistantRenderableMessage): string {
-  return isUiMessage(message) ? message.kind : `history_${message.role}`
+  return isUiMessage(message) ? message.kind : `history_${message.role}`;
 }
 </script>
 
 <template>
   <section
-    class="h-full min-h-0 p-4 sm:p-5"
+    ref="messageAreaRef"
+    class="h-full min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5"
     data-testid="assistant-message-area"
     aria-label="助理訊息"
   >
-    <slot
-      v-if="!contextReady"
-      name="context-not-ready"
-    >
+    <slot v-if="!contextReady" name="context-not-ready">
       <UAlert
         icon="i-lucide-panel-top-inactive"
         color="warning"
@@ -103,10 +127,7 @@ function getMessageKind(message: AssistantRenderableMessage): string {
       data-testid="assistant-history-loading"
     />
 
-    <slot
-      v-else-if="messages.length === 0"
-      name="empty"
-    >
+    <slot v-else-if="messages.length === 0" name="empty">
       <UEmpty
         icon="i-lucide-message-circle"
         title="AI 助理已準備好"
@@ -116,14 +137,8 @@ function getMessageKind(message: AssistantRenderableMessage): string {
       />
     </slot>
 
-    <div
-      v-else
-      class="grid gap-3"
-    >
-      <ol
-        class="grid list-none gap-3 p-0"
-        aria-label="對話訊息"
-      >
+    <div v-else class="grid gap-3">
+      <ol class="grid list-none gap-3 p-0" aria-label="對話訊息">
         <li
           v-for="(message, index) in props.messages"
           :key="getMessageKey(message)"
@@ -135,9 +150,29 @@ function getMessageKind(message: AssistantRenderableMessage): string {
             :message="message"
             :index="index"
           >
-            <article class="max-w-[85%] [overflow-wrap:anywhere] rounded-2xl border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm">
+            <UserMessageItem
+              v-if="getRendererSlot(message) === 'user'"
+              :message="message"
+            />
+            <AiStreamingItem
+              v-else-if="
+                isUiMessage(message) && message.kind === 'assistant_streaming'
+              "
+              :message="message"
+            />
+            <AiMessageItem
+              v-else-if="
+                getRendererSlot(message) === 'answered' ||
+                (!isUiMessage(message) && message.role === 'assistant')
+              "
+              :message="message"
+            />
+            <div
+              v-else
+              class="rounded-2xl rounded-bl-md border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm"
+            >
               {{ message.content }}
-            </article>
+            </div>
           </slot>
         </li>
       </ol>
