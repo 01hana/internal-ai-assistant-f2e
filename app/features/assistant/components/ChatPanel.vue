@@ -49,30 +49,19 @@ const emit = defineEmits<{
   cancelStream: [];
 }>();
 
-const panelRoot = useTemplateRef<HTMLElement>("panelRoot");
-const { focused } = useFocus(panelRoot);
 const contextReady = computed(() => props.availability === "normal");
 const statusMessage = computed(() =>
   contextReady.value ? "AI 助理已就緒" : "目前頁面內容尚未就緒",
 );
 
-function focus() {
-  focused.value = true;
-}
-
 onKeyStroke("Escape", () => {
   emit("close");
-});
-
-defineExpose({
-  focus,
 });
 </script>
 
 <template>
   <section
     id="assistant-chat-panel"
-    ref="panelRoot"
     class="fixed z-[9999] inset-0 md:inset-auto md:bottom-5 md:right-5 md:w-[400px] md:h-[calc(100dvh-48px)] lg:w-[380px] flex flex-col bg-white shadow-2xl overflow-hidden rounded-t-2xl md:rounded-2xl panel-enter"
     data-testid="assistant-panel"
     role="dialog"
@@ -116,17 +105,26 @@ defineExpose({
           </div>
         </div>
 
-        <UButton
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="shrink-0 rounded-full text-white hover:bg-white/15"
-          type="button"
-          data-testid="assistant-panel-close"
-          aria-label="關閉 AI 助理"
-          @click="emit('close')"
-        />
+        <div class="flex items-center gap-1">
+          <UButton
+            icon="fluent:arrow-counterclockwise-24-regular"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="shrink-0 rounded-full text-white hover:bg-white/15"
+            data-testid="assistant-panel-close"
+            @click="emit('restartSession')"
+          />
+
+          <UButton
+            icon="fluent:dismiss-24-regular"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="shrink-0 rounded-full text-white hover:bg-white/15"
+            @click="emit('close')"
+          />
+        </div>
       </header>
 
       <div

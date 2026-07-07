@@ -4,10 +4,6 @@ import type {
   AssistantPanelAvailability,
 } from "../../../types/assistant";
 
-interface ChatPanelExposed {
-  focus: () => void;
-}
-
 const props = withDefaults(
   defineProps<{
     availability?: AssistantPanelAvailability;
@@ -40,15 +36,6 @@ const {
   isStreaming,
 } = chat;
 const { isOpen, availability: storeAvailability } = storeToRefs(widgetStore);
-const widgetRoot = useTemplateRef<HTMLElement>("widgetRoot");
-const panelRef = useTemplateRef<ChatPanelExposed>("panelRef");
-const launcherElement = computed(
-  () =>
-    widgetRoot.value?.querySelector<HTMLElement>(
-      '[data-testid="assistant-launcher"]',
-    ) ?? null,
-);
-const { focused: launcherFocused } = useFocus(launcherElement);
 
 watch(
   () => props.availability,
@@ -63,14 +50,11 @@ watch(
 async function openPanel() {
   widgetStore.open();
   await nextTick();
-  panelRef.value?.focus();
   void chat.bootstrapOnPanelOpen();
 }
 
 async function closePanel() {
   widgetStore.close();
-  await nextTick();
-  launcherFocused.value = true;
 }
 
 async function togglePanel() {
@@ -85,7 +69,6 @@ async function togglePanel() {
 
 <template>
   <div
-    ref="widgetRoot"
     class="fixed right-4 bottom-4 z-[9999] flex flex-col items-end gap-3 sm:right-6 sm:bottom-6"
     data-widget-placement="bottom-right"
     aria-label="AI 助理"
@@ -100,7 +83,6 @@ async function togglePanel() {
     >
       <ChatPanel
         v-if="isOpen"
-        ref="panelRef"
         :availability="storeAvailability"
         :title="title"
         :messages="messages"
@@ -123,8 +105,6 @@ async function togglePanel() {
 
     <UButton
       data-testid="assistant-launcher"
-      aria-haspopup="dialog"
-      :aria-expanded="isOpen"
       class="w-14 h-14 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center justify-center bg-gradient-to-r from-primary-800 to-primary-600 text-white"
       @click="togglePanel"
     >
