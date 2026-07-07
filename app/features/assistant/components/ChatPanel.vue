@@ -64,10 +64,6 @@ onKeyStroke("Escape", () => {
     id="assistant-chat-panel"
     class="fixed z-[9999] inset-0 md:inset-auto md:bottom-5 md:right-5 md:w-[400px] md:h-[calc(100dvh-48px)] lg:w-[380px] flex flex-col bg-white shadow-2xl overflow-hidden rounded-t-2xl md:rounded-2xl panel-enter"
     data-testid="assistant-panel"
-    role="dialog"
-    aria-modal="false"
-    aria-labelledby="assistant-panel-title"
-    tabindex="-1"
   >
     <div
       class="flex h-full flex-col overflow-hidden rounded-2xl bg-default shadow-2xl ring-1 ring-black/10"

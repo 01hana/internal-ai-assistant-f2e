@@ -65,6 +65,35 @@ function isUiMessage(
   return "kind" in message;
 }
 
+function isCompletedStreamingMessage(
+  message: AssistantRenderableMessage,
+): message is Extract<AssistantUiMessage, { kind: "assistant_streaming" }> {
+  return (
+    isUiMessage(message) &&
+    message.kind === "assistant_streaming" &&
+    message.status === "completed" &&
+    !!message.finalAnswerDecision
+  );
+}
+
+function isAssistantHistoryMessage(
+  message: AssistantRenderableMessage,
+): message is HistoryMessageSummary & { role: "assistant" } {
+  return !isUiMessage(message) && message.role === "assistant";
+}
+
+function isAiMessageRenderable(
+  message: AssistantRenderableMessage,
+): message is Extract<AssistantUiMessage, { kind: "assistant_answer" }>
+  | Extract<AssistantUiMessage, { kind: "assistant_streaming" }>
+  | (HistoryMessageSummary & { role: "assistant" }) {
+  return (
+    isCompletedStreamingMessage(message) ||
+    isAssistantHistoryMessage(message) ||
+    (isUiMessage(message) && message.kind === "assistant_answer")
+  );
+}
+
 function getRendererSlot(
   message: AssistantRenderableMessage,
 ): AssistantRendererSlot {
@@ -73,7 +102,7 @@ function getRendererSlot(
       return "user";
     }
 
-    return message.role === "assistant" ? "answered" : "safe-state";
+    return isAssistantHistoryMessage(message) ? "answered" : "safe-state";
   }
 
   const kind: AssistantMessageRendererKind = message.kind;
@@ -82,7 +111,7 @@ function getRendererSlot(
     case "user":
       return "user";
     case "assistant_streaming":
-      return "streaming";
+      return isCompletedStreamingMessage(message) ? "answered" : "streaming";
     case "assistant_answer":
       return "answered";
     default:
@@ -156,15 +185,14 @@ function getMessageKind(message: AssistantRenderableMessage): string {
             />
             <AiStreamingItem
               v-else-if="
-                isUiMessage(message) && message.kind === 'assistant_streaming'
+                isUiMessage(message) &&
+                message.kind === 'assistant_streaming' &&
+                getRendererSlot(message) === 'streaming'
               "
               :message="message"
             />
             <AiMessageItem
-              v-else-if="
-                getRendererSlot(message) === 'answered' ||
-                (!isUiMessage(message) && message.role === 'assistant')
-              "
+              v-else-if="isAiMessageRenderable(message)"
               :message="message"
             />
             <div

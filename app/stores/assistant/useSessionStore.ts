@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
+  AssistantMessageFinalData,
   AssistantRequestId,
   AssistantSession,
   AssistantSessionScope,
@@ -12,6 +13,8 @@ import type {
   HistoryMessageSummary,
   UserUiMessage,
 } from '../../types/assistant'
+import { mapAnswerDecisionState } from '../../utils/assistant/answerDecisionStateMapper'
+import { normalizeEvidenceReferences } from '../../utils/assistant/evidenceNormalizationAdapter'
 import type { AssistantSessionRecoveryReason } from '../../utils/assistant/sessionRecovery'
 
 export type AssistantSessionLifecycleState =
@@ -40,6 +43,21 @@ type AssistantFinalSseEvent = Extract<
   AssistantSseEvent,
   { eventType: 'final' }
 >
+
+function createFinalDecisionStateInput(
+  finalData: AssistantMessageFinalData,
+): AssistantMessageFinalData {
+  return {
+    answerDecision: finalData.answerDecision,
+    answer: finalData.answer,
+    noAnswerReason: finalData.noAnswerReason,
+    evidenceRefs: finalData.evidenceRefs,
+    clarificationQuestionId: finalData.clarificationQuestionId,
+    actionDraftId: finalData.actionDraftId,
+    approvalRequestId: finalData.approvalRequestId,
+    escalationRequestId: finalData.escalationRequestId,
+  }
+}
 
 const TOOL_ACTIVITY = {
   tool_call_started: {
@@ -477,6 +495,10 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     message.messageId = event.messageId
     message.lastSequence = event.sequence
     const nextContent = event.data.answer ?? message.content
+    const normalizedEvidence = normalizeEvidenceReferences(event.data.evidenceRefs)
+    const finalDecisionState = mapAnswerDecisionState(
+      createFinalDecisionStateInput(event.data),
+    )
 
     if (
       (message.typingVisibleUntil ?? 0) > Date.now()
@@ -484,6 +506,8 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     ) {
       message.pendingContent = nextContent
       message.pendingFinalAnswerDecision = event.data.answerDecision
+      message.evidence = normalizedEvidence
+      message.finalDecisionState = finalDecisionState
       message.status = 'finalizing'
       schedulePendingStreamingContentReveal(event.requestId, message)
       return
@@ -497,7 +521,9 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     message.typingVisibleUntil = null
     clearPendingRevealTimer(event.requestId)
     message.content = nextContent
+    message.evidence = normalizedEvidence
     message.finalAnswerDecision = event.data.answerDecision
+    message.finalDecisionState = finalDecisionState
     message.pendingFinalAnswerDecision = undefined
     message.status = 'completed'
   }

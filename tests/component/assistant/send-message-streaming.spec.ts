@@ -574,13 +574,81 @@ beforeEach(() => {
       finalAnswerDecision: "answered",
       lastSequence: 4,
     });
-    expect(wrapper.get('[data-testid="assistant-streaming-content"]').text()).toBe(
+    expect(wrapper.get('[data-testid="assistant-ai-bubble"]').text()).toContain(
       "訂單狀態為已確認。",
     );
     expect(
-      wrapper.get('[data-testid="assistant-streaming-finalized"]').text(),
-    ).toContain("已完成");
-    expect(wrapper.text()).toContain("正在查詢內部資料");
+      wrapper.get('[data-testid="assistant-ai-answer-decision"]').text(),
+    ).toContain("已回答");
+    expect(
+      wrapper.find('[data-testid="assistant-streaming-finalized"]').exists(),
+    ).toBe(false);
+    expect(wrapper.find('[data-testid="assistant-streaming-activity"]').exists()).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("uses final payload evidence as the completed answer evidence source", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-evidence-final-001",
+        eventType: "evidence_attached",
+        sequence: 1,
+        data: {
+          evidenceRefs: ["evidence-interim-001"],
+        },
+      },
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-evidence-final-001",
+        eventType: "final",
+        sequence: 2,
+        data: {
+          answerDecision: "answered",
+          answer: "退貨需先建立退貨申請，再由倉儲確認入庫。",
+          evidenceRefs: [
+            {
+              id: "evidence-document-001",
+              sourceType: "document_chunk",
+              title: "退貨流程 SOP",
+              snippet: "建立退貨申請後，由倉儲確認入庫。",
+            },
+          ],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("退貨流程是什麼？");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    const streamingMessage = useAssistantSessionStore().messages[1];
+    expect(streamingMessage).toMatchObject({
+      kind: "assistant_streaming",
+      finalAnswerDecision: "answered",
+      evidence: [
+        {
+          kind: "summary",
+          id: "evidence-document-001",
+          sourceType: "document_chunk",
+          title: "退貨流程 SOP",
+          snippet: "建立退貨申請後，由倉儲確認入庫。",
+        },
+      ],
+    });
+    expect(wrapper.find('[data-testid="assistant-evidence-reference"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="assistant-evidence-title"]').text()).toContain(
+      "退貨流程 SOP",
+    );
     vi.useRealTimers();
   });
 

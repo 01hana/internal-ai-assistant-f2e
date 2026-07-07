@@ -13,6 +13,41 @@ import type {
 } from './contracts'
 import type { EvidenceReferenceDisplay } from './evidence'
 
+export type AnswerDecisionUiState =
+  | {
+      kind: 'answered'
+      answerDecision: 'answered'
+    }
+  | {
+      kind: 'clarification_required'
+      answerDecision: 'clarification_required'
+      clarificationQuestionId?: ClarificationQuestionId
+    }
+  | {
+      kind: 'no_answer'
+      answerDecision: 'no_answer'
+      noAnswerReason?: NoAnswerReason
+    }
+  | {
+      kind: 'permission_denied'
+      answerDecision: 'permission_denied'
+    }
+  | {
+      kind: 'confirmation_required'
+      answerDecision: 'confirmation_required'
+      actionDraftId?: ActionDraftId
+    }
+  | {
+      kind: 'approval_required'
+      answerDecision: 'approval_required'
+      approvalRequestId?: ApprovalRequestId
+    }
+  | {
+      kind: 'escalation_required'
+      answerDecision: 'escalation_required'
+      escalationRequestId?: EscalationRequestId
+    }
+
 export type AssistantMessageRendererKind =
   | 'user'
   | 'assistant_answer'
@@ -88,6 +123,7 @@ export interface AssistantStreamingUiMessage extends AssistantUiMessageBase {
   evidence: EvidenceReferenceDisplay[]
   activities?: AssistantStreamingActivity[]
   finalAnswerDecision?: AnswerDecisionStatus
+  finalDecisionState?: AnswerDecisionUiState | null
 }
 
 export type AssistantSystemStateKind = Exclude<

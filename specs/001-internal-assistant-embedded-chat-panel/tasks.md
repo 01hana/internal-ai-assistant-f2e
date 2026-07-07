@@ -211,10 +211,10 @@
 
 **Contract Surface**: `final.data.answerDecision`、`EvidenceRefSummary[] | string[]`、`answerDecisionStateMapper`、evidence normalization。
 
-- [ ] T063 [P] [US4] 建立 unit tests，驗證 `answerDecisionStateMapper`、`string[]` safe chip rendering、`EvidenceRefSummary[]` safe summary rendering 於 `tests/unit/assistant/answer-evidence.spec.ts`
-- [ ] T064 [US4] 建立 `answerDecisionStateMapper`，禁止從中途 event 或 `answer` presence 推測最終狀態 於 `app/utils/assistant/answerDecisionStateMapper.ts`
-- [ ] T065 [US4] 建立 `evidenceNormalizationAdapter`，區分 summary evidence 與 reference-only evidence，禁止補造 `title` / `snippet` / `sourceType` / raw content 於 `app/utils/assistant/evidenceNormalizationAdapter.ts`
-- [ ] T066 [US4] 建立 `AiMessageItem` answered-state UI 與 `EvidenceDisplay`，顯示 `AnswerDecision`、evidence chips / summary、以及安全 feedback entry point 於 `app/features/assistant/components/AiMessageItem.vue` 與 `app/features/assistant/components/EvidenceDisplay.vue`
+- [x] T063 [P] [US4] 建立 unit tests，驗證 `answerDecisionStateMapper`、`string[]` safe chip rendering、`EvidenceRefSummary[]` safe summary rendering 於 `tests/unit/assistant/answer-evidence.spec.ts`
+- [x] T064 [US4] 建立 `answerDecisionStateMapper`，禁止從中途 event 或 `answer` presence 推測最終狀態 於 `app/utils/assistant/answerDecisionStateMapper.ts`
+- [x] T065 [US4] 建立 `evidenceNormalizationAdapter`，區分 summary evidence 與 reference-only evidence，禁止補造 `title` / `snippet` / `sourceType` / raw content 於 `app/utils/assistant/evidenceNormalizationAdapter.ts`
+- [x] T066 [US4] 建立 `AiMessageItem` answered-state UI 與 `EvidenceDisplay`，顯示 `AnswerDecision`、evidence chips / summary、以及安全 feedback entry point 於 `app/features/assistant/components/AiMessageItem.vue` 與 `app/features/assistant/components/EvidenceDisplay.vue`
 
 **Checkpoint**: AnswerDecision 與 evidence rendering 已獨立可驗收，且嚴格遵守 evidence-safe UI 邊界。
 
