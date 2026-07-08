@@ -652,6 +652,201 @@ beforeEach(() => {
     vi.useRealTimers();
   });
 
+  it("renders clarification_required as a clarification safe state instead of an answered bubble", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-clarification-final-001",
+        eventType: "final",
+        sequence: 1,
+        data: {
+          answerDecision: "clarification_required",
+          clarificationQuestionId: "clarification-001",
+          answer: "你選取了多筆資料，請指定要查詢哪一筆。",
+          evidenceRefs: [],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我查這筆的狀態");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-clarification-message"]').text(),
+    ).toContain("你選取了多筆資料");
+    expect(
+      wrapper.find('[data-testid="assistant-clarification-question-id"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders no_answer as a safe no-answer state instead of an answered bubble", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-no-answer-final-001",
+        eventType: "final",
+        sequence: 1,
+        data: {
+          answerDecision: "no_answer",
+          noAnswerReason: "evidence_conflict",
+          answer: "找到的資料存在衝突，需要人工確認或提供更多條件。",
+          evidenceRefs: [],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("整理這筆資料的最終狀態");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-no-answer-message"]').text(),
+    ).toContain("資料存在衝突");
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders permission_denied as PermissionDeniedMessage instead of an answered bubble", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-permission-denied-final-001",
+        eventType: "final",
+        sequence: 1,
+        data: {
+          answerDecision: "permission_denied",
+          answer: "你目前沒有足夠權限查看這項資訊。",
+          evidenceRefs: [],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("查看這筆敏感資料");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-permission-denied-message"]').text(),
+    ).toContain("權限");
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders no_answer + tool_failure as ToolFailureMessage instead of a generic answered bubble", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-tool-failure-final-001",
+        eventType: "final",
+        sequence: 1,
+        data: {
+          answerDecision: "no_answer",
+          noAnswerReason: "tool_failure",
+          answer: "目前無法安全取得所需資料，請稍後再試或調整查詢條件。",
+          evidenceRefs: [],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我查外部同步結果");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-tool-failure-message"]').text(),
+    ).toContain("稍後再試");
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders escalation_required as EscalationMessage instead of an answered bubble", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-escalation-final-001",
+        eventType: "final",
+        sequence: 1,
+        data: {
+          answerDecision: "escalation_required",
+          answer: "目前資訊不足以自動完成，請依內部流程接續處理。",
+          evidenceRefs: [],
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("直接幫我執行高風險流程");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-escalation-message"]').text(),
+    ).toContain("升級處理");
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
   it("keeps partial content non-final when the stream closes without final", async () => {
     vi.useFakeTimers();
     installEventStreamFetch((requestId) => [

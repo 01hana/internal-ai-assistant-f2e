@@ -1,7 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
-import AiMessageItem from '../../../app/features/assistant/components/AiMessageItem.vue'
 import ChatMessageArea from '../../../app/features/assistant/components/ChatMessageArea.vue'
 import type {
   AssistantStreamingUiMessage,
@@ -45,24 +44,29 @@ afterEach(() => {
 
 describe('AiMessageItem answered evidence UI', () => {
   it('renders safe summary evidence with sourceType, title, and snippet', async () => {
-    const wrapper = await mountSuspended(AiMessageItem, {
+    const wrapper = await mountSuspended(ChatMessageArea, {
       props: {
-        message: createCompletedStreamingMessage({
-          evidence: [
-            {
-              kind: 'summary',
-              id: 'evidence-document-001',
-              sourceType: 'document_chunk',
-              title: '退貨流程 SOP',
-              snippet: '建立退貨申請後，由倉儲確認入庫。',
-            },
-          ] satisfies EvidenceReferenceDisplay[],
-        }),
+        messages: [
+          createCompletedStreamingMessage({
+            evidence: [
+              {
+                kind: 'summary',
+                id: 'evidence-document-001',
+                sourceType: 'document_chunk',
+                title: '退貨流程 SOP',
+                snippet: '建立退貨申請後，由倉儲確認入庫。',
+              },
+            ] satisfies EvidenceReferenceDisplay[],
+          }),
+        ],
       },
     })
     mountedWrappers.push(wrapper)
 
     expect(wrapper.get('[data-testid="assistant-ai-message"]').exists()).toBe(true)
+    expect(
+      wrapper.get('[data-testid="assistant-message-avatar-assistant"]').exists(),
+    ).toBe(true)
     expect(wrapper.get('[data-testid="assistant-ai-bubble"]').text()).toContain(
       'SO-10001 目前狀態為 confirmed。',
     )
@@ -73,10 +77,14 @@ describe('AiMessageItem answered evidence UI', () => {
     expect(wrapper.get('[data-testid="assistant-evidence-title"]').text()).toContain('退貨流程 SOP')
     expect(wrapper.get('[data-testid="assistant-evidence-snippet"]').text()).toContain('建立退貨申請後，由倉儲確認入庫。')
 
+    const metadata = wrapper.get('[data-testid="assistant-message-metadata"]')
     const feedbackPlaceholder = wrapper.get('[data-testid="assistant-feedback-placeholder"]')
     const positiveFeedback = wrapper.get('[data-testid="assistant-feedback-positive"]')
     const negativeFeedback = wrapper.get('[data-testid="assistant-feedback-negative"]')
 
+    expect(metadata.exists()).toBe(true)
+    expect(metadata.find('[data-testid="assistant-feedback-placeholder"]').exists()).toBe(true)
+    expect(metadata.find('[data-testid="assistant-ai-message-time"]').exists()).toBe(true)
     expect(feedbackPlaceholder.exists()).toBe(true)
     expect(positiveFeedback.attributes('disabled')).toBeDefined()
     expect(negativeFeedback.attributes('disabled')).toBeDefined()
@@ -86,6 +94,12 @@ describe('AiMessageItem answered evidence UI', () => {
     expect(
       negativeFeedback.attributes('aria-label') ?? negativeFeedback.attributes('title'),
     ).toContain('沒有幫助')
+    expect(
+      wrapper
+        .get('[data-testid="assistant-ai-bubble"]')
+        .find('[data-testid="assistant-feedback-placeholder"]')
+        .exists(),
+    ).toBe(false)
   })
 
   it('renders reference-only evidence ids without inventing title, snippet, or sourceType', async () => {
@@ -98,9 +112,9 @@ describe('AiMessageItem answered evidence UI', () => {
       evidenceRefs: ['evidence-structured-001'],
     } satisfies HistoryMessageSummary
 
-    const wrapper = await mountSuspended(AiMessageItem, {
+    const wrapper = await mountSuspended(ChatMessageArea, {
       props: {
-        message: historyAssistantMessage,
+        messages: [historyAssistantMessage],
       },
     })
     mountedWrappers.push(wrapper)
@@ -114,9 +128,9 @@ describe('AiMessageItem answered evidence UI', () => {
   })
 
   it('stays safe when evidence is empty and does not render raw evidence details', async () => {
-    const wrapper = await mountSuspended(AiMessageItem, {
+    const wrapper = await mountSuspended(ChatMessageArea, {
       props: {
-        message: createCompletedStreamingMessage(),
+        messages: [createCompletedStreamingMessage()],
       },
     })
     mountedWrappers.push(wrapper)
@@ -134,6 +148,29 @@ describe('AiMessageItem answered evidence UI', () => {
     ]) {
       expect(wrapper.text().toLowerCase()).not.toContain(copy)
     }
+  })
+
+  it('renders the dedicated permission_denied safe state without answered metadata', async () => {
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [
+          {
+            messageId: 'message-history-permission-denied-001',
+            role: 'assistant',
+            content: '你目前沒有權限查看這筆資料。',
+            createdAt,
+            answerDecision: 'permission_denied',
+          } satisfies HistoryMessageSummary,
+        ],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false)
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+    ).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-permission-denied-message"]').exists()).toBe(true)
   })
 })
 
@@ -153,6 +190,7 @@ describe('ChatMessageArea completed answer rendering', () => {
     expect(wrapper.get('[data-testid="assistant-ai-message"]').text()).toContain(
       '訂單資料已整理完成。',
     )
+    expect(wrapper.get('[data-testid="assistant-message-metadata"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="assistant-streaming-message"]').exists()).toBe(false)
   })
 })

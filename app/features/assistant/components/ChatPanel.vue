@@ -64,6 +64,8 @@ onKeyStroke("Escape", () => {
     id="assistant-chat-panel"
     class="fixed z-[9999] inset-0 md:inset-auto md:bottom-5 md:right-5 md:w-[400px] md:h-[calc(100dvh-48px)] lg:w-[380px] flex flex-col bg-white shadow-2xl overflow-hidden rounded-t-2xl md:rounded-2xl panel-enter"
     data-testid="assistant-panel"
+    role="dialog"
+    aria-labelledby="assistant-panel-title"
   >
     <div
       class="flex h-full flex-col overflow-hidden rounded-2xl bg-default shadow-2xl ring-1 ring-black/10"
@@ -108,7 +110,7 @@ onKeyStroke("Escape", () => {
             variant="ghost"
             size="sm"
             class="shrink-0 rounded-full text-white hover:bg-white/15"
-            data-testid="assistant-panel-close"
+            data-testid="assistant-panel-restart"
             @click="emit('restartSession')"
           />
 
@@ -118,6 +120,7 @@ onKeyStroke("Escape", () => {
             variant="ghost"
             size="sm"
             class="shrink-0 rounded-full text-white hover:bg-white/15"
+            data-testid="assistant-panel-close"
             @click="emit('close')"
           />
         </div>

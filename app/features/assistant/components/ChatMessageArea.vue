@@ -1,13 +1,30 @@
 <script setup lang="ts">
 import type {
-  AssistantMessageRendererKind,
-  AssistantUiMessage,
-  HistoryMessageSummary,
+  AssistantRenderableMessage,
+  ResolvedAssistantMessageRenderer,
 } from "../../../types/assistant";
+import {
+  resolveAssistantMessageRenderers,
+} from "../../../utils/assistant/assistantMessageRendererResolver";
+import AiMessageItem from "./AiMessageItem.vue";
+import AiStreamingItem from "./AiStreamingItem.vue";
+import ClarificationMessage from "./ClarificationMessage.vue";
+import EscalationMessage from "./EscalationMessage.vue";
+import NoAnswerMessage from "./NoAnswerMessage.vue";
+import PermissionDeniedMessage from "./PermissionDeniedMessage.vue";
+import ToolFailureMessage from "./ToolFailureMessage.vue";
+import UserMessageItem from "./UserMessageItem.vue";
 
-type AssistantRenderableMessage = AssistantUiMessage | HistoryMessageSummary;
-
-type AssistantRendererSlot = "user" | "streaming" | "answered" | "safe-state";
+const rendererComponents = {
+  user: UserMessageItem,
+  assistant_answer: AiMessageItem,
+  assistant_streaming: AiStreamingItem,
+  clarification: ClarificationMessage,
+  no_answer: NoAnswerMessage,
+  permission_denied: PermissionDeniedMessage,
+  tool_failure: ToolFailureMessage,
+  escalation: EscalationMessage,
+} as const;
 
 const props = withDefaults(
   defineProps<{
@@ -59,59 +76,18 @@ watch(
   { flush: "post" },
 );
 
-function isUiMessage(
-  message: AssistantRenderableMessage,
-): message is AssistantUiMessage {
-  return "kind" in message;
-}
+const resolvedMessages = computed<ResolvedAssistantMessageRenderer[]>(() =>
+  resolveAssistantMessageRenderers(props.messages),
+);
 
-function isCompletedStreamingMessage(
-  message: AssistantRenderableMessage,
-): message is Extract<AssistantUiMessage, { kind: "assistant_streaming" }> {
-  return (
-    isUiMessage(message) &&
-    message.kind === "assistant_streaming" &&
-    message.status === "completed" &&
-    !!message.finalAnswerDecision
-  );
-}
-
-function isAssistantHistoryMessage(
-  message: AssistantRenderableMessage,
-): message is HistoryMessageSummary & { role: "assistant" } {
-  return !isUiMessage(message) && message.role === "assistant";
-}
-
-function isAiMessageRenderable(
-  message: AssistantRenderableMessage,
-): message is Extract<AssistantUiMessage, { kind: "assistant_answer" }>
-  | Extract<AssistantUiMessage, { kind: "assistant_streaming" }>
-  | (HistoryMessageSummary & { role: "assistant" }) {
-  return (
-    isCompletedStreamingMessage(message) ||
-    isAssistantHistoryMessage(message) ||
-    (isUiMessage(message) && message.kind === "assistant_answer")
-  );
-}
-
-function getRendererSlot(
-  message: AssistantRenderableMessage,
-): AssistantRendererSlot {
-  if (!isUiMessage(message)) {
-    if (message.role === "user") {
-      return "user";
-    }
-
-    return isAssistantHistoryMessage(message) ? "answered" : "safe-state";
-  }
-
-  const kind: AssistantMessageRendererKind = message.kind;
-
-  switch (kind) {
+function getRendererSlotName(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): "user" | "streaming" | "answered" | "safe-state" {
+  switch (resolvedMessage.rendererKind) {
     case "user":
       return "user";
     case "assistant_streaming":
-      return isCompletedStreamingMessage(message) ? "answered" : "streaming";
+      return "streaming";
     case "assistant_answer":
       return "answered";
     default:
@@ -119,12 +95,10 @@ function getRendererSlot(
   }
 }
 
-function getMessageKey(message: AssistantRenderableMessage): string {
-  return isUiMessage(message) ? message.key : message.messageId;
-}
-
-function getMessageKind(message: AssistantRenderableMessage): string {
-  return isUiMessage(message) ? message.kind : `history_${message.role}`;
+function shouldShowFeedbackPlaceholder(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): boolean {
+  return resolvedMessage.rendererKind === "assistant_answer";
 }
 </script>
 
@@ -169,39 +143,91 @@ function getMessageKind(message: AssistantRenderableMessage): string {
     <div v-else class="grid gap-3">
       <ol class="grid list-none gap-3 p-0" aria-label="對話訊息">
         <li
-          v-for="(message, index) in props.messages"
-          :key="getMessageKey(message)"
+          v-for="(resolvedMessage, index) in resolvedMessages"
+          :key="resolvedMessage.key"
           class="min-w-0"
-          :data-message-kind="getMessageKind(message)"
+          :data-message-kind="
+            'kind' in resolvedMessage.message
+              ? resolvedMessage.message.kind
+              : `history_${resolvedMessage.message.role}`
+          "
         >
-          <slot
-            :name="getRendererSlot(message)"
-            :message="message"
-            :index="index"
+          <AssistantMessageFrame
+            v-if="resolvedMessage.frameRole"
+            :role="resolvedMessage.frameRole"
+            :created-at="resolvedMessage.message.createdAt"
+            :message-test-id="resolvedMessage.messageTestId"
+            :timestamp-test-id="resolvedMessage.timestampTestId"
+            :show-timestamp="resolvedMessage.showTimestamp"
           >
-            <UserMessageItem
-              v-if="getRendererSlot(message) === 'user'"
-              :message="message"
-            />
-            <AiStreamingItem
-              v-else-if="
-                isUiMessage(message) &&
-                message.kind === 'assistant_streaming' &&
-                getRendererSlot(message) === 'streaming'
-              "
-              :message="message"
-            />
-            <AiMessageItem
-              v-else-if="isAiMessageRenderable(message)"
-              :message="message"
-            />
-            <div
-              v-else
-              class="rounded-2xl rounded-bl-md border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm"
+            <template
+              v-if="shouldShowFeedbackPlaceholder(resolvedMessage)"
+              #metadata-leading
             >
-              {{ message.content }}
-            </div>
-          </slot>
+              <div
+                class="flex items-center gap-1"
+                data-testid="assistant-feedback-placeholder"
+              >
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="fluent:thumb-like-24-regular"
+                  disabled
+                  aria-label="回饋此回答有幫助"
+                  data-testid="assistant-feedback-positive"
+                  class="!p-0.5 transition-colors"
+                />
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="fluent:thumb-dislike-24-regular"
+                  disabled
+                  aria-label="回饋此回答沒有幫助"
+                  data-testid="assistant-feedback-negative"
+                  class="!p-0.5 transition-colors"
+                />
+              </div>
+            </template>
+
+            <slot
+              :name="getRendererSlotName(resolvedMessage)"
+              :message="resolvedMessage.message"
+              :index="index"
+            >
+              <component
+                :is="
+                  resolvedMessage.rendererKind === 'unsupported_safe_state'
+                    ? 'div'
+                    : rendererComponents[resolvedMessage.rendererKind]
+                "
+                v-bind="
+                  resolvedMessage.rendererKind === 'unsupported_safe_state'
+                    ? {
+                        class:
+                          'rounded-2xl rounded-bl-md border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm',
+                        'data-testid': 'assistant-unsupported-safe-state-body',
+                      }
+                    : { message: resolvedMessage.message }
+                "
+              >
+                <template
+                  v-if="resolvedMessage.rendererKind === 'unsupported_safe_state'"
+                >
+                  {{ resolvedMessage.message.content }}
+                </template>
+              </component>
+            </slot>
+          </AssistantMessageFrame>
+
+          <div
+            v-else
+            class="rounded-2xl rounded-bl-md border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm"
+            :data-testid="resolvedMessage.messageTestId"
+          >
+            {{ resolvedMessage.message.content }}
+          </div>
         </li>
       </ol>
 

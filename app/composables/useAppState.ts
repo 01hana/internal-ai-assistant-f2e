@@ -1,12 +1,17 @@
-import type { ShallowRef } from "vue";
+import { shallowRef, type ShallowRef } from "vue";
 
-type StateInstance = [ShallowRef<any>, (status: any) => void];
+type StateInstance<TState> = [
+  ShallowRef<TState>,
+  (nextState: TState) => void,
+];
 
-export function useAppState(initalState: any): StateInstance {
-  const state = shallowRef(initalState);
+export function useAppState<TState>(
+  initialState: TState,
+): StateInstance<TState> {
+  const state = shallowRef(initialState) as ShallowRef<TState>;
 
-  function update(newState: any) {
-    state.value = newState;
+  function update(nextState: TState) {
+    state.value = nextState;
   }
 
   return [state, update];

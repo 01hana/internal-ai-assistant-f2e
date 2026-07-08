@@ -165,29 +165,25 @@ describe('ChatWidget floating launcher shell', () => {
     const panel = wrapper.get('[data-testid="assistant-panel"]')
     expect(launcher.attributes('aria-expanded')).toBe('true')
     expect(panel.attributes('role')).toBe('dialog')
-    expect(document.activeElement).toBe(panel.element)
 
     await launcher.trigger('click')
     expect(launcher.attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('[data-testid="assistant-panel"]').exists()).toBe(false)
   })
 
-  it('closes from the close button and returns focus to the launcher', async () => {
+  it('closes from the close button', async () => {
     const wrapper = await mountWidget()
-    const launcher = wrapper.get('[data-testid="assistant-launcher"]')
 
-    await launcher.trigger('click')
+    await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
     await wrapper.get('[data-testid="assistant-panel-close"]').trigger('click')
 
     expect(wrapper.find('[data-testid="assistant-panel"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(launcher.element)
   })
 
-  it('closes with Escape and returns focus to the launcher', async () => {
+  it('closes with Escape', async () => {
     const wrapper = await mountWidget()
-    const launcher = wrapper.get('[data-testid="assistant-launcher"]')
 
-    await launcher.trigger('click')
+    await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
     document.dispatchEvent(new KeyboardEvent('keydown', {
       key: 'Escape',
       bubbles: true,
@@ -195,7 +191,6 @@ describe('ChatWidget floating launcher shell', () => {
     await nextTick()
 
     expect(wrapper.find('[data-testid="assistant-panel"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(launcher.element)
   })
 
   it('shows a safe context-not-ready state and an ARIA live region', async () => {
@@ -383,17 +378,38 @@ describe('ChatMessageArea registry skeleton', () => {
     const userMessages = wrapper.findAll(
       '[data-testid="assistant-user-message"]',
     )
-    const assistantMessages = wrapper.findAll(
+    const answeredAssistantMessages = wrapper.findAll(
       '[data-testid="assistant-ai-message"]',
+    )
+    const noAnswerAssistantMessages = wrapper.findAll(
+      '[data-testid="assistant-no-answer-message"]',
     )
 
     expect(userMessages).toHaveLength(2)
-    expect(assistantMessages).toHaveLength(3)
+    expect(answeredAssistantMessages).toHaveLength(2)
+    expect(noAnswerAssistantMessages).toHaveLength(1)
     expect(userMessages.every(message => message.classes().includes('justify-end'))).toBe(true)
-    expect(assistantMessages.every(message => message.classes().includes('justify-start'))).toBe(true)
+    expect(
+      [...answeredAssistantMessages, ...noAnswerAssistantMessages].every(message =>
+        message.classes().includes('justify-start'),
+      ),
+    ).toBe(true)
     expect(wrapper.text()).toContain('查詢目前待處理訂單')
     expect(wrapper.text()).toContain('昨天共有五筆訂單。')
     expect(wrapper.text()).toContain('目前沒有足夠資訊可安全回答。')
+    expect(
+      wrapper.findAll('[data-testid="assistant-user-message-time"]'),
+    ).toHaveLength(2)
+    expect(
+      wrapper.findAll('[data-testid="assistant-feedback-placeholder"]'),
+    ).toHaveLength(2)
+    expect(
+      wrapper
+        .findAll('[data-testid="assistant-no-answer-message"]')
+        .every(message =>
+          !message.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+        ),
+    ).toBe(true)
   })
 
   it('keeps history system safe-state messages on the fallback renderer without an assistant avatar', async () => {

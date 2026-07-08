@@ -7,6 +7,7 @@ import type {
   AssistantSessionId,
   ClarificationQuestionId,
   EscalationRequestId,
+  HistoryMessageSummary,
   IsoDateTime,
   NoAnswerReason,
   ToolCallId,
@@ -157,6 +158,32 @@ export type AssistantUiMessage =
   | AssistantStreamingUiMessage
   | ToolFailureUiMessage
   | AssistantSystemStateMessage
+
+export type AssistantRenderableMessage = AssistantUiMessage | HistoryMessageSummary
+
+export type AssistantMessageFrameRole = 'user' | 'assistant'
+
+export type ResolvedAssistantMessageRendererKind =
+  | 'user'
+  | 'assistant_answer'
+  | 'assistant_streaming'
+  | 'clarification'
+  | 'no_answer'
+  | 'permission_denied'
+  | 'tool_failure'
+  | 'escalation'
+  | 'unsupported_safe_state'
+
+export interface ResolvedAssistantMessageRenderer {
+  key: string
+  rendererKind: ResolvedAssistantMessageRendererKind
+  frameRole: AssistantMessageFrameRole | null
+  message: AssistantRenderableMessage
+  messageTestId: string
+  timestampTestId?: string
+  showTimestamp: boolean
+  fallbackKind?: 'permission_denied' | 'tool_failure' | 'escalation_required' | 'system'
+}
 
 export type AssistantPanelAvailability =
   | 'normal'

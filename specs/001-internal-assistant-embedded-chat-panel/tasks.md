@@ -228,11 +228,11 @@
 
 **Contract Surface**: `clarification_required`、`no_answer`、`permission_denied`、`tool_failure = no_answer + noAnswerReason`、`escalation_required`。
 
-- [ ] T067 [P] [US5] 建立 component tests，覆蓋 clarification、no-answer、permission denied、tool failure、escalation safe state message renderers 與 terminal behavior 於 `tests/component/assistant/safe-states.spec.ts`
-- [ ] T068 [US5] 建立 `ClarificationMessage` 並將補問流程接入 `ChatMessageArea` registry 於 `app/features/assistant/components/ClarificationMessage.vue` 與 `app/features/assistant/components/ChatMessageArea.vue`
-- [ ] T069 [US5] 建立 `NoAnswerMessage`，顯示 missing context / no evidence / evidence conflict 等安全無答案狀態 於 `app/features/assistant/components/NoAnswerMessage.vue`
-- [ ] T070 [US5] 建立 `PermissionDeniedMessage` 與 `ToolFailureMessage`，其中 tool failure 僅能由 `answerDecision=no_answer + noAnswerReason=tool_failure` 觸發 於 `app/features/assistant/components/PermissionDeniedMessage.vue` 與 `app/features/assistant/components/ToolFailureMessage.vue`
-- [ ] T071 [US5] 建立 `EscalationMessage` 並將 safe-state mapping 接入 message registry，避免誤顯示為 answered 於 `app/features/assistant/components/EscalationMessage.vue` 與 `app/features/assistant/components/ChatMessageArea.vue`
+- [x] T067 [P] [US5] 建立 component tests，覆蓋 clarification、no-answer、permission denied、tool failure、escalation safe state message renderers 與 terminal behavior 於 `tests/component/assistant/safe-states.spec.ts`
+- [x] T068 [US5] 建立 `ClarificationMessage` 並將補問流程接入 `ChatMessageArea` registry 於 `app/features/assistant/components/ClarificationMessage.vue` 與 `app/features/assistant/components/ChatMessageArea.vue`
+- [x] T069 [US5] 建立 `NoAnswerMessage`，顯示 missing context / no evidence / evidence conflict 等安全無答案狀態 於 `app/features/assistant/components/NoAnswerMessage.vue`
+- [x] T070 [US5] 建立 `PermissionDeniedMessage` 與 `ToolFailureMessage`，其中 tool failure 僅能由 `answerDecision=no_answer + noAnswerReason=tool_failure` 觸發 於 `app/features/assistant/components/PermissionDeniedMessage.vue` 與 `app/features/assistant/components/ToolFailureMessage.vue`
+- [x] T071 [US5] 建立 `EscalationMessage` 並將 safe-state mapping 接入 message registry，避免誤顯示為 answered 於 `app/features/assistant/components/EscalationMessage.vue` 與 `app/features/assistant/components/ChatMessageArea.vue`
 
 **Checkpoint**: 所有 safe state message renderers 均可獨立驗收，且不存在 `tool_failed` final state。
 
