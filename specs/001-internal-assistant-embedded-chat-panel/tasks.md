@@ -246,10 +246,10 @@
 
 **Contract Surface**: `POST /api/v1/assistant/messages/:messageId/feedback`、`messageId`、`requestId`、`rating`、`intent`、`reason?`、`comment?`。
 
-- [ ] T072 [P] [US6] 建立 unit / component tests，覆蓋 feedback success、failed、retry、duplicate submission guard 與 `messageId` / `requestId` linkage 於 `tests/unit/assistant/feedback.spec.ts`
-- [ ] T073 [US6] 在 `AssistantService.submitFeedback()` 落地 `POST /api/v1/assistant/messages/:messageId/feedback`，request 需支援 `rating`、`intent`、`reason?`、`comment?` 於 `app/services/api/assistant.ts`
-- [ ] T074 [US6] 建立 `FeedbackControls`，只在 final assistant message 顯示 feedback UI，並避免 comment 寫入 console / analytics 於 `app/features/assistant/components/FeedbackControls.vue`
-- [ ] T075 [US6] 在 `useAssistantSessionStore` 與 `AiMessageItem` 實作 `feedbackStates`、`messageId` / `requestId` mapping、success / failed / retry UI，且不得自行建立 `ReviewItem` 於 `app/stores/assistant/useAssistantSessionStore.ts` 與 `app/features/assistant/components/AiMessageItem.vue`
+- [x] T072 [P] [US6] 建立 unit / component tests，覆蓋 feedback success、failed、retry、duplicate submission guard 與 `messageId` / `requestId` linkage 於 `tests/unit/assistant/feedback.spec.ts`
+- [x] T073 [US6] 在 `AssistantService.submitFeedback()` 落地 `POST /api/v1/assistant/messages/:messageId/feedback`，request 需支援 `rating`、`intent`、`reason?`、`comment?` 於 `app/services/api/assistant.ts`
+- [x] T074 [US6] 建立 `FeedbackControls`，只在 final assistant message 顯示 feedback UI，並避免 comment 寫入 console / analytics 於 `app/features/assistant/components/FeedbackControls.vue`
+- [x] T075 [US6] 在 `useAssistantSessionStore` 與 `AiMessageItem` 實作 `feedbackStates`、`messageId` / `requestId` mapping、success / failed / retry UI，且不得自行建立 `ReviewItem` 於 `app/stores/assistant/useAssistantSessionStore.ts` 與 `app/features/assistant/components/AiMessageItem.vue`
 
 **Checkpoint**: feedback flow 已獨立可驗收，且不再是 local-only toggle。
 

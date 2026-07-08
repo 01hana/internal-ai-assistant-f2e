@@ -78,28 +78,84 @@ describe('AiMessageItem answered evidence UI', () => {
     expect(wrapper.get('[data-testid="assistant-evidence-snippet"]').text()).toContain('建立退貨申請後，由倉儲確認入庫。')
 
     const metadata = wrapper.get('[data-testid="assistant-message-metadata"]')
-    const feedbackPlaceholder = wrapper.get('[data-testid="assistant-feedback-placeholder"]')
-    const positiveFeedback = wrapper.get('[data-testid="assistant-feedback-positive"]')
-    const negativeFeedback = wrapper.get('[data-testid="assistant-feedback-negative"]')
+    const feedbackControls = wrapper.get('[data-testid="assistant-feedback-controls"]')
+    const helpfulFeedback = wrapper.get('[data-testid="assistant-feedback-helpful"]')
+    const notHelpfulFeedback = wrapper.get('[data-testid="assistant-feedback-not-helpful"]')
 
     expect(metadata.exists()).toBe(true)
-    expect(metadata.find('[data-testid="assistant-feedback-placeholder"]').exists()).toBe(true)
+    expect(metadata.find('[data-testid="assistant-feedback-controls"]').exists()).toBe(true)
     expect(metadata.find('[data-testid="assistant-ai-message-time"]').exists()).toBe(true)
-    expect(feedbackPlaceholder.exists()).toBe(true)
-    expect(positiveFeedback.attributes('disabled')).toBeDefined()
-    expect(negativeFeedback.attributes('disabled')).toBeDefined()
+    expect(feedbackControls.exists()).toBe(true)
     expect(
-      positiveFeedback.attributes('aria-label') ?? positiveFeedback.attributes('title'),
+      helpfulFeedback.attributes('aria-label') ?? helpfulFeedback.attributes('title'),
     ).toContain('有幫助')
     expect(
-      negativeFeedback.attributes('aria-label') ?? negativeFeedback.attributes('title'),
+      notHelpfulFeedback.attributes('aria-label') ?? notHelpfulFeedback.attributes('title'),
     ).toContain('沒有幫助')
+    expect(helpfulFeedback.attributes('disabled')).toBeUndefined()
+    expect(notHelpfulFeedback.attributes('disabled')).toBeUndefined()
     expect(
       wrapper
         .get('[data-testid="assistant-ai-bubble"]')
-        .find('[data-testid="assistant-feedback-placeholder"]')
+        .find('[data-testid="assistant-feedback-controls"]')
         .exists(),
     ).toBe(false)
+
+    await helpfulFeedback.trigger('click')
+
+    expect(wrapper.emitted('feedback')).toEqual([
+      [
+        {
+          messageId: 'message-answer-evidence-001',
+          value: 'helpful',
+          requestId: 'req-answer-evidence-001',
+        },
+      ],
+    ])
+  })
+
+  it('reflects selected feedback state from parent-managed props', async () => {
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [createCompletedStreamingMessage()],
+        feedbackStates: {
+          'message-answer-evidence-001': {
+            value: 'helpful',
+            pending: false,
+            error: null,
+            requestId: 'req-answer-evidence-001',
+          },
+        },
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-helpful"]').attributes('aria-pressed'),
+    ).toBe('true')
+  })
+
+  it('disables feedback controls when the answered message has no messageId', async () => {
+    const wrapper = await mountSuspended(ChatMessageArea, {
+      props: {
+        messages: [
+          createCompletedStreamingMessage({
+            messageId: undefined,
+          }),
+        ],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-helpful"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-not-helpful"]').attributes('disabled'),
+    ).toBeDefined()
+
+    await wrapper.get('[data-testid="assistant-feedback-helpful"]').trigger('click')
+    expect(wrapper.emitted('feedback')).toBeUndefined()
   })
 
   it('renders reference-only evidence ids without inventing title, snippet, or sourceType', async () => {
@@ -168,7 +224,7 @@ describe('AiMessageItem answered evidence UI', () => {
 
     expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false)
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false)
     expect(wrapper.get('[data-testid="assistant-permission-denied-message"]').exists()).toBe(true)
   })

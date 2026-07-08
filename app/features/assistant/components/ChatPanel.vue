@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type {
+  AssistantMessageFeedbackUiState,
+  AssistantFeedbackValue,
   AssistantPanelAvailability,
   AssistantUiMessage,
   HistoryMessageSummary,
@@ -19,6 +21,7 @@ const props = withDefaults(
     nextCursor?: string | null;
     historyLoading?: boolean;
     historyLoadingMore?: boolean;
+    feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
     sessionLoading?: boolean;
     recoveryState?: AssistantSessionRecoveryViewState | null;
     canSend?: boolean;
@@ -32,6 +35,7 @@ const props = withDefaults(
     nextCursor: null,
     historyLoading: false,
     historyLoadingMore: false,
+    feedbackStates: () => ({}),
     sessionLoading: false,
     recoveryState: null,
     canSend: false,
@@ -47,6 +51,13 @@ const emit = defineEmits<{
   restartSession: [];
   sendMessage: [text: string];
   cancelStream: [];
+  feedback: [
+    payload: {
+      messageId: string;
+      value: AssistantFeedbackValue;
+      requestId?: string | null;
+    },
+  ];
 }>();
 
 const contextReady = computed(() => props.availability === "normal");
@@ -154,7 +165,9 @@ onKeyStroke("Escape", () => {
             :next-cursor="nextCursor"
             :history-loading="sessionLoading || historyLoading"
             :history-loading-more="historyLoadingMore"
+            :feedback-states="feedbackStates"
             @load-more="emit('loadMoreHistory')"
+            @feedback="emit('feedback', $event)"
           />
         </slot>
       </div>

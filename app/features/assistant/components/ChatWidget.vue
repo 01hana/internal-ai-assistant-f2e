@@ -28,6 +28,7 @@ const {
   nextCursor,
   historyLoading,
   historyLoadingMore,
+  feedbackByMessageId,
   isBootstrapping,
   recoveryState,
   canSend,
@@ -89,6 +90,7 @@ async function togglePanel() {
         :next-cursor="nextCursor"
         :history-loading="historyLoading"
         :history-loading-more="historyLoadingMore"
+        :feedback-states="feedbackByMessageId"
         :session-loading="isBootstrapping"
         :recovery-state="recoveryState"
         :can-send="canSend"
@@ -100,6 +102,7 @@ async function togglePanel() {
         @restart-session="chat.restartSession"
         @send-message="chat.sendMessage"
         @cancel-stream="chat.cancelStream"
+        @feedback="chat.submitFeedback"
       />
     </Transition>
 

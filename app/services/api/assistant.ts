@@ -1,10 +1,12 @@
 import type {
   AssistantApiRequestOptions,
+  AssistantMessageId,
   AssistantHistoryQuery,
   AssistantSession,
   AssistantSessionId,
   AssistantSuccessEnvelope,
   CreateAssistantSessionRequest,
+  FeedbackRequest,
   SendAssistantMessageRequest,
   SessionMessagesResponse,
 } from '../../types/assistant'
@@ -15,6 +17,14 @@ import {
 
 export interface AssistantServiceOptions {
   httpClient?: HttpClient
+}
+
+interface AssistantFeedbackAcceptedData {
+  feedbackEventId: string
+  messageId: AssistantMessageId
+  rating: FeedbackRequest['rating']
+  intent: FeedbackRequest['intent']
+  reviewItemId?: string | null
 }
 
 function toRequestHeaders(
@@ -97,6 +107,21 @@ export class AssistantService {
       path: `assistant/sessions/${encodeURIComponent(sessionId)}/messages`,
       body: request,
       headers,
+      signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  submitFeedback(
+    messageId: AssistantMessageId,
+    request: FeedbackRequest,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<AssistantFeedbackAcceptedData>> {
+    return this.httpClient.request({
+      method: 'POST',
+      path: `assistant/messages/${encodeURIComponent(messageId)}/feedback`,
+      body: request,
+      headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
       silent: options.silent,
     })

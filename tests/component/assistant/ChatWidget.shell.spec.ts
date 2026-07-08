@@ -401,13 +401,13 @@ describe('ChatMessageArea registry skeleton', () => {
       wrapper.findAll('[data-testid="assistant-user-message-time"]'),
     ).toHaveLength(2)
     expect(
-      wrapper.findAll('[data-testid="assistant-feedback-placeholder"]'),
+      wrapper.findAll('[data-testid="assistant-feedback-controls"]'),
     ).toHaveLength(2)
     expect(
       wrapper
         .findAll('[data-testid="assistant-no-answer-message"]')
         .every(message =>
-          !message.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+          !message.find('[data-testid="assistant-feedback-controls"]').exists(),
         ),
     ).toBe(true)
   })

@@ -54,7 +54,8 @@ function submit() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if ((event as any).isComposing) return;
+  const composingEvent = event as KeyboardEvent & { isComposing?: boolean };
+  if (composingEvent.isComposing) return;
 
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -67,9 +68,9 @@ function handleKeydown(event: KeyboardEvent) {
   <div class="grid gap-2" data-testid="assistant-chat-input-bar">
     <div class="flex items-end gap-2">
       <UTextarea
+        v-model="text"
         class="w-full"
         :rows="1"
-        v-model="text"
         :disabled="inputDisabled"
         autoresize
         placeholder="輸入訊息..."

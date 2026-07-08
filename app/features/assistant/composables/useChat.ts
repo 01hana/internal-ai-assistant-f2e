@@ -1,11 +1,15 @@
 import { createHttpClient } from "../../../services";
 import { AssistantService } from "../../../services/api/assistant";
 import type {
+  AssistantFeedbackValue,
   AssistantHostContextProvider,
   AssistantHostContextReadPurpose,
   AssistantHostContextSnapshot,
+  AssistantMessageId,
+  AssistantRequestId,
   AssistantSessionScope,
   AssistantStreamingUiMessage,
+  FeedbackRequest,
   ResolvedAssistantIdentityHeaders,
   UserUiMessage,
 } from "../../../types/assistant";
@@ -63,6 +67,24 @@ const TERMINAL_RECOVERY_REASONS = new Set<AssistantSessionRecoveryReason>([
   "not_found",
 ]);
 
+const FEEDBACK_ERROR_MESSAGE = "回饋暫時無法送出，請稍後再試。";
+
+function mapFeedbackValueToRequest(
+  value: AssistantFeedbackValue,
+): FeedbackRequest {
+  if (value === "helpful") {
+    return {
+      rating: "positive",
+      intent: "other",
+    };
+  }
+
+  return {
+    rating: "negative",
+    intent: "not_helpful",
+  };
+}
+
 export function useChat(options: UseChatOptions = {}) {
   const widgetStore = useChatWidgetStore();
   const hostContextProvider =
@@ -88,6 +110,7 @@ export function useChat(options: UseChatOptions = {}) {
     contextReady,
     recoveryReason,
     activeRequestId,
+    feedbackByMessageId,
   } = storeToRefs(sessionStore);
 
   const scopeChanged = ref(false);
@@ -388,6 +411,67 @@ export function useChat(options: UseChatOptions = {}) {
     await stream.cancel();
   }
 
+  async function submitFeedback(input: {
+    messageId: AssistantMessageId;
+    value: AssistantFeedbackValue;
+    requestId?: AssistantRequestId | null;
+  }): Promise<boolean> {
+    const currentState = sessionStore.getFeedbackState(input.messageId);
+
+    if (currentState.pending) {
+      return false;
+    }
+
+    if (currentState.value === input.value && currentState.error === null) {
+      return false;
+    }
+
+    const previousValue = currentState.value;
+    const linkedRequestId = input.requestId ?? currentState.requestId ?? null;
+
+    sessionStore.startFeedbackSubmission(
+      input.messageId,
+      input.value,
+      linkedRequestId,
+    );
+
+    try {
+      const snapshot = await hostContext.getLatestSnapshot("send");
+
+      if (
+        snapshot.readiness.status !== "ready"
+        || !snapshot.identityHeaders
+      ) {
+        throw new Error("feedback context not ready");
+      }
+
+      const identityHeaders = {
+        ...snapshot.identityHeaders,
+        "x-request-id": generateAssistantRequestId(),
+      } satisfies ResolvedAssistantIdentityHeaders;
+
+      await assistantService.submitFeedback(
+        input.messageId,
+        mapFeedbackValueToRequest(input.value),
+        {
+          identityHeaders,
+        },
+      );
+
+      sessionStore.completeFeedbackSubmission(input.messageId);
+      return true;
+    }
+    catch {
+      sessionStore.failFeedbackSubmission(
+        input.messageId,
+        previousValue,
+        linkedRequestId,
+        FEEDBACK_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  }
+
   return {
     isBootstrapping,
     sessionReady,
@@ -400,6 +484,7 @@ export function useChat(options: UseChatOptions = {}) {
     historyLoading,
     historyLoadingMore,
     contextReady,
+    feedbackByMessageId,
     recoveryState,
     bootstrapOnPanelOpen,
     loadMoreHistory,
@@ -408,5 +493,6 @@ export function useChat(options: UseChatOptions = {}) {
     resendMessage,
     retryLastMessage,
     cancelStream,
+    submitFeedback,
   };
 }

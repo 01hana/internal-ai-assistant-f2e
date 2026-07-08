@@ -1,7 +1,10 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
+  AssistantFeedbackValue,
+  AssistantMessageFeedbackUiState,
   AssistantMessageFinalData,
+  AssistantMessageId,
   AssistantRequestId,
   AssistantSession,
   AssistantSessionScope,
@@ -133,6 +136,9 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
   const activeAssistantMessageKey = ref<string | null>(
     initial.activeAssistantMessageKey,
   )
+  const feedbackByMessageId = ref<
+    Record<AssistantMessageId, AssistantMessageFeedbackUiState>
+  >({})
   const lastError = ref<AssistantSessionSafeError | null>(initial.lastError)
   const recoveryReason = ref<AssistantSessionRecoveryReason | null>(
     initial.recoveryReason,
@@ -340,6 +346,65 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
 
   function appendUserMessage(message: UserUiMessage) {
     messages.value.push(message)
+  }
+
+  function getFeedbackState(
+    messageId: AssistantMessageId,
+  ): AssistantMessageFeedbackUiState {
+    return (
+      feedbackByMessageId.value[messageId] ?? {
+        value: null,
+        pending: false,
+        error: null,
+        requestId: null,
+      }
+    )
+  }
+
+  function startFeedbackSubmission(
+    messageId: AssistantMessageId,
+    value: AssistantFeedbackValue,
+    requestId: AssistantRequestId | null,
+  ) {
+    feedbackByMessageId.value = {
+      ...feedbackByMessageId.value,
+      [messageId]: {
+        value,
+        pending: true,
+        error: null,
+        requestId,
+      },
+    }
+  }
+
+  function completeFeedbackSubmission(messageId: AssistantMessageId) {
+    const currentState = getFeedbackState(messageId)
+
+    feedbackByMessageId.value = {
+      ...feedbackByMessageId.value,
+      [messageId]: {
+        ...currentState,
+        pending: false,
+        error: null,
+      },
+    }
+  }
+
+  function failFeedbackSubmission(
+    messageId: AssistantMessageId,
+    previousValue: AssistantFeedbackValue | null,
+    requestId: AssistantRequestId | null,
+    error: string,
+  ) {
+    feedbackByMessageId.value = {
+      ...feedbackByMessageId.value,
+      [messageId]: {
+        value: previousValue,
+        pending: false,
+        error,
+        requestId,
+      },
+    }
   }
 
   function appendAssistantStreamingPlaceholder(
@@ -591,6 +656,7 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     contextReady.value = initial.contextReady
     activeRequestId.value = initial.activeRequestId
     activeAssistantMessageKey.value = initial.activeAssistantMessageKey
+    feedbackByMessageId.value = {}
     lastError.value = initial.lastError
     recoveryReason.value = initial.recoveryReason
   }
@@ -606,6 +672,7 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     contextReady,
     activeRequestId,
     activeAssistantMessageKey,
+    feedbackByMessageId,
     lastError,
     recoveryReason,
     sessionId,
@@ -624,6 +691,10 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     appendHistoryPage,
     appendMessages,
     appendUserMessage,
+    getFeedbackState,
+    startFeedbackSubmission,
+    completeFeedbackSubmission,
+    failFeedbackSubmission,
     appendAssistantStreamingPlaceholder,
     setStreamingRequest,
     updateActiveStreamingStatus,

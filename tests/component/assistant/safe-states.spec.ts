@@ -79,7 +79,7 @@ describe("ChatMessageArea clarification and no-answer safe states", () => {
       false,
     );
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
   });
 
@@ -117,7 +117,7 @@ describe("ChatMessageArea clarification and no-answer safe states", () => {
       false,
     );
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
   });
 
@@ -253,7 +253,7 @@ describe("ChatMessageArea clarification and no-answer safe states", () => {
       wrapper.find('[data-testid="assistant-no-answer-message"]').exists(),
     ).toBe(false);
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
   });
 
@@ -286,7 +286,7 @@ describe("ChatMessageArea clarification and no-answer safe states", () => {
       false,
     );
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
   });
 
@@ -337,7 +337,7 @@ describe("ChatMessageArea clarification and no-answer safe states", () => {
       false,
     );
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
   });
 });

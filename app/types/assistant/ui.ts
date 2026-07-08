@@ -49,6 +49,15 @@ export type AnswerDecisionUiState =
       escalationRequestId?: EscalationRequestId
     }
 
+export type AssistantFeedbackValue = 'helpful' | 'not_helpful'
+
+export interface AssistantMessageFeedbackUiState {
+  value: AssistantFeedbackValue | null
+  pending: boolean
+  error: string | null
+  requestId: AssistantRequestId | null
+}
+
 export type AssistantMessageRendererKind =
   | 'user'
   | 'assistant_answer'

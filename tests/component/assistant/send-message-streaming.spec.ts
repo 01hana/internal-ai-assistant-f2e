@@ -72,6 +72,15 @@ function createJsonResponse(payload: unknown): Response {
   });
 }
 
+function createCreatedJsonResponse(payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    status: 201,
+    headers: {
+      "content-type": "application/json",
+    },
+  });
+}
+
 function createSessionEnvelope() {
   return {
     requestId: "request-session-create-001",
@@ -652,6 +661,256 @@ beforeEach(() => {
     vi.useRealTimers();
   });
 
+  it("submits helpful feedback with optimistic selected state and keeps it after success", async () => {
+    vi.useFakeTimers();
+    let resolveFeedback: ((response: Response) => void) | null = null;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-feedback-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "answered",
+                answer: "這是可回饋的已回答訊息。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/messages/message-feedback-final-001/feedback") {
+          return new Promise<Response>((resolve) => {
+            resolveFeedback = resolve;
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("請回答並允許回饋");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    const helpfulButton = wrapper.get('[data-testid="assistant-feedback-helpful"]');
+    const notHelpfulButton = wrapper.get(
+      '[data-testid="assistant-feedback-not-helpful"]',
+    );
+
+    await helpfulButton.trigger("click");
+    await flushPromises();
+
+    const feedbackCalls = fetchMock.mock.calls.filter(([requestUrl]) =>
+      String(requestUrl).includes("/feedback"),
+    );
+    expect(feedbackCalls).toHaveLength(1);
+    expect(String(feedbackCalls[0]?.[0])).toBe(
+      "/api/v1/assistant/messages/message-feedback-final-001/feedback",
+    );
+    expect(
+      JSON.parse(String(feedbackCalls[0]?.[1]?.body)),
+    ).toEqual({
+      rating: "positive",
+      intent: "other",
+    });
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-controls"]').attributes("aria-busy"),
+    ).toBe("true");
+    expect(helpfulButton.attributes("aria-pressed")).toBe("true");
+    expect(helpfulButton.attributes("disabled")).toBeDefined();
+    expect(notHelpfulButton.attributes("disabled")).toBeDefined();
+
+    resolveFeedback?.(
+      createCreatedJsonResponse({
+        requestId: "req-feedback-submit-001",
+        data: {
+          feedbackEventId: "feedback-001",
+          messageId: "message-feedback-final-001",
+          rating: "positive",
+          intent: "other",
+          reviewItemId: null,
+        },
+      }),
+    );
+    await flushPromises();
+    await nextTick();
+
+    const linkedRequestId = useAssistantSessionStore().messages[1]?.requestId;
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-controls"]').attributes("aria-busy"),
+    ).toBe("false");
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-helpful"]').attributes("aria-pressed"),
+    ).toBe("true");
+    expect(
+      useAssistantSessionStore().feedbackByMessageId["message-feedback-final-001"],
+    ).toEqual({
+      value: "helpful",
+      pending: false,
+      error: null,
+      requestId: linkedRequestId ?? null,
+    });
+
+    await wrapper.get('[data-testid="assistant-feedback-helpful"]').trigger("click");
+    expect(
+      fetchMock.mock.calls.filter(([requestUrl]) =>
+        String(requestUrl).includes("/feedback"),
+      ),
+    ).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("rolls back optimistic feedback on failure and allows retry", async () => {
+    vi.useFakeTimers();
+    let feedbackAttempt = 0;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-feedback-retry-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "answered",
+                answer: "這則回答可以測試重試。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/messages/message-feedback-retry-001/feedback") {
+          feedbackAttempt += 1;
+
+          if (feedbackAttempt === 1) {
+            return new Response(
+              JSON.stringify({
+                requestId: "req-feedback-error-001",
+                error: {
+                  code: "assistant_unavailable",
+                  message: "Assistant service is temporarily unavailable.",
+                },
+              }),
+              {
+                status: 503,
+                headers: {
+                  "content-type": "application/json",
+                },
+              },
+            );
+          }
+
+          return createCreatedJsonResponse({
+            requestId: "req-feedback-success-002",
+            data: {
+              feedbackEventId: "feedback-002",
+              messageId: "message-feedback-retry-001",
+              rating: "negative",
+              intent: "not_helpful",
+              reviewItemId: "review-001",
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("回答後我要送負向回饋");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    const notHelpfulButton = wrapper.get(
+      '[data-testid="assistant-feedback-not-helpful"]',
+    );
+
+    await notHelpfulButton.trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-not-helpful"]').attributes("aria-pressed"),
+    ).toBe("false");
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-error"]').text(),
+    ).toContain("回饋暫時無法送出");
+    expect(
+      useAssistantSessionStore().feedbackByMessageId["message-feedback-retry-001"],
+    ).toMatchObject({
+      value: null,
+      pending: false,
+      error: "回饋暫時無法送出，請稍後再試。",
+    });
+
+    await notHelpfulButton.trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-error"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.get('[data-testid="assistant-feedback-not-helpful"]').attributes("aria-pressed"),
+    ).toBe("true");
+    expect(
+      useAssistantSessionStore().feedbackByMessageId["message-feedback-retry-001"],
+    ).toMatchObject({
+      value: "not_helpful",
+      pending: false,
+      error: null,
+    });
+    expect(feedbackAttempt).toBe(2);
+    vi.useRealTimers();
+  });
+
   it("renders clarification_required as a clarification safe state instead of an answered bubble", async () => {
     vi.useFakeTimers();
     installEventStreamFetch((requestId) => [
@@ -763,7 +1022,7 @@ beforeEach(() => {
       wrapper.find('[data-testid="assistant-ai-message"]').exists(),
     ).toBe(false);
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
     vi.useRealTimers();
   });
@@ -803,7 +1062,7 @@ beforeEach(() => {
       wrapper.find('[data-testid="assistant-ai-message"]').exists(),
     ).toBe(false);
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
     vi.useRealTimers();
   });
@@ -842,7 +1101,7 @@ beforeEach(() => {
       wrapper.find('[data-testid="assistant-ai-message"]').exists(),
     ).toBe(false);
     expect(
-      wrapper.find('[data-testid="assistant-feedback-placeholder"]').exists(),
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
     vi.useRealTimers();
   });

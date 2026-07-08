@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type {
+  AssistantFeedbackValue,
+  AssistantMessageFeedbackUiState,
   AssistantRenderableMessage,
   ResolvedAssistantMessageRenderer,
 } from "../../../types/assistant";
@@ -10,6 +12,7 @@ import AiMessageItem from "./AiMessageItem.vue";
 import AiStreamingItem from "./AiStreamingItem.vue";
 import ClarificationMessage from "./ClarificationMessage.vue";
 import EscalationMessage from "./EscalationMessage.vue";
+import FeedbackControls from "./FeedbackControls.vue";
 import NoAnswerMessage from "./NoAnswerMessage.vue";
 import PermissionDeniedMessage from "./PermissionDeniedMessage.vue";
 import ToolFailureMessage from "./ToolFailureMessage.vue";
@@ -33,6 +36,7 @@ const props = withDefaults(
     nextCursor?: string | null;
     historyLoading?: boolean;
     historyLoadingMore?: boolean;
+    feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
   }>(),
   {
     messages: () => [],
@@ -40,11 +44,19 @@ const props = withDefaults(
     nextCursor: null,
     historyLoading: false,
     historyLoadingMore: false,
+    feedbackStates: () => ({}),
   },
 );
 
-defineEmits<{
+const emit = defineEmits<{
   loadMore: [];
+  feedback: [
+    payload: {
+      messageId: string;
+      value: AssistantFeedbackValue;
+      requestId?: string | null;
+    },
+  ];
 }>();
 
 const messageAreaRef = ref<HTMLElement | null>(null);
@@ -95,10 +107,78 @@ function getRendererSlotName(
   }
 }
 
-function shouldShowFeedbackPlaceholder(
+function shouldShowFeedbackControls(
   resolvedMessage: ResolvedAssistantMessageRenderer,
 ): boolean {
   return resolvedMessage.rendererKind === "assistant_answer";
+}
+
+function getFeedbackState(messageId: string | undefined) {
+  if (!messageId) {
+    return {
+      value: null,
+      pending: false,
+      error: null,
+    };
+  }
+
+  return (
+    props.feedbackStates[messageId] ?? {
+      value: null,
+      pending: false,
+      error: null,
+      requestId: null,
+    }
+  );
+}
+
+function getFeedbackValue(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): AssistantFeedbackValue | null {
+  return getFeedbackState(resolvedMessage.message.messageId).value;
+}
+
+function isFeedbackPending(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): boolean {
+  return getFeedbackState(resolvedMessage.message.messageId).pending;
+}
+
+function isFeedbackDisabled(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): boolean {
+  return !resolvedMessage.message.messageId;
+}
+
+function getFeedbackError(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): string | null {
+  return getFeedbackState(resolvedMessage.message.messageId).error;
+}
+
+function getMessageRequestId(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): string | null {
+  return "requestId" in resolvedMessage.message
+    ? (resolvedMessage.message.requestId ?? null)
+    : null;
+}
+
+function handleFeedbackSubmit(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+  value: AssistantFeedbackValue,
+) {
+  const { messageId } = resolvedMessage.message;
+
+  if (!messageId) {
+    return;
+  }
+
+  emit("feedback", {
+    messageId,
+    value,
+    requestId: getMessageRequestId(resolvedMessage),
+  });
 }
 </script>
 
@@ -160,35 +240,14 @@ function shouldShowFeedbackPlaceholder(
             :timestamp-test-id="resolvedMessage.timestampTestId"
             :show-timestamp="resolvedMessage.showTimestamp"
           >
-            <template
-              v-if="shouldShowFeedbackPlaceholder(resolvedMessage)"
-              #metadata-leading
-            >
-              <div
-                class="flex items-center gap-1"
-                data-testid="assistant-feedback-placeholder"
-              >
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  icon="fluent:thumb-like-24-regular"
-                  disabled
-                  aria-label="回饋此回答有幫助"
-                  data-testid="assistant-feedback-positive"
-                  class="!p-0.5 transition-colors"
-                />
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  icon="fluent:thumb-dislike-24-regular"
-                  disabled
-                  aria-label="回饋此回答沒有幫助"
-                  data-testid="assistant-feedback-negative"
-                  class="!p-0.5 transition-colors"
-                />
-              </div>
+            <template v-if="shouldShowFeedbackControls(resolvedMessage)" #metadata-leading>
+              <FeedbackControls
+                :model-value="getFeedbackValue(resolvedMessage)"
+                :pending="isFeedbackPending(resolvedMessage)"
+                :disabled="isFeedbackDisabled(resolvedMessage)"
+                :error="getFeedbackError(resolvedMessage)"
+                @submit="value => handleFeedbackSubmit(resolvedMessage, value)"
+              />
             </template>
 
             <slot
