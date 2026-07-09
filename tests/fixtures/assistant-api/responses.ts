@@ -122,7 +122,7 @@ export const feedbackNeutralSuccessResponse = {
 export const actionDraftDetailResponse = {
   requestId: 'req-action-draft-detail-001',
   data: {
-    id: 'action-draft-001',
+    actionDraftId: 'action-draft-001',
     requestId: 'req-action-draft-001',
     messageId: 'msg-assistant-confirmation-001',
     status: 'waiting_confirmation',
@@ -168,6 +168,57 @@ export const actionDraftConfirmDuplicateResponse = {
       permission: 'pending_execution_guard',
       toolContract: 'pending_execution_guard',
       idempotency: 'duplicate',
+    },
+  },
+} satisfies AssistantSuccessEnvelope<ActionDraftConfirmResult>
+
+export const actionDraftConfirmExpiredResponse = {
+  requestId: 'req-action-draft-confirm-expired-001',
+  data: {
+    actionDraftId: 'action-draft-001',
+    status: 'expired',
+    duplicateSafe: false,
+    recheck: {
+      organizationBoundary: 'passed',
+      draftStatus: 'passed',
+      freshness: 'passed',
+      permission: 'pending_execution_guard',
+      toolContract: 'pending_execution_guard',
+      idempotency: 'reserved',
+    },
+  },
+} satisfies AssistantSuccessEnvelope<ActionDraftConfirmResult>
+
+export const actionDraftConfirmFailedResponse = {
+  requestId: 'req-action-draft-confirm-failed-001',
+  data: {
+    actionDraftId: 'action-draft-001',
+    status: 'failed',
+    duplicateSafe: false,
+    recheck: {
+      organizationBoundary: 'passed',
+      draftStatus: 'passed',
+      freshness: 'passed',
+      permission: 'pending_execution_guard',
+      toolContract: 'pending_execution_guard',
+      idempotency: 'reserved',
+    },
+  },
+} satisfies AssistantSuccessEnvelope<ActionDraftConfirmResult>
+
+export const actionDraftConfirmExecutedResponse = {
+  requestId: 'req-action-draft-confirm-executed-001',
+  data: {
+    actionDraftId: 'action-draft-001',
+    status: 'executed',
+    duplicateSafe: true,
+    recheck: {
+      organizationBoundary: 'passed',
+      draftStatus: 'passed',
+      freshness: 'passed',
+      permission: 'pending_execution_guard',
+      toolContract: 'pending_execution_guard',
+      idempotency: 'reserved',
     },
   },
 } satisfies AssistantSuccessEnvelope<ActionDraftConfirmResult>

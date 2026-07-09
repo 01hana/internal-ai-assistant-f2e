@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  ActionDraftDetailState,
   AssistantMessageFeedbackUiState,
   AssistantFeedbackValue,
   AssistantPanelAvailability,
@@ -22,6 +23,7 @@ const props = withDefaults(
     historyLoading?: boolean;
     historyLoadingMore?: boolean;
     feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
+    actionDraftStates?: Record<string, ActionDraftDetailState>;
     sessionLoading?: boolean;
     recoveryState?: AssistantSessionRecoveryViewState | null;
     canSend?: boolean;
@@ -36,6 +38,7 @@ const props = withDefaults(
     historyLoading: false,
     historyLoadingMore: false,
     feedbackStates: () => ({}),
+    actionDraftStates: () => ({}),
     sessionLoading: false,
     recoveryState: null,
     canSend: false,
@@ -58,6 +61,8 @@ const emit = defineEmits<{
       requestId?: string | null;
     },
   ];
+  confirmActionDraft: [payload: { actionDraftId: string }];
+  cancelActionDraft: [payload: { actionDraftId: string }];
 }>();
 
 const contextReady = computed(() => props.availability === "normal");
@@ -166,8 +171,11 @@ onKeyStroke("Escape", () => {
             :history-loading="sessionLoading || historyLoading"
             :history-loading-more="historyLoadingMore"
             :feedback-states="feedbackStates"
+            :action-draft-states="actionDraftStates"
             @load-more="emit('loadMoreHistory')"
             @feedback="emit('feedback', $event)"
+            @confirm-action-draft="emit('confirmActionDraft', $event)"
+            @cancel-action-draft="emit('cancelActionDraft', $event)"
           />
         </slot>
       </div>

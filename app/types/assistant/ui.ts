@@ -176,6 +176,7 @@ export type ResolvedAssistantMessageRendererKind =
   | 'user'
   | 'assistant_answer'
   | 'assistant_streaming'
+  | 'confirmation'
   | 'clarification'
   | 'no_answer'
   | 'permission_denied'

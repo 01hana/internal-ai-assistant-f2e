@@ -1,6 +1,12 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
+  ActionDraftDetail,
+  ActionDraftDetailState,
+  ActionDraftId,
+  ActionDraftOperationStatus,
+  ActionDraftRecheck,
+  ActionDraftStatus,
   AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
   AssistantMessageFinalData,
@@ -88,6 +94,42 @@ const TOOL_ACTIVITY = {
 >
 
 const MIN_TYPING_VISIBILITY_MS = 600
+const ACTION_DRAFT_PENDING_GUARD_MESSAGE =
+  '已送出確認，系統仍在處理，請勿重複操作。'
+
+function hasPendingExecutionGuard(recheck?: ActionDraftRecheck): boolean {
+  return (
+    recheck?.permission === 'pending_execution_guard'
+    || recheck?.toolContract === 'pending_execution_guard'
+  )
+}
+
+function mapActionDraftOperationStatus(
+  nextStatus: ActionDraftStatus,
+  recheck?: ActionDraftRecheck,
+): ActionDraftOperationStatus {
+  if (nextStatus === 'cancelled') {
+    return 'cancelled'
+  }
+
+  if (nextStatus === 'expired') {
+    return 'expired'
+  }
+
+  if (nextStatus === 'failed') {
+    return 'failed'
+  }
+
+  if (nextStatus === 'executed') {
+    return 'executed'
+  }
+
+  if (hasPendingExecutionGuard(recheck)) {
+    return 'pending_execution_guard'
+  }
+
+  return 'submitted'
+}
 
 export interface AssistantSessionStoreState {
   status: AssistantSessionLifecycleState
@@ -139,6 +181,7 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
   const feedbackByMessageId = ref<
     Record<AssistantMessageId, AssistantMessageFeedbackUiState>
   >({})
+  const actionDraftById = ref<Record<ActionDraftId, ActionDraftDetailState>>({})
   const lastError = ref<AssistantSessionSafeError | null>(initial.lastError)
   const recoveryReason = ref<AssistantSessionRecoveryReason | null>(
     initial.recoveryReason,
@@ -415,6 +458,131 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     messages.value.push(message)
   }
 
+  function getActionDraftState(
+    actionDraftId: ActionDraftId,
+  ): ActionDraftDetailState {
+    return (
+      actionDraftById.value[actionDraftId] ?? {
+        actionDraftId,
+        operationStatus: 'idle',
+        detailStatus: 'idle',
+        idempotencyKey: null,
+      }
+    )
+  }
+
+  function upsertActionDraftState(
+    actionDraftId: ActionDraftId,
+    nextState: Partial<ActionDraftDetailState>,
+  ) {
+    const currentState = getActionDraftState(actionDraftId)
+
+    actionDraftById.value = {
+      ...actionDraftById.value,
+      [actionDraftId]: {
+        ...currentState,
+        ...nextState,
+      },
+    }
+  }
+
+  function startActionDraftDetailLoad(
+    actionDraftId: ActionDraftId,
+    options: {
+      messageId?: AssistantMessageId | null
+      requestId?: AssistantRequestId
+    } = {},
+  ) {
+    upsertActionDraftState(actionDraftId, {
+      messageId: options.messageId,
+      requestId: options.requestId,
+      detailStatus: 'loading',
+      safeMessage: undefined,
+    })
+  }
+
+  function completeActionDraftDetailLoad(
+    detail: ActionDraftDetail,
+  ) {
+    upsertActionDraftState(detail.actionDraftId, {
+      actionDraftStatus: detail.status,
+      requestId: detail.requestId,
+      messageId: detail.messageId,
+      detailStatus: 'available',
+      detail,
+      safeMessage: undefined,
+    })
+  }
+
+  function failActionDraftDetailLoad(
+    actionDraftId: ActionDraftId,
+    safeMessage: string,
+  ) {
+    upsertActionDraftState(actionDraftId, {
+      detailStatus: 'unavailable',
+      safeMessage,
+    })
+  }
+
+  function setActionDraftOperationStatus(
+    actionDraftId: ActionDraftId,
+    operationStatus: ActionDraftOperationStatus,
+    options: {
+      idempotencyKey?: string | null
+      safeMessage?: string
+    } = {},
+  ) {
+    upsertActionDraftState(actionDraftId, {
+      operationStatus,
+      idempotencyKey: options.idempotencyKey,
+      safeMessage: options.safeMessage,
+    })
+  }
+
+  function completeActionDraftOperation(
+    actionDraftId: ActionDraftId,
+    nextStatus: ActionDraftStatus,
+    options: {
+      recheck?: ActionDraftRecheck
+      idempotencyKey?: string | null
+    } = {},
+  ) {
+    const currentState = getActionDraftState(actionDraftId)
+    const nextDetail = currentState.detail
+      ? {
+          ...currentState.detail,
+          status: nextStatus,
+        }
+      : undefined
+    const nextOperationStatus = mapActionDraftOperationStatus(
+      nextStatus,
+      options.recheck,
+    )
+    const safeMessage = nextOperationStatus === 'pending_execution_guard'
+      ? ACTION_DRAFT_PENDING_GUARD_MESSAGE
+      : undefined
+
+    upsertActionDraftState(actionDraftId, {
+      operationStatus: nextOperationStatus,
+      actionDraftStatus: nextStatus,
+      idempotencyKey: options.idempotencyKey ?? null,
+      recheck: options.recheck,
+      detail: nextDetail,
+      safeMessage,
+    })
+  }
+
+  function failActionDraftOperation(
+    actionDraftId: ActionDraftId,
+    safeMessage: string,
+    operationStatus: Extract<ActionDraftOperationStatus, 'failed'> = 'failed',
+  ) {
+    upsertActionDraftState(actionDraftId, {
+      operationStatus,
+      safeMessage,
+    })
+  }
+
   function setStreamingRequest(
     requestId: AssistantRequestId,
     assistantMessageKey: string,
@@ -591,6 +759,13 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     message.finalDecisionState = finalDecisionState
     message.pendingFinalAnswerDecision = undefined
     message.status = 'completed'
+
+    if (event.data.answerDecision === 'confirmation_required' && event.data.actionDraftId) {
+      upsertActionDraftState(event.data.actionDraftId, {
+        requestId: event.requestId,
+        messageId: event.messageId,
+      })
+    }
   }
 
   function markStreamingStarted() {
@@ -657,6 +832,7 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     activeRequestId.value = initial.activeRequestId
     activeAssistantMessageKey.value = initial.activeAssistantMessageKey
     feedbackByMessageId.value = {}
+    actionDraftById.value = {}
     lastError.value = initial.lastError
     recoveryReason.value = initial.recoveryReason
   }
@@ -673,6 +849,7 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     activeRequestId,
     activeAssistantMessageKey,
     feedbackByMessageId,
+    actionDraftById,
     lastError,
     recoveryReason,
     sessionId,
@@ -695,6 +872,13 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     startFeedbackSubmission,
     completeFeedbackSubmission,
     failFeedbackSubmission,
+    getActionDraftState,
+    startActionDraftDetailLoad,
+    completeActionDraftDetailLoad,
+    failActionDraftDetailLoad,
+    setActionDraftOperationStatus,
+    completeActionDraftOperation,
+    failActionDraftOperation,
     appendAssistantStreamingPlaceholder,
     setStreamingRequest,
     updateActiveStreamingStatus,

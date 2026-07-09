@@ -1,4 +1,9 @@
 import type {
+  ActionDraftCancelResult,
+  ActionDraftConfirmRequest,
+  ActionDraftConfirmResult,
+  ActionDraftDetail,
+  ActionDraftId,
   AssistantApiRequestOptions,
   AssistantMessageId,
   AssistantHistoryQuery,
@@ -121,6 +126,47 @@ export class AssistantService {
       method: 'POST',
       path: `assistant/messages/${encodeURIComponent(messageId)}/feedback`,
       body: request,
+      headers: toRequestHeaders(options.identityHeaders),
+      signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  getActionDraft(
+    actionDraftId: ActionDraftId,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<ActionDraftDetail>> {
+    return this.httpClient.request({
+      method: 'GET',
+      path: `assistant/action-drafts/${encodeURIComponent(actionDraftId)}`,
+      headers: toRequestHeaders(options.identityHeaders),
+      signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  confirmActionDraft(
+    actionDraftId: ActionDraftId,
+    request: ActionDraftConfirmRequest,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<ActionDraftConfirmResult>> {
+    return this.httpClient.request({
+      method: 'POST',
+      path: `assistant/action-drafts/${encodeURIComponent(actionDraftId)}/confirm`,
+      body: request,
+      headers: toRequestHeaders(options.identityHeaders),
+      signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  cancelActionDraft(
+    actionDraftId: ActionDraftId,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<ActionDraftCancelResult>> {
+    return this.httpClient.request({
+      method: 'POST',
+      path: `assistant/action-drafts/${encodeURIComponent(actionDraftId)}/cancel`,
       headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
       silent: options.silent,

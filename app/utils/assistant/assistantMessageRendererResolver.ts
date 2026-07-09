@@ -196,6 +196,16 @@ export function resolveAssistantMessageRenderer(
         })
       }
 
+      if (decisionKind === 'confirmation_required') {
+        return createResolvedMessage(message, {
+          rendererKind: 'confirmation',
+          frameRole: 'assistant',
+          messageTestId: 'assistant-action-draft-message',
+          timestampTestId: 'assistant-action-draft-time',
+          showTimestamp: true,
+        })
+      }
+
       if (decisionKind === 'no_answer') {
         return createResolvedMessage(message, {
           rendererKind: 'no_answer',
@@ -257,6 +267,16 @@ export function resolveAssistantMessageRenderer(
           frameRole: 'assistant',
           messageTestId: 'assistant-clarification-message',
           timestampTestId: 'assistant-clarification-time',
+          showTimestamp: true,
+        })
+      }
+
+      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'confirmation_required') {
+        return createResolvedMessage(message, {
+          rendererKind: 'confirmation',
+          frameRole: 'assistant',
+          messageTestId: 'assistant-action-draft-message',
+          timestampTestId: 'assistant-action-draft-time',
           showTimestamp: true,
         })
       }
@@ -328,6 +348,14 @@ export function resolveAssistantMessageRenderer(
         frameRole: 'assistant',
         messageTestId: 'assistant-clarification-message',
         timestampTestId: 'assistant-clarification-time',
+        showTimestamp: true,
+      })
+    case 'confirmation':
+      return createResolvedMessage(message, {
+        rendererKind: 'confirmation',
+        frameRole: 'assistant',
+        messageTestId: 'assistant-action-draft-message',
+        timestampTestId: 'assistant-action-draft-time',
         showTimestamp: true,
       })
     case 'no_answer':

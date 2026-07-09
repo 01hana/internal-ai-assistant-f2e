@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  ActionDraftDetailState,
   AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
   AssistantRenderableMessage,
@@ -8,6 +9,7 @@ import type {
 import {
   resolveAssistantMessageRenderers,
 } from "../../../utils/assistant/assistantMessageRendererResolver";
+import ActionDraftConfirmationMessage from "./ActionDraftConfirmationMessage.vue";
 import AiMessageItem from "./AiMessageItem.vue";
 import AiStreamingItem from "./AiStreamingItem.vue";
 import ClarificationMessage from "./ClarificationMessage.vue";
@@ -22,6 +24,7 @@ const rendererComponents = {
   user: UserMessageItem,
   assistant_answer: AiMessageItem,
   assistant_streaming: AiStreamingItem,
+  confirmation: ActionDraftConfirmationMessage,
   clarification: ClarificationMessage,
   no_answer: NoAnswerMessage,
   permission_denied: PermissionDeniedMessage,
@@ -37,6 +40,7 @@ const props = withDefaults(
     historyLoading?: boolean;
     historyLoadingMore?: boolean;
     feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
+    actionDraftStates?: Record<string, ActionDraftDetailState>;
   }>(),
   {
     messages: () => [],
@@ -45,6 +49,7 @@ const props = withDefaults(
     historyLoading: false,
     historyLoadingMore: false,
     feedbackStates: () => ({}),
+    actionDraftStates: () => ({}),
   },
 );
 
@@ -57,6 +62,8 @@ const emit = defineEmits<{
       requestId?: string | null;
     },
   ];
+  confirmActionDraft: [payload: { actionDraftId: string }];
+  cancelActionDraft: [payload: { actionDraftId: string }];
 }>();
 
 const messageAreaRef = ref<HTMLElement | null>(null);
@@ -111,6 +118,29 @@ function shouldShowFeedbackControls(
   resolvedMessage: ResolvedAssistantMessageRenderer,
 ): boolean {
   return resolvedMessage.rendererKind === "assistant_answer";
+}
+
+function getActionDraftId(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): string | null {
+  if ("finalDecisionState" in resolvedMessage.message) {
+    return resolvedMessage.message.finalDecisionState?.kind === "confirmation_required"
+      ? (resolvedMessage.message.finalDecisionState.actionDraftId ?? null)
+      : null;
+  }
+
+  if ("actionDraftId" in resolvedMessage.message) {
+    return resolvedMessage.message.actionDraftId ?? null;
+  }
+
+  return null;
+}
+
+function getActionDraftState(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): ActionDraftDetailState | null {
+  const actionDraftId = getActionDraftId(resolvedMessage);
+  return actionDraftId ? (props.actionDraftStates[actionDraftId] ?? null) : null;
 }
 
 function getFeedbackState(messageId: string | undefined) {
@@ -179,6 +209,18 @@ function handleFeedbackSubmit(
     value,
     requestId: getMessageRequestId(resolvedMessage),
   });
+}
+
+function handleConfirmActionDraft(
+  actionDraftId: string,
+) {
+  emit("confirmActionDraft", { actionDraftId });
+}
+
+function handleCancelActionDraft(
+  actionDraftId: string,
+) {
+  emit("cancelActionDraft", { actionDraftId });
 }
 </script>
 
@@ -268,7 +310,16 @@ function handleFeedbackSubmit(
                           'rounded-2xl rounded-bl-md border border-default bg-default px-4 py-3 text-sm text-highlighted shadow-sm',
                         'data-testid': 'assistant-unsupported-safe-state-body',
                       }
-                    : { message: resolvedMessage.message }
+                    : {
+                        message: resolvedMessage.message,
+                        ...(resolvedMessage.rendererKind === 'confirmation'
+                          ? {
+                              actionDraftState: getActionDraftState(resolvedMessage),
+                              onConfirm: ({ actionDraftId }: { actionDraftId: string }) => handleConfirmActionDraft(actionDraftId),
+                              onCancel: ({ actionDraftId }: { actionDraftId: string }) => handleCancelActionDraft(actionDraftId),
+                            }
+                          : {}),
+                      }
                 "
               >
                 <template

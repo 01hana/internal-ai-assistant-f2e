@@ -29,6 +29,7 @@ const {
   historyLoading,
   historyLoadingMore,
   feedbackByMessageId,
+  actionDraftById,
   isBootstrapping,
   recoveryState,
   canSend,
@@ -91,6 +92,7 @@ async function togglePanel() {
         :history-loading="historyLoading"
         :history-loading-more="historyLoadingMore"
         :feedback-states="feedbackByMessageId"
+        :action-draft-states="actionDraftById"
         :session-loading="isBootstrapping"
         :recovery-state="recoveryState"
         :can-send="canSend"
@@ -103,6 +105,8 @@ async function togglePanel() {
         @send-message="chat.sendMessage"
         @cancel-stream="chat.cancelStream"
         @feedback="chat.submitFeedback"
+        @confirm-action-draft="({ actionDraftId }) => chat.confirmActionDraft(actionDraftId)"
+        @cancel-action-draft="({ actionDraftId }) => chat.cancelActionDraft(actionDraftId)"
       />
     </Transition>
 

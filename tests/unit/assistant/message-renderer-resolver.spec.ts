@@ -74,6 +74,24 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolved.messageTestId).toBe('assistant-clarification-message')
   })
 
+  it('maps confirmation_required to confirmation', () => {
+    const resolved = resolveAssistantMessageRenderer(
+      createCompletedStreamingMessage({
+        finalAnswerDecision: 'confirmation_required',
+        finalDecisionState: {
+          kind: 'confirmation_required',
+          answerDecision: 'confirmation_required',
+          actionDraftId: 'action-draft-001',
+        },
+      }),
+    )
+
+    expect(resolved.rendererKind).toBe('confirmation')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.messageTestId).toBe('assistant-action-draft-message')
+    expect(resolved.showTimestamp).toBe(true)
+  })
+
   it('maps no_answer to no_answer', () => {
     const resolved = resolveAssistantMessageRenderer(
       createCompletedStreamingMessage({
@@ -154,6 +172,20 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolved.showTimestamp).toBe(true)
   })
 
+  it('maps history confirmation_required to confirmation', () => {
+    const resolved = resolveAssistantMessageRenderer({
+      messageId: 'message-history-confirmation-001',
+      role: 'assistant',
+      content: '請確認是否送出此操作。',
+      createdAt,
+      answerDecision: 'confirmation_required',
+    } satisfies HistoryMessageSummary)
+
+    expect(resolved.rendererKind).toBe('confirmation')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.showTimestamp).toBe(true)
+  })
+
   it('maps history escalation_required to escalation', () => {
     const resolved = resolveAssistantMessageRenderer({
       messageId: 'message-history-escalation-001',
@@ -213,6 +245,13 @@ describe('assistantMessageRendererResolver', () => {
         answerDecision: 'clarification_required',
       } satisfies HistoryMessageSummary,
       {
+        messageId: 'message-history-confirmation-001',
+        role: 'assistant',
+        content: '請先確認這個動作。',
+        createdAt,
+        answerDecision: 'confirmation_required',
+      } satisfies HistoryMessageSummary,
+      {
         messageId: 'message-history-no-answer-001',
         role: 'assistant',
         content: '目前沒有足夠資訊可安全回答。',
@@ -228,6 +267,9 @@ describe('assistantMessageRendererResolver', () => {
       'clarification',
     )
     expect(resolveAssistantMessageRenderer(messages[2]).rendererKind).toBe(
+      'confirmation',
+    )
+    expect(resolveAssistantMessageRenderer(messages[3]).rendererKind).toBe(
       'no_answer',
     )
   })

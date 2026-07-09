@@ -263,11 +263,11 @@
 
 **Contract Surface**: `confirmation_required`、ActionDraft detail / confirm / cancel、`idempotencyKey`、`pending_execution_guard`。
 
-- [ ] T076 [P] [US7] 建立 contract / component tests，覆蓋 `confirmation_required`、ActionDraft detail、confirm / cancel、`pending_execution_guard`、expired / failed / cancelled flows 於 `tests/component/assistant/action-draft.spec.ts`
-- [ ] T077 [US7] 在 `AssistantService` 實作 `getActionDraft()`、`confirmActionDraft()`、`cancelActionDraft()`，且 confirm 必須支援 `idempotencyKey` 於 `app/services/api/assistant.ts`
-- [ ] T078 [US7] 建立 `ActionDraftConfirmationMessage`，顯示 preview、risk、`expiresAt`、confirm / cancel / loading / terminal states 於 `app/features/assistant/components/ActionDraftConfirmationMessage.vue`
-- [ ] T079 [US7] 在 `useChat` 與 `useAssistantSessionStore` 實作 `confirmation_required` event handling 與 message-level pending action mapping，避免被單一全域狀態覆蓋 於 `app/features/assistant/composables/useChat.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
-- [ ] T080 [US7] 在 `ActionDraftConfirmationMessage` 補上 `pending_execution_guard`、expired、failed、cancelled UI guard，禁止將 confirm 結果誤顯示為 side-effect 已安全完成 於 `app/features/assistant/components/ActionDraftConfirmationMessage.vue`
+- [x] T076 [P] [US7] 建立 contract / component tests，覆蓋 `confirmation_required`、ActionDraft detail、confirm / cancel、`pending_execution_guard`、expired / failed / cancelled flows 於 `tests/component/assistant/action-draft.spec.ts`
+- [x] T077 [US7] 在 `AssistantService` 實作 `getActionDraft()`、`confirmActionDraft()`、`cancelActionDraft()`，且 confirm 必須支援 `idempotencyKey` 於 `app/services/api/assistant.ts`
+- [x] T078 [US7] 建立 `ActionDraftConfirmationMessage`，顯示 preview、risk、`expiresAt`、confirm / cancel / loading / terminal states 於 `app/features/assistant/components/ActionDraftConfirmationMessage.vue`
+- [x] T079 [US7] 在 `useChat` 與 `useAssistantSessionStore` 實作 `confirmation_required` event handling 與 message-level pending action mapping，避免被單一全域狀態覆蓋 於 `app/features/assistant/composables/useChat.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
+- [x] T080 [US7] 在 `ActionDraftConfirmationMessage` 補上 `pending_execution_guard`、expired、failed、cancelled UI guard，禁止將 confirm 結果誤顯示為 side-effect 已安全完成 於 `app/features/assistant/components/ActionDraftConfirmationMessage.vue`
 
 **Checkpoint**: ActionDraft confirm / cancel 已獨立可驗收，且不會誤宣告動作已完成。
 

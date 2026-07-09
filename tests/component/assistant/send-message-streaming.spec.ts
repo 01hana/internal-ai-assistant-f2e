@@ -951,6 +951,436 @@ beforeEach(() => {
     vi.useRealTimers();
   });
 
+  it("renders confirmation_required as ActionDraftConfirmationMessage instead of an answered bubble", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-confirmation-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "confirmation_required",
+                actionDraftId: "action-draft-001",
+                answer: "請確認是否送出此操作。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/action-drafts/action-draft-001") {
+          return createJsonResponse({
+            requestId: "request-action-draft-detail-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              requestId: "req-action-draft-001",
+              messageId: "message-confirmation-final-001",
+              status: "waiting_confirmation",
+              riskLevel: "medium",
+              toolName: "mock.orders.status.update",
+              resource: "orders",
+              operation: "update",
+              preview: {
+                targetEntityId: "SO-10001",
+                status: "cancelled",
+              },
+              expiresAt: "2026-07-08T10:15:00.000Z",
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我取消這張單");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+    await waitFor(() =>
+      wrapper.find('[data-testid="assistant-action-draft-message"]').exists(),
+    );
+
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-message"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-preview"]').text(),
+    ).toContain("SO-10001");
+    expect(
+      wrapper.get('[data-testid="assistant-message-avatar-assistant"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-time"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("submits confirm with an idempotencyKey, prevents duplicate pending submits, and shows pending_execution_guard safely", async () => {
+    vi.useFakeTimers();
+    const confirmRequests: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+        const method = requestOptions?.method ?? "GET";
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-confirmation-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "confirmation_required",
+                actionDraftId: "action-draft-001",
+                answer: "請確認是否送出此操作。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/action-drafts/action-draft-001") {
+          return createJsonResponse({
+            requestId: "request-action-draft-detail-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              requestId: "req-action-draft-001",
+              messageId: "message-confirmation-final-001",
+              status: "waiting_confirmation",
+              riskLevel: "medium",
+              toolName: "mock.orders.status.update",
+              resource: "orders",
+              operation: "update",
+              preview: {
+                targetEntityId: "SO-10001",
+                status: "cancelled",
+              },
+              expiresAt: "2026-07-08T10:15:00.000Z",
+            },
+          });
+        }
+
+        if (
+          url === "/api/v1/assistant/action-drafts/action-draft-001/confirm"
+          && method === "POST"
+        ) {
+          confirmRequests.push(
+            JSON.parse(String(requestOptions?.body ?? "{}")) as Record<string, unknown>,
+          );
+
+          return createJsonResponse({
+            requestId: "request-action-draft-confirm-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              status: "confirmed",
+              duplicateSafe: true,
+              recheck: {
+                organizationBoundary: "passed",
+                draftStatus: "passed",
+                freshness: "passed",
+                permission: "pending_execution_guard",
+                toolContract: "pending_execution_guard",
+                idempotency: "reserved",
+              },
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我取消這張單");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+    await waitFor(() =>
+      wrapper.find('[data-testid="assistant-action-draft-confirm"]').exists(),
+    );
+
+    await wrapper.get('[data-testid="assistant-action-draft-confirm"]').trigger("click");
+    await nextTick();
+    await wrapper.get('[data-testid="assistant-action-draft-confirm"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(confirmRequests).toHaveLength(1);
+    expect(confirmRequests[0]?.idempotencyKey).toEqual(expect.any(String));
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-pending-guard"]').text(),
+    ).toContain("系統仍在處理");
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-confirm"]').attributes("disabled"),
+    ).toBeDefined();
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-cancel"]').attributes("disabled"),
+    ).toBeDefined();
+    expect(wrapper.text()).not.toContain("已成功執行");
+    vi.useRealTimers();
+  });
+
+  it("shows a safe error when confirm fails and keeps the action draft out of answered UI", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+        const method = requestOptions?.method ?? "GET";
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-confirmation-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "confirmation_required",
+                actionDraftId: "action-draft-001",
+                answer: "請確認是否送出此操作。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/action-drafts/action-draft-001") {
+          return createJsonResponse({
+            requestId: "request-action-draft-detail-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              requestId: "req-action-draft-001",
+              messageId: "message-confirmation-final-001",
+              status: "waiting_confirmation",
+              riskLevel: "medium",
+              toolName: "mock.orders.status.update",
+              resource: "orders",
+              operation: "update",
+              preview: {
+                targetEntityId: "SO-10001",
+              },
+              expiresAt: "2026-07-08T10:15:00.000Z",
+            },
+          });
+        }
+
+        if (
+          url === "/api/v1/assistant/action-drafts/action-draft-001/confirm"
+          && method === "POST"
+        ) {
+          return new Response(
+            JSON.stringify({
+              requestId: "request-action-draft-confirm-error-001",
+              error: {
+                code: "action_draft_unavailable",
+                message: "Action draft is temporarily unavailable.",
+              },
+            }),
+            {
+              status: 503,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我取消這張單");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+    await waitFor(() =>
+      wrapper.find('[data-testid="assistant-action-draft-confirm"]').exists(),
+    );
+
+    await wrapper.get('[data-testid="assistant-action-draft-confirm"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-operation-error"]').text(),
+    ).toContain("請稍後再試");
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("submits cancel and shows the cancelled terminal state safely", async () => {
+    vi.useFakeTimers();
+    const cancelRequests: Array<string> = [];
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+        const method = requestOptions?.method ?? "GET";
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-confirmation-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "confirmation_required",
+                actionDraftId: "action-draft-001",
+                answer: "請確認是否送出此操作。",
+                evidenceRefs: [],
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/action-drafts/action-draft-001") {
+          return createJsonResponse({
+            requestId: "request-action-draft-detail-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              requestId: "req-action-draft-001",
+              messageId: "message-confirmation-final-001",
+              status: "waiting_confirmation",
+              riskLevel: "medium",
+              toolName: "mock.orders.status.update",
+              resource: "orders",
+              operation: "update",
+              preview: {
+                targetEntityId: "SO-10001",
+              },
+              expiresAt: "2026-07-08T10:15:00.000Z",
+            },
+          });
+        }
+
+        if (
+          url === "/api/v1/assistant/action-drafts/action-draft-001/cancel"
+          && method === "POST"
+        ) {
+          cancelRequests.push(url);
+          return createJsonResponse({
+            requestId: "request-action-draft-cancel-001",
+            data: {
+              actionDraftId: "action-draft-001",
+              status: "cancelled",
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我取消這張單");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+    await waitFor(() =>
+      wrapper.find('[data-testid="assistant-action-draft-cancel"]').exists(),
+    );
+
+    await wrapper.get('[data-testid="assistant-action-draft-cancel"]').trigger("click");
+    await nextTick();
+    await wrapper.get('[data-testid="assistant-action-draft-cancel"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(cancelRequests).toHaveLength(1);
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-terminal-status"]').text(),
+    ).toContain("已取消");
+    expect(
+      wrapper.get('[data-testid="assistant-action-draft-status-copy"]').text(),
+    ).toContain("不會繼續");
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false);
+    vi.useRealTimers();
+  });
+
   it("renders no_answer as a safe no-answer state instead of an answered bubble", async () => {
     vi.useFakeTimers();
     installEventStreamFetch((requestId) => [

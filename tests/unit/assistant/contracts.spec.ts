@@ -256,7 +256,7 @@ describe('assistant contract type guardrails', () => {
   })
 
   it('keeps summary identifiers distinct from final linkage identifiers', () => {
-    expect(apiFixtures.actionDraftDetailResponse.data.id).toBe(
+    expect(apiFixtures.actionDraftDetailResponse.data.actionDraftId).toBe(
       'action-draft-001',
     )
     expect(apiFixtures.approvalRequestDetailResponse.data.id).toBe(

@@ -10,6 +10,8 @@ import type {
 import type { EvidenceRefsWireValue } from './evidence'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type ActionDraftRiskLevel = 'medium'
+export type ActionDraftPreview = Record<string, unknown>
 
 export type ActionDraftStatus =
   | 'draft'
@@ -21,21 +23,25 @@ export type ActionDraftStatus =
   | 'failed'
 
 export interface ActionDraftSummary {
-  id: ActionDraftId
+  actionDraftId: ActionDraftId
   requestId: AssistantRequestId
-  messageId: AssistantMessageId
+  messageId: AssistantMessageId | null
   status: ActionDraftStatus
-  riskLevel: 'medium'
+  riskLevel: ActionDraftRiskLevel
   toolName: string
   resource: string
   operation: string
-  preview?: Record<string, unknown>
+  preview?: ActionDraftPreview
   expiresAt?: IsoDateTime | null
 }
+
+export type ActionDraftDetail = ActionDraftSummary
 
 export interface ActionDraftConfirmRequest {
   idempotencyKey?: string
 }
+
+export type ConfirmActionDraftRequest = ActionDraftConfirmRequest
 
 export interface ActionDraftRecheck {
   organizationBoundary: 'passed'
@@ -53,9 +59,7 @@ export interface ActionDraftConfirmResult {
   recheck: ActionDraftRecheck
 }
 
-export interface ActionDraftCancelRequest {
-  reason?: string
-}
+export type ActionDraftExecutionResult = ActionDraftConfirmResult
 
 export interface ActionDraftCancelResult {
   actionDraftId: ActionDraftId
@@ -66,15 +70,33 @@ export type ActionDraftOperationStatus =
   | 'idle'
   | 'confirming'
   | 'cancelling'
-  | 'succeeded'
+  | 'pending_execution_guard'
+  | 'submitted'
+  | 'executed'
+  | 'cancelled'
+  | 'expired'
   | 'failed'
 
 export interface ActionDraftConfirmationState {
   actionDraftId: ActionDraftId
   operationStatus: ActionDraftOperationStatus
   actionDraftStatus?: ActionDraftStatus
+  idempotencyKey?: string | null
   recheck?: ActionDraftRecheck
   safeMessage?: string
+}
+
+export type ActionDraftDetailLoadStatus =
+  | 'idle'
+  | 'loading'
+  | 'available'
+  | 'unavailable'
+
+export interface ActionDraftDetailState extends ActionDraftConfirmationState {
+  detailStatus: ActionDraftDetailLoadStatus
+  requestId?: AssistantRequestId
+  messageId?: AssistantMessageId | null
+  detail?: ActionDraftDetail
 }
 
 export type ApprovalRequestStatus =

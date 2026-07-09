@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
 import AiStreamingItem from '../../../app/features/assistant/components/AiStreamingItem.vue'
 import ChatMessageArea from '../../../app/features/assistant/components/ChatMessageArea.vue'
+import ChatPanel from '../../../app/features/assistant/components/ChatPanel.vue'
 import ChatWidget from '../../../app/features/assistant/components/ChatWidget.vue'
 import { useChatWidgetStore } from '../../../app/stores/assistant/useChatWidgetStore'
 import type {
+  ActionDraftDetailState,
   AssistantStreamingStatus,
   AssistantStreamingUiMessage,
   AssistantUiMessage,
@@ -71,6 +73,47 @@ const messages: AssistantUiMessage[] = [
     noAnswerReason: 'insufficient_evidence',
   },
 ]
+
+const actionDraftMessage = {
+  key: 'stream:action-draft-shell-001',
+  messageId: 'message-action-draft-shell-001',
+  requestId: 'req-action-draft-shell-001',
+  kind: 'assistant_streaming',
+  role: 'assistant',
+  content: '請確認是否送出此操作。',
+  createdAt: '2026-07-03T01:00:04.000Z',
+  status: 'completed',
+  lastSequence: 1,
+  evidence: [],
+  finalAnswerDecision: 'confirmation_required',
+  finalDecisionState: {
+    kind: 'confirmation_required',
+    answerDecision: 'confirmation_required',
+    actionDraftId: 'action-draft-shell-001',
+  },
+} as const
+
+const actionDraftState: ActionDraftDetailState = {
+  actionDraftId: 'action-draft-shell-001',
+  operationStatus: 'idle',
+  detailStatus: 'available',
+  actionDraftStatus: 'waiting_confirmation',
+  idempotencyKey: null,
+  detail: {
+    actionDraftId: 'action-draft-shell-001',
+    requestId: 'req-action-draft-shell-001',
+    messageId: 'message-action-draft-shell-001',
+    status: 'waiting_confirmation',
+    riskLevel: 'medium',
+    toolName: 'mock.orders.status.update',
+    resource: 'orders',
+    operation: 'update',
+    preview: {
+      targetEntityId: 'SO-10001',
+    },
+    expiresAt: '2026-07-08T10:15:00.000Z',
+  },
+}
 
 const mountedWrappers: VueWrapper[] = []
 let originalInnerWidth = window.innerWidth
@@ -246,6 +289,29 @@ describe('ChatWidget floating launcher shell', () => {
     for (const copy of forbiddenCopy) {
       expect(renderedText).not.toContain(copy)
     }
+  })
+
+  it('forwards confirm and cancel events from the panel action-draft message', async () => {
+    const wrapper = await mountSuspended(ChatPanel, {
+      props: {
+        availability: 'normal',
+        messages: [actionDraftMessage],
+        actionDraftStates: {
+          'action-draft-shell-001': actionDraftState,
+        },
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    await wrapper.get('[data-testid="assistant-action-draft-confirm"]').trigger('click')
+    await wrapper.get('[data-testid="assistant-action-draft-cancel"]').trigger('click')
+
+    expect(wrapper.emitted('confirmActionDraft')).toEqual([
+      [{ actionDraftId: 'action-draft-shell-001' }],
+    ])
+    expect(wrapper.emitted('cancelActionDraft')).toEqual([
+      [{ actionDraftId: 'action-draft-shell-001' }],
+    ])
   })
 })
 

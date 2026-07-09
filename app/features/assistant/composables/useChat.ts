@@ -1,6 +1,7 @@
 import { createHttpClient } from "../../../services";
 import { AssistantService } from "../../../services/api/assistant";
 import type {
+  ActionDraftId,
   AssistantFeedbackValue,
   AssistantHostContextProvider,
   AssistantHostContextReadPurpose,
@@ -68,6 +69,9 @@ const TERMINAL_RECOVERY_REASONS = new Set<AssistantSessionRecoveryReason>([
 ]);
 
 const FEEDBACK_ERROR_MESSAGE = "回饋暫時無法送出，請稍後再試。";
+const ACTION_DRAFT_DETAIL_ERROR_MESSAGE = "目前無法載入確認內容，請稍後再試。";
+const ACTION_DRAFT_CONFIRM_ERROR_MESSAGE = "目前無法送出確認，請稍後再試。";
+const ACTION_DRAFT_CANCEL_ERROR_MESSAGE = "目前無法取消這個操作，請稍後再試。";
 
 function mapFeedbackValueToRequest(
   value: AssistantFeedbackValue,
@@ -111,6 +115,7 @@ export function useChat(options: UseChatOptions = {}) {
     recoveryReason,
     activeRequestId,
     feedbackByMessageId,
+    actionDraftById,
   } = storeToRefs(sessionStore);
 
   const scopeChanged = ref(false);
@@ -132,6 +137,15 @@ export function useChat(options: UseChatOptions = {}) {
       },
       onFinal: (event) => {
         sessionStore.finalizeActiveStreamingMessage(event);
+        if (
+          event.data.answerDecision === "confirmation_required"
+          && event.data.actionDraftId
+        ) {
+          void loadActionDraftDetail(event.data.actionDraftId, {
+            messageId: event.messageId,
+            requestId: event.requestId,
+          });
+        }
       },
       onComplete: () => {
         sessionStore.clearStreamingState();
@@ -411,6 +425,184 @@ export function useChat(options: UseChatOptions = {}) {
     await stream.cancel();
   }
 
+  async function getActionDraftIdentityHeaders(): Promise<ResolvedAssistantIdentityHeaders | null> {
+    const snapshot = await hostContext.getLatestSnapshot("send");
+
+    if (snapshot.readiness.status !== "ready" || !snapshot.identityHeaders) {
+      return null;
+    }
+
+    return {
+      ...snapshot.identityHeaders,
+      "x-request-id": generateAssistantRequestId(),
+    } satisfies ResolvedAssistantIdentityHeaders;
+  }
+
+  async function loadActionDraftDetail(
+    actionDraftId: ActionDraftId,
+    options: {
+      messageId?: string;
+      requestId?: string;
+    } = {},
+  ): Promise<boolean> {
+    const currentState = sessionStore.getActionDraftState(actionDraftId);
+    if (
+      currentState.detailStatus === "loading"
+      || currentState.detailStatus === "available"
+    ) {
+      return currentState.detailStatus === "available";
+    }
+
+    sessionStore.startActionDraftDetailLoad(actionDraftId, options);
+
+    try {
+      const identityHeaders = await getActionDraftIdentityHeaders();
+      if (!identityHeaders) {
+        sessionStore.failActionDraftDetailLoad(
+          actionDraftId,
+          ACTION_DRAFT_DETAIL_ERROR_MESSAGE,
+        );
+        return false;
+      }
+
+      const response = await assistantService.getActionDraft(actionDraftId, {
+        identityHeaders,
+      });
+      sessionStore.completeActionDraftDetailLoad(response.data);
+      return true;
+    }
+    catch {
+      sessionStore.failActionDraftDetailLoad(
+        actionDraftId,
+        ACTION_DRAFT_DETAIL_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  }
+
+  async function confirmActionDraft(actionDraftId: ActionDraftId): Promise<boolean> {
+    const currentState = sessionStore.getActionDraftState(actionDraftId);
+
+    if (
+      currentState.detailStatus !== "available"
+      || currentState.operationStatus === "confirming"
+      || currentState.operationStatus === "cancelling"
+      || currentState.operationStatus === "pending_execution_guard"
+      || currentState.operationStatus === "submitted"
+      || currentState.operationStatus === "executed"
+      || currentState.operationStatus === "cancelled"
+      || currentState.operationStatus === "expired"
+      || currentState.actionDraftStatus === "cancelled"
+      || currentState.actionDraftStatus === "expired"
+      || currentState.actionDraftStatus === "executed"
+      || currentState.actionDraftStatus === "failed"
+    ) {
+      return false;
+    }
+
+    const idempotencyKey = generateAssistantRequestId({ prefix: "confirm" });
+    sessionStore.setActionDraftOperationStatus(actionDraftId, "confirming", {
+      idempotencyKey,
+      safeMessage: undefined,
+    });
+
+    try {
+      const identityHeaders = await getActionDraftIdentityHeaders();
+      if (!identityHeaders) {
+        sessionStore.failActionDraftOperation(
+          actionDraftId,
+          ACTION_DRAFT_CONFIRM_ERROR_MESSAGE,
+        );
+        return false;
+      }
+
+      const response = await assistantService.confirmActionDraft(
+        actionDraftId,
+        {
+          idempotencyKey,
+        },
+        {
+          identityHeaders,
+        },
+      );
+      sessionStore.completeActionDraftOperation(
+        actionDraftId,
+        response.data.status,
+        {
+          recheck: response.data.recheck,
+          idempotencyKey,
+        },
+      );
+      return true;
+    }
+    catch {
+      sessionStore.failActionDraftOperation(
+        actionDraftId,
+        ACTION_DRAFT_CONFIRM_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  }
+
+  async function cancelActionDraft(actionDraftId: ActionDraftId): Promise<boolean> {
+    const currentState = sessionStore.getActionDraftState(actionDraftId);
+
+    if (
+      currentState.detailStatus !== "available"
+      || currentState.operationStatus === "confirming"
+      || currentState.operationStatus === "cancelling"
+      || currentState.operationStatus === "pending_execution_guard"
+      || currentState.operationStatus === "submitted"
+      || currentState.operationStatus === "executed"
+      || currentState.operationStatus === "cancelled"
+      || currentState.operationStatus === "expired"
+      || currentState.actionDraftStatus === "cancelled"
+      || currentState.actionDraftStatus === "expired"
+      || currentState.actionDraftStatus === "executed"
+      || currentState.actionDraftStatus === "failed"
+    ) {
+      return false;
+    }
+
+    sessionStore.setActionDraftOperationStatus(actionDraftId, "cancelling", {
+      idempotencyKey: currentState.idempotencyKey ?? null,
+      safeMessage: undefined,
+    });
+
+    try {
+      const identityHeaders = await getActionDraftIdentityHeaders();
+      if (!identityHeaders) {
+        sessionStore.failActionDraftOperation(
+          actionDraftId,
+          ACTION_DRAFT_CANCEL_ERROR_MESSAGE,
+        );
+        return false;
+      }
+
+      const response = await assistantService.cancelActionDraft(
+        actionDraftId,
+        {
+          identityHeaders,
+        },
+      );
+      sessionStore.completeActionDraftOperation(
+        actionDraftId,
+        response.data.status,
+        {
+          idempotencyKey: currentState.idempotencyKey ?? null,
+        },
+      );
+      return true;
+    }
+    catch {
+      sessionStore.failActionDraftOperation(
+        actionDraftId,
+        ACTION_DRAFT_CANCEL_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  }
+
   async function submitFeedback(input: {
     messageId: AssistantMessageId;
     value: AssistantFeedbackValue;
@@ -485,6 +677,7 @@ export function useChat(options: UseChatOptions = {}) {
     historyLoadingMore,
     contextReady,
     feedbackByMessageId,
+    actionDraftById,
     recoveryState,
     bootstrapOnPanelOpen,
     loadMoreHistory,
@@ -493,6 +686,9 @@ export function useChat(options: UseChatOptions = {}) {
     resendMessage,
     retryLastMessage,
     cancelStream,
+    loadActionDraftDetail,
+    confirmActionDraft,
+    cancelActionDraft,
     submitFeedback,
   };
 }
