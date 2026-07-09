@@ -227,12 +227,15 @@ describe('send-message architecture boundary', () => {
       'getSessionMessages',
       'sendMessageStream',
       'submitFeedback',
-    ]))
-    expect(methods).not.toEqual(expect.arrayContaining([
       'getActionDraft',
       'confirmActionDraft',
       'cancelActionDraft',
       'getApprovalRequest',
+    ]))
+    expect(methods).not.toEqual(expect.arrayContaining([
+      'approveApprovalRequest',
+      'rejectApprovalRequest',
+      'cancelApprovalRequest',
     ]))
   })
 })

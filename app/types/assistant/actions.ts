@@ -7,7 +7,6 @@ import type {
   EvidenceRefId,
   IsoDateTime,
 } from './contracts'
-import type { EvidenceRefsWireValue } from './evidence'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 export type ActionDraftRiskLevel = 'medium'
@@ -106,13 +105,26 @@ export type ApprovalRequestStatus =
   | 'cancelled'
   | 'expired'
 
+export type ApprovalRequestRiskLevel = 'high' | 'critical'
+
+export type ApprovalRequestDetailLoadStatus =
+  | 'idle'
+  | 'loading'
+  | 'available'
+  | 'unavailable'
+
+export type ApprovalRequestOpenDetailStatus =
+  | 'idle'
+  | 'opening'
+  | 'failed'
+
 export interface ApprovalRequestSummary {
-  id: ApprovalRequestId
+  approvalRequestId: ApprovalRequestId
   requestId: AssistantRequestId
   sessionId?: AssistantSessionId | null
   messageId: AssistantMessageId
   status: ApprovalRequestStatus
-  riskLevel: 'high' | 'critical'
+  riskLevel: ApprovalRequestRiskLevel
   requesterActorId: string
   approverActorId?: string | null
   actionSummary?: Record<string, unknown>
@@ -121,17 +133,21 @@ export interface ApprovalRequestSummary {
   evidenceRefIds?: EvidenceRefId[]
 }
 
-export interface ApprovalRequestDisplayState {
+export interface ApprovalRequestDetailState {
   approvalRequestId: ApprovalRequestId
-  requestId: AssistantRequestId
-  messageId: AssistantMessageId
-  status: ApprovalRequestStatus
-  riskLevel: 'high' | 'critical'
+  detailStatus: ApprovalRequestDetailLoadStatus
+  openDetailStatus: ApprovalRequestOpenDetailStatus
+  requestId?: AssistantRequestId
+  messageId?: AssistantMessageId
+  sessionId?: AssistantSessionId | null
+  status?: ApprovalRequestStatus
+  riskLevel?: ApprovalRequestRiskLevel
   actionSummary?: Record<string, unknown>
   payloadSummary?: Record<string, unknown>
   expiresAt?: IsoDateTime | null
-  evidenceRefs?: EvidenceRefsWireValue
-  detailAvailability: 'available' | 'unavailable'
+  evidenceRefIds?: EvidenceRefId[]
+  safeMessage?: string | null
+  openDetailSafeMessage?: string | null
 }
 
 export interface OpenApprovalDetailPayload {

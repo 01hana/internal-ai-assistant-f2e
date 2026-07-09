@@ -78,6 +78,7 @@ export interface HistoryMessageSummary {
   content: string
   createdAt: IsoDateTime
   answerDecision?: AnswerDecisionStatus | null
+  approvalRequestId?: ApprovalRequestId
   evidenceRefs?: EvidenceRefId[]
   toolSummary?: ToolSummary
 }

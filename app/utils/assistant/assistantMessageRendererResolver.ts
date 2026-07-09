@@ -206,6 +206,16 @@ export function resolveAssistantMessageRenderer(
         })
       }
 
+      if (decisionKind === 'approval_required') {
+        return createResolvedMessage(message, {
+          rendererKind: 'approval',
+          frameRole: 'assistant',
+          messageTestId: 'assistant-approval-request-message',
+          timestampTestId: 'assistant-approval-request-time',
+          showTimestamp: true,
+        })
+      }
+
       if (decisionKind === 'no_answer') {
         return createResolvedMessage(message, {
           rendererKind: 'no_answer',
@@ -277,6 +287,16 @@ export function resolveAssistantMessageRenderer(
           frameRole: 'assistant',
           messageTestId: 'assistant-action-draft-message',
           timestampTestId: 'assistant-action-draft-time',
+          showTimestamp: true,
+        })
+      }
+
+      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'approval_required') {
+        return createResolvedMessage(message, {
+          rendererKind: 'approval',
+          frameRole: 'assistant',
+          messageTestId: 'assistant-approval-request-message',
+          timestampTestId: 'assistant-approval-request-time',
           showTimestamp: true,
         })
       }
@@ -364,6 +384,14 @@ export function resolveAssistantMessageRenderer(
         frameRole: 'assistant',
         messageTestId: 'assistant-no-answer-message',
         timestampTestId: 'assistant-no-answer-time',
+        showTimestamp: true,
+      })
+    case 'approval':
+      return createResolvedMessage(message, {
+        rendererKind: 'approval',
+        frameRole: 'assistant',
+        messageTestId: 'assistant-approval-request-message',
+        timestampTestId: 'assistant-approval-request-time',
         showTimestamp: true,
       })
     case 'permission_denied':

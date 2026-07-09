@@ -234,7 +234,7 @@ export const actionDraftCancelSuccessResponse = {
 export const approvalRequestDetailResponse = {
   requestId: 'req-approval-detail-001',
   data: {
-    id: 'approval-request-001',
+    approvalRequestId: 'approval-request-001',
     requestId: 'req-approval-001',
     sessionId: 'session-001',
     messageId: 'msg-assistant-approval-001',

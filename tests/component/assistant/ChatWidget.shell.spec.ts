@@ -1,6 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createPinia, setActivePinia } from 'pinia'
-import type { VueWrapper } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
 import AiStreamingItem from '../../../app/features/assistant/components/AiStreamingItem.vue'
@@ -10,6 +10,9 @@ import ChatWidget from '../../../app/features/assistant/components/ChatWidget.vu
 import { useChatWidgetStore } from '../../../app/stores/assistant/useChatWidgetStore'
 import type {
   ActionDraftDetailState,
+  ApprovalRequestDetailState,
+  AssistantHostContextProvider,
+  AssistantHostContextSnapshot,
   AssistantStreamingStatus,
   AssistantStreamingUiMessage,
   AssistantUiMessage,
@@ -113,6 +116,68 @@ const actionDraftState: ActionDraftDetailState = {
     },
     expiresAt: '2026-07-08T10:15:00.000Z',
   },
+}
+
+const approvalMessage = {
+  key: 'stream:approval-shell-001',
+  messageId: 'message-approval-shell-001',
+  requestId: 'req-approval-shell-001',
+  kind: 'assistant_streaming',
+  role: 'assistant',
+  content: '此操作需要額外審核。',
+  createdAt: '2026-07-03T01:00:05.000Z',
+  status: 'completed',
+  lastSequence: 1,
+  evidence: [],
+  finalAnswerDecision: 'approval_required',
+  finalDecisionState: {
+    kind: 'approval_required',
+    answerDecision: 'approval_required',
+    approvalRequestId: 'approval-request-shell-001',
+  },
+} as const
+
+const approvalRequestState: ApprovalRequestDetailState = {
+  approvalRequestId: 'approval-request-shell-001',
+  detailStatus: 'available',
+  openDetailStatus: 'idle',
+  requestId: 'req-approval-shell-001',
+  messageId: 'message-approval-shell-001',
+  sessionId: 'session-shell-001',
+  status: 'pending',
+  riskLevel: 'critical',
+  actionSummary: {
+    operation: 'cancel',
+  },
+}
+
+function createApprovalHostProvider(
+  onOpenApprovalDetail?: (payload: {
+    approvalRequestId: string
+    requestId?: string
+    messageId?: string
+    sessionId?: string
+  }) => void | Promise<void>,
+): AssistantHostContextProvider {
+  const snapshot: AssistantHostContextSnapshot = {
+    readiness: { status: 'ready' },
+    identityHeaders: {
+      'x-request-id': 'req-host-shell-001',
+      'x-actor-id': 'actor-shell-001',
+      'x-organization-id': 'org-shell-001',
+      'x-host-app': 'erp-web',
+      'x-role': 'approver',
+      'x-permission-scopes': 'orders:approve',
+    },
+    pageContext: {
+      route: '/orders',
+    },
+    onOpenApprovalDetail,
+  }
+
+  return {
+    getSnapshot: () => snapshot,
+  }
 }
 
 const mountedWrappers: VueWrapper[] = []
@@ -312,6 +377,60 @@ describe('ChatWidget floating launcher shell', () => {
     expect(wrapper.emitted('cancelActionDraft')).toEqual([
       [{ actionDraftId: 'action-draft-shell-001' }],
     ])
+  })
+
+  it('forwards open approval detail events to the host callback when available', async () => {
+    const onOpenApprovalDetail = vi.fn()
+    const wrapper = await mountWidget({
+      hostContextProvider: createApprovalHostProvider(onOpenApprovalDetail),
+    })
+
+    await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
+    const chatPanel = wrapper.getComponent(ChatPanel)
+
+    chatPanel.vm.$emit('openApprovalDetail', {
+      approvalRequestId: 'approval-request-shell-001',
+      requestId: 'req-approval-shell-001',
+      messageId: 'message-approval-shell-001',
+      sessionId: 'session-shell-001',
+    })
+    await flushPromises()
+
+    expect(chatPanel.emitted('openApprovalDetail')).toEqual([
+      [
+        {
+        approvalRequestId: 'approval-request-shell-001',
+        requestId: 'req-approval-shell-001',
+        messageId: 'message-approval-shell-001',
+        sessionId: 'session-shell-001',
+        },
+      ],
+    ])
+
+    expect(onOpenApprovalDetail).toHaveBeenCalledWith({
+      approvalRequestId: 'approval-request-shell-001',
+      requestId: 'req-approval-shell-001',
+      messageId: 'message-approval-shell-001',
+      sessionId: 'session-shell-001',
+    })
+  })
+
+  it('keeps approval detail open actions safe when the host callback is missing', async () => {
+    const wrapper = await mountSuspended(ChatPanel, {
+      props: {
+        availability: 'normal',
+        messages: [approvalMessage],
+        approvalRequestStates: {
+          'approval-request-shell-001': approvalRequestState,
+        },
+        canOpenApprovalDetail: false,
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-open-detail"]').attributes('disabled'),
+    ).toBeDefined()
   })
 })
 

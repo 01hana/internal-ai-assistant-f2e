@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type {
   ActionDraftDetailState,
+  ApprovalRequestDetailState,
   AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
   AssistantRenderableMessage,
+  OpenApprovalDetailPayload,
   ResolvedAssistantMessageRenderer,
 } from "../../../types/assistant";
 import {
   resolveAssistantMessageRenderers,
 } from "../../../utils/assistant/assistantMessageRendererResolver";
 import ActionDraftConfirmationMessage from "./ActionDraftConfirmationMessage.vue";
+import ApprovalRequestDisplayMessage from "./ApprovalRequestDisplayMessage.vue";
 import AiMessageItem from "./AiMessageItem.vue";
 import AiStreamingItem from "./AiStreamingItem.vue";
 import ClarificationMessage from "./ClarificationMessage.vue";
@@ -25,6 +28,7 @@ const rendererComponents = {
   assistant_answer: AiMessageItem,
   assistant_streaming: AiStreamingItem,
   confirmation: ActionDraftConfirmationMessage,
+  approval: ApprovalRequestDisplayMessage,
   clarification: ClarificationMessage,
   no_answer: NoAnswerMessage,
   permission_denied: PermissionDeniedMessage,
@@ -41,6 +45,8 @@ const props = withDefaults(
     historyLoadingMore?: boolean;
     feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
     actionDraftStates?: Record<string, ActionDraftDetailState>;
+    approvalRequestStates?: Record<string, ApprovalRequestDetailState>;
+    canOpenApprovalDetail?: boolean;
   }>(),
   {
     messages: () => [],
@@ -50,6 +56,8 @@ const props = withDefaults(
     historyLoadingMore: false,
     feedbackStates: () => ({}),
     actionDraftStates: () => ({}),
+    approvalRequestStates: () => ({}),
+    canOpenApprovalDetail: false,
   },
 );
 
@@ -64,6 +72,7 @@ const emit = defineEmits<{
   ];
   confirmActionDraft: [payload: { actionDraftId: string }];
   cancelActionDraft: [payload: { actionDraftId: string }];
+  openApprovalDetail: [payload: OpenApprovalDetailPayload];
 }>();
 
 const messageAreaRef = ref<HTMLElement | null>(null);
@@ -141,6 +150,31 @@ function getActionDraftState(
 ): ActionDraftDetailState | null {
   const actionDraftId = getActionDraftId(resolvedMessage);
   return actionDraftId ? (props.actionDraftStates[actionDraftId] ?? null) : null;
+}
+
+function getApprovalRequestId(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): string | null {
+  if ("finalDecisionState" in resolvedMessage.message) {
+    return resolvedMessage.message.finalDecisionState?.kind === "approval_required"
+      ? (resolvedMessage.message.finalDecisionState.approvalRequestId ?? null)
+      : null;
+  }
+
+  if ("approvalRequestId" in resolvedMessage.message) {
+    return resolvedMessage.message.approvalRequestId ?? null;
+  }
+
+  return null;
+}
+
+function getApprovalRequestState(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+): ApprovalRequestDetailState | null {
+  const approvalRequestId = getApprovalRequestId(resolvedMessage);
+  return approvalRequestId
+    ? (props.approvalRequestStates[approvalRequestId] ?? null)
+    : null;
 }
 
 function getFeedbackState(messageId: string | undefined) {
@@ -221,6 +255,23 @@ function handleCancelActionDraft(
   actionDraftId: string,
 ) {
   emit("cancelActionDraft", { actionDraftId });
+}
+
+function handleOpenApprovalDetail(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+  approvalRequestId: string,
+) {
+  const approvalRequestState = getApprovalRequestState(resolvedMessage);
+
+  emit("openApprovalDetail", {
+    approvalRequestId,
+    requestId: approvalRequestState?.requestId,
+    messageId:
+      approvalRequestState?.messageId
+      ?? resolvedMessage.message.messageId
+      ?? undefined,
+    sessionId: approvalRequestState?.sessionId ?? undefined,
+  });
 }
 </script>
 
@@ -318,6 +369,15 @@ function handleCancelActionDraft(
                               onConfirm: ({ actionDraftId }: { actionDraftId: string }) => handleConfirmActionDraft(actionDraftId),
                               onCancel: ({ actionDraftId }: { actionDraftId: string }) => handleCancelActionDraft(actionDraftId),
                             }
+                          : resolvedMessage.rendererKind === 'approval'
+                            ? {
+                                approvalRequestState: getApprovalRequestState(resolvedMessage),
+                                canOpenDetail: canOpenApprovalDetail,
+                                onOpenDetail: ({ approvalRequestId }: { approvalRequestId: string }) => handleOpenApprovalDetail(
+                                  resolvedMessage,
+                                  approvalRequestId,
+                                ),
+                              }
                           : {}),
                       }
                 "

@@ -4,6 +4,8 @@ import type {
   ActionDraftConfirmResult,
   ActionDraftDetail,
   ActionDraftId,
+  ApprovalRequestId,
+  ApprovalRequestSummary,
   AssistantApiRequestOptions,
   AssistantMessageId,
   AssistantHistoryQuery,
@@ -167,6 +169,19 @@ export class AssistantService {
     return this.httpClient.request({
       method: 'POST',
       path: `assistant/action-drafts/${encodeURIComponent(actionDraftId)}/cancel`,
+      headers: toRequestHeaders(options.identityHeaders),
+      signal: options.signal,
+      silent: options.silent,
+    })
+  }
+
+  getApprovalRequest(
+    approvalRequestId: ApprovalRequestId,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<ApprovalRequestSummary>> {
+    return this.httpClient.request({
+      method: 'GET',
+      path: `assistant/approval-requests/${encodeURIComponent(approvalRequestId)}`,
       headers: toRequestHeaders(options.identityHeaders),
       signal: options.signal,
       silent: options.silent,

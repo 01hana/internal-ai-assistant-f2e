@@ -259,7 +259,7 @@ describe('assistant contract type guardrails', () => {
     expect(apiFixtures.actionDraftDetailResponse.data.actionDraftId).toBe(
       'action-draft-001',
     )
-    expect(apiFixtures.approvalRequestDetailResponse.data.id).toBe(
+    expect(apiFixtures.approvalRequestDetailResponse.data.approvalRequestId).toBe(
       'approval-request-001',
     )
     expect(

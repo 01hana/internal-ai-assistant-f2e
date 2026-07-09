@@ -92,6 +92,24 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolved.showTimestamp).toBe(true)
   })
 
+  it('maps approval_required to approval', () => {
+    const resolved = resolveAssistantMessageRenderer(
+      createCompletedStreamingMessage({
+        finalAnswerDecision: 'approval_required',
+        finalDecisionState: {
+          kind: 'approval_required',
+          answerDecision: 'approval_required',
+          approvalRequestId: 'approval-request-001',
+        },
+      }),
+    )
+
+    expect(resolved.rendererKind).toBe('approval')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.messageTestId).toBe('assistant-approval-request-message')
+    expect(resolved.showTimestamp).toBe(true)
+  })
+
   it('maps no_answer to no_answer', () => {
     const resolved = resolveAssistantMessageRenderer(
       createCompletedStreamingMessage({
@@ -186,6 +204,21 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolved.showTimestamp).toBe(true)
   })
 
+  it('maps history approval_required to approval', () => {
+    const resolved = resolveAssistantMessageRenderer({
+      messageId: 'message-history-approval-001',
+      role: 'assistant',
+      content: '此操作需要額外審核。',
+      createdAt,
+      answerDecision: 'approval_required',
+      approvalRequestId: 'approval-request-001',
+    } satisfies HistoryMessageSummary)
+
+    expect(resolved.rendererKind).toBe('approval')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.showTimestamp).toBe(true)
+  })
+
   it('maps history escalation_required to escalation', () => {
     const resolved = resolveAssistantMessageRenderer({
       messageId: 'message-history-escalation-001',
@@ -258,6 +291,14 @@ describe('assistantMessageRendererResolver', () => {
         createdAt,
         answerDecision: 'no_answer',
       } satisfies HistoryMessageSummary,
+      {
+        messageId: 'message-history-approval-001',
+        role: 'assistant',
+        content: '這個操作需要額外審核。',
+        createdAt,
+        answerDecision: 'approval_required',
+        approvalRequestId: 'approval-request-001',
+      } satisfies HistoryMessageSummary,
     ]
 
     expect(resolveAssistantMessageRenderer(messages[0]).rendererKind).toBe(
@@ -271,6 +312,9 @@ describe('assistantMessageRendererResolver', () => {
     )
     expect(resolveAssistantMessageRenderer(messages[3]).rendererKind).toBe(
       'no_answer',
+    )
+    expect(resolveAssistantMessageRenderer(messages[4]).rendererKind).toBe(
+      'approval',
     )
   })
 })

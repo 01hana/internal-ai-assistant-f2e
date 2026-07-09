@@ -2,6 +2,7 @@ import { createHttpClient } from "../../../services";
 import { AssistantService } from "../../../services/api/assistant";
 import type {
   ActionDraftId,
+  ApprovalRequestId,
   AssistantFeedbackValue,
   AssistantHostContextProvider,
   AssistantHostContextReadPurpose,
@@ -10,6 +11,7 @@ import type {
   AssistantRequestId,
   AssistantSessionScope,
   AssistantStreamingUiMessage,
+  OpenApprovalDetailPayload,
   FeedbackRequest,
   ResolvedAssistantIdentityHeaders,
   UserUiMessage,
@@ -72,6 +74,11 @@ const FEEDBACK_ERROR_MESSAGE = "回饋暫時無法送出，請稍後再試。";
 const ACTION_DRAFT_DETAIL_ERROR_MESSAGE = "目前無法載入確認內容，請稍後再試。";
 const ACTION_DRAFT_CONFIRM_ERROR_MESSAGE = "目前無法送出確認，請稍後再試。";
 const ACTION_DRAFT_CANCEL_ERROR_MESSAGE = "目前無法取消這個操作，請稍後再試。";
+const APPROVAL_REQUEST_DETAIL_ERROR_MESSAGE = "目前無法載入審核摘要，請稍後再試。";
+const APPROVAL_REQUEST_OPEN_DETAIL_UNAVAILABLE_MESSAGE =
+  "這個環境尚未提供審核詳情入口。";
+const APPROVAL_REQUEST_OPEN_DETAIL_ERROR_MESSAGE =
+  "目前無法開啟審核詳情，請稍後再試。";
 
 function mapFeedbackValueToRequest(
   value: AssistantFeedbackValue,
@@ -116,6 +123,7 @@ export function useChat(options: UseChatOptions = {}) {
     activeRequestId,
     feedbackByMessageId,
     actionDraftById,
+    approvalRequestById,
   } = storeToRefs(sessionStore);
 
   const scopeChanged = ref(false);
@@ -144,6 +152,16 @@ export function useChat(options: UseChatOptions = {}) {
           void loadActionDraftDetail(event.data.actionDraftId, {
             messageId: event.messageId,
             requestId: event.requestId,
+          });
+        }
+        if (
+          event.data.answerDecision === "approval_required"
+          && event.data.approvalRequestId
+        ) {
+          void loadApprovalRequestDetail(event.data.approvalRequestId, {
+            messageId: event.messageId,
+            requestId: event.requestId,
+            sessionId: event.sessionId,
           });
         }
       },
@@ -237,6 +255,9 @@ export function useChat(options: UseChatOptions = {}) {
       reason: recoveryReason.value,
     };
   });
+  const canOpenApprovalDetail = computed(() =>
+    Boolean(hostContext.snapshot.value.onOpenApprovalDetail),
+  );
 
   watch(
     hostContext.readiness,
@@ -251,6 +272,34 @@ export function useChat(options: UseChatOptions = {}) {
       }
     },
     { immediate: true },
+  );
+
+  watch(
+    messages,
+    (nextMessages) => {
+      for (const message of nextMessages) {
+        if (
+          "kind" in message
+          || message.role !== "assistant"
+          || message.answerDecision !== "approval_required"
+          || !message.approvalRequestId
+        ) {
+          continue;
+        }
+
+        const currentState = sessionStore.getApprovalRequestState(
+          message.approvalRequestId,
+        );
+        if (currentState.detailStatus === "idle") {
+          void loadApprovalRequestDetail(message.approvalRequestId, {
+            messageId: message.messageId,
+            requestId: currentState.requestId,
+            sessionId: currentState.sessionId ?? sessionStore.sessionId,
+          });
+        }
+      }
+    },
+    { deep: true },
   );
 
   async function bootstrapOnPanelOpen(): Promise<void> {
@@ -438,6 +487,19 @@ export function useChat(options: UseChatOptions = {}) {
     } satisfies ResolvedAssistantIdentityHeaders;
   }
 
+  async function getApprovalRequestIdentityHeaders(): Promise<ResolvedAssistantIdentityHeaders | null> {
+    const snapshot = await hostContext.getLatestSnapshot("approval_detail");
+
+    if (snapshot.readiness.status !== "ready" || !snapshot.identityHeaders) {
+      return null;
+    }
+
+    return {
+      ...snapshot.identityHeaders,
+      "x-request-id": generateAssistantRequestId(),
+    } satisfies ResolvedAssistantIdentityHeaders;
+  }
+
   async function loadActionDraftDetail(
     actionDraftId: ActionDraftId,
     options: {
@@ -475,6 +537,52 @@ export function useChat(options: UseChatOptions = {}) {
       sessionStore.failActionDraftDetailLoad(
         actionDraftId,
         ACTION_DRAFT_DETAIL_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  }
+
+  async function loadApprovalRequestDetail(
+    approvalRequestId: ApprovalRequestId,
+    options: {
+      messageId?: string;
+      requestId?: string;
+      sessionId?: string | null;
+    } = {},
+  ): Promise<boolean> {
+    const currentState = sessionStore.getApprovalRequestState(approvalRequestId);
+    if (
+      currentState.detailStatus === "loading"
+      || currentState.detailStatus === "available"
+    ) {
+      return currentState.detailStatus === "available";
+    }
+
+    sessionStore.startApprovalRequestDetailLoad(approvalRequestId, options);
+
+    try {
+      const identityHeaders = await getApprovalRequestIdentityHeaders();
+      if (!identityHeaders) {
+        sessionStore.failApprovalRequestDetailLoad(
+          approvalRequestId,
+          APPROVAL_REQUEST_DETAIL_ERROR_MESSAGE,
+        );
+        return false;
+      }
+
+      const response = await assistantService.getApprovalRequest(
+        approvalRequestId,
+        {
+          identityHeaders,
+        },
+      );
+      sessionStore.completeApprovalRequestDetailLoad(response.data);
+      return true;
+    }
+    catch {
+      sessionStore.failApprovalRequestDetailLoad(
+        approvalRequestId,
+        APPROVAL_REQUEST_DETAIL_ERROR_MESSAGE,
       );
       return false;
     }
@@ -664,6 +772,42 @@ export function useChat(options: UseChatOptions = {}) {
     }
   }
 
+  async function openApprovalDetail(
+    payload: OpenApprovalDetailPayload,
+  ): Promise<void> {
+    sessionStore.ensureApprovalRequestState(payload.approvalRequestId, {
+      messageId: payload.messageId,
+      requestId: payload.requestId,
+      sessionId: payload.sessionId,
+    });
+
+    const latest = await hostContext.getLatestSnapshot("approval_detail");
+
+    if (!latest.onOpenApprovalDetail) {
+      sessionStore.failApprovalRequestOpenDetail(
+        payload.approvalRequestId,
+        APPROVAL_REQUEST_OPEN_DETAIL_UNAVAILABLE_MESSAGE,
+      );
+      return;
+    }
+
+    const previousError = hostContext.lastError.value;
+    sessionStore.startApprovalRequestOpenDetail(payload.approvalRequestId);
+
+    await hostContext.openApprovalDetail(payload);
+
+    const nextError = hostContext.lastError.value;
+    if (nextError !== null && nextError !== previousError) {
+      sessionStore.failApprovalRequestOpenDetail(
+        payload.approvalRequestId,
+        APPROVAL_REQUEST_OPEN_DETAIL_ERROR_MESSAGE,
+      );
+      return;
+    }
+
+    sessionStore.completeApprovalRequestOpenDetail(payload.approvalRequestId);
+  }
+
   return {
     isBootstrapping,
     sessionReady,
@@ -678,7 +822,9 @@ export function useChat(options: UseChatOptions = {}) {
     contextReady,
     feedbackByMessageId,
     actionDraftById,
+    approvalRequestById,
     recoveryState,
+    canOpenApprovalDetail,
     bootstrapOnPanelOpen,
     loadMoreHistory,
     restartSession,
@@ -687,8 +833,10 @@ export function useChat(options: UseChatOptions = {}) {
     retryLastMessage,
     cancelStream,
     loadActionDraftDetail,
+    loadApprovalRequestDetail,
     confirmActionDraft,
     cancelActionDraft,
     submitFeedback,
+    openApprovalDetail,
   };
 }

@@ -141,13 +141,34 @@ function createSseResponse(
 function createProvider(
   sendSnapshot: AssistantHostContextSnapshot = latestPageSnapshot,
   restoreSnapshot: AssistantHostContextSnapshot = pageHostContextSnapshot,
+  options: {
+    onOpenApprovalDetail?: (
+      payload: {
+        approvalRequestId: string;
+        requestId?: string;
+        messageId?: string;
+        sessionId?: string;
+      },
+    ) => void | Promise<void>;
+  } = {},
 ): AssistantHostContextProvider & {
   getSnapshot: ReturnType<typeof vi.fn>;
 } {
   return {
-    getSnapshot: vi.fn(({ purpose }) =>
-      purpose === "send" ? sendSnapshot : restoreSnapshot,
-    ),
+    getSnapshot: vi.fn(({ purpose }) => {
+      if (purpose === "send") {
+        return sendSnapshot;
+      }
+
+      if (purpose === "approval_detail") {
+        return {
+          ...restoreSnapshot,
+          onOpenApprovalDetail: options.onOpenApprovalDetail,
+        } satisfies AssistantHostContextSnapshot;
+      }
+
+      return restoreSnapshot;
+    }),
   };
 }
 
@@ -1527,6 +1548,114 @@ beforeEach(() => {
     expect(
       wrapper.get('[data-testid="assistant-escalation-message"]').text(),
     ).toContain("升級處理");
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders approval_required as ApprovalRequestDisplayMessage and loads detail safely", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+        const url = String(input);
+
+        if (url === "/api/v1/assistant/sessions") {
+          return createJsonResponse(createSessionEnvelope());
+        }
+
+        if (url === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`) {
+          const requestId = new Headers(requestOptions?.headers).get(
+            "x-request-id",
+          );
+          if (!requestId) {
+            throw new Error("Missing request ID");
+          }
+
+          return createSseResponse([
+            {
+              requestId,
+              sessionId: createdSession.sessionId,
+              messageId: "message-approval-final-001",
+              eventType: "final",
+              sequence: 1,
+              data: {
+                answerDecision: "approval_required",
+                answer: "此操作需要額外審核。",
+                evidenceRefs: ["evidence-structured-001"],
+                approvalRequestId: "approval-request-001",
+              },
+            },
+          ]);
+        }
+
+        if (url === "/api/v1/assistant/approval-requests/approval-request-001") {
+          return createJsonResponse({
+            requestId: "req-approval-detail-001",
+            data: {
+              approvalRequestId: "approval-request-001",
+              requestId: "req-approval-001",
+              sessionId: createdSession.sessionId,
+              messageId: "message-approval-final-001",
+              status: "pending",
+              riskLevel: "high",
+              requesterActorId: "actor-001",
+              approverActorId: null,
+              actionSummary: {
+                operation: "cancel",
+              },
+              payloadSummary: {
+                targetEntityId: "SO-10001",
+                nested: {
+                  shouldHide: true,
+                },
+              },
+              expiresAt: "2026-07-09T10:30:00.000Z",
+              evidenceRefIds: ["evidence-structured-001"],
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("幫我送出需要審核的操作");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-message"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-status"]').text(),
+    ).toContain("待處理");
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-risk"]').text(),
+    ).toContain("高");
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-action-summary"]').text(),
+    ).toContain("cancel");
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-payload-summary"]').text(),
+    ).toContain("SO-10001");
+    expect(wrapper.text()).not.toContain("shouldHide");
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-time"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.get('[data-testid="assistant-message-avatar-assistant"]').exists(),
+    ).toBe(true);
     expect(
       wrapper.find('[data-testid="assistant-ai-message"]').exists(),
     ).toBe(false);

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   ActionDraftDetailState,
+  ApprovalRequestDetailState,
   AssistantMessageFeedbackUiState,
   AssistantFeedbackValue,
   AssistantPanelAvailability,
@@ -24,6 +25,8 @@ const props = withDefaults(
     historyLoadingMore?: boolean;
     feedbackStates?: Record<string, AssistantMessageFeedbackUiState>;
     actionDraftStates?: Record<string, ActionDraftDetailState>;
+    approvalRequestStates?: Record<string, ApprovalRequestDetailState>;
+    canOpenApprovalDetail?: boolean;
     sessionLoading?: boolean;
     recoveryState?: AssistantSessionRecoveryViewState | null;
     canSend?: boolean;
@@ -39,6 +42,8 @@ const props = withDefaults(
     historyLoadingMore: false,
     feedbackStates: () => ({}),
     actionDraftStates: () => ({}),
+    approvalRequestStates: () => ({}),
+    canOpenApprovalDetail: false,
     sessionLoading: false,
     recoveryState: null,
     canSend: false,
@@ -63,6 +68,14 @@ const emit = defineEmits<{
   ];
   confirmActionDraft: [payload: { actionDraftId: string }];
   cancelActionDraft: [payload: { actionDraftId: string }];
+  openApprovalDetail: [
+    payload: {
+      approvalRequestId: string;
+      requestId?: string;
+      messageId?: string;
+      sessionId?: string;
+    },
+  ];
 }>();
 
 const contextReady = computed(() => props.availability === "normal");
@@ -172,10 +185,13 @@ onKeyStroke("Escape", () => {
             :history-loading-more="historyLoadingMore"
             :feedback-states="feedbackStates"
             :action-draft-states="actionDraftStates"
+            :approval-request-states="approvalRequestStates"
+            :can-open-approval-detail="canOpenApprovalDetail"
             @load-more="emit('loadMoreHistory')"
             @feedback="emit('feedback', $event)"
             @confirm-action-draft="emit('confirmActionDraft', $event)"
             @cancel-action-draft="emit('cancelActionDraft', $event)"
+            @open-approval-detail="emit('openApprovalDetail', $event)"
           />
         </slot>
       </div>

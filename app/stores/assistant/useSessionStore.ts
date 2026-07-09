@@ -7,6 +7,9 @@ import type {
   ActionDraftOperationStatus,
   ActionDraftRecheck,
   ActionDraftStatus,
+  ApprovalRequestDetailState,
+  ApprovalRequestId,
+  ApprovalRequestSummary,
   AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
   AssistantMessageFinalData,
@@ -163,6 +166,14 @@ function createInitialState(): AssistantSessionStoreState {
   }
 }
 
+function getApprovalRequestIdFromHistoryMessage(
+  message: HistoryMessageSummary,
+): ApprovalRequestId | null {
+  return message.answerDecision === 'approval_required'
+    ? (message.approvalRequestId ?? null)
+    : null
+}
+
 export const useAssistantSessionStore = defineStore('assistant-session', () => {
   const initial = createInitialState()
 
@@ -182,6 +193,12 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     Record<AssistantMessageId, AssistantMessageFeedbackUiState>
   >({})
   const actionDraftById = ref<Record<ActionDraftId, ActionDraftDetailState>>({})
+  const approvalRequestById = ref<
+    Record<ApprovalRequestId, ApprovalRequestDetailState>
+  >({})
+  const approvalRequestMessageLinks = ref<
+    Record<AssistantMessageId, ApprovalRequestId>
+  >({})
   const lastError = ref<AssistantSessionSafeError | null>(initial.lastError)
   const recoveryReason = ref<AssistantSessionRecoveryReason | null>(
     initial.recoveryReason,
@@ -353,6 +370,17 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
   ) {
     messages.value = [...nextMessages]
     nextCursor.value = cursor
+
+    for (const message of nextMessages) {
+      if (!('kind' in message) && message.role === 'assistant') {
+        const approvalRequestId = getApprovalRequestIdFromHistoryMessage(message)
+        if (approvalRequestId) {
+          ensureApprovalRequestState(approvalRequestId, {
+            messageId: message.messageId,
+          })
+        }
+      }
+    }
   }
 
   function appendHistoryPage(
@@ -374,6 +402,12 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
         }
 
         knownMessageIds.add(message.messageId)
+        const approvalRequestId = getApprovalRequestIdFromHistoryMessage(message)
+        if (approvalRequestId) {
+          ensureApprovalRequestState(approvalRequestId, {
+            messageId: message.messageId,
+          })
+        }
         return true
       }),
     )
@@ -389,6 +423,150 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
 
   function appendUserMessage(message: UserUiMessage) {
     messages.value.push(message)
+  }
+
+  function getApprovalRequestState(
+    approvalRequestId: ApprovalRequestId,
+  ): ApprovalRequestDetailState {
+    return (
+      approvalRequestById.value[approvalRequestId] ?? {
+        approvalRequestId,
+        detailStatus: 'idle',
+        openDetailStatus: 'idle',
+      }
+    )
+  }
+
+  function upsertApprovalRequestState(
+    approvalRequestId: ApprovalRequestId,
+    nextState: Partial<ApprovalRequestDetailState>,
+  ) {
+    const currentState = getApprovalRequestState(approvalRequestId)
+
+    approvalRequestById.value = {
+      ...approvalRequestById.value,
+      [approvalRequestId]: {
+        ...currentState,
+        ...nextState,
+      },
+    }
+  }
+
+  function linkApprovalRequestMessage(
+    messageId: AssistantMessageId,
+    approvalRequestId: ApprovalRequestId,
+  ) {
+    approvalRequestMessageLinks.value = {
+      ...approvalRequestMessageLinks.value,
+      [messageId]: approvalRequestId,
+    }
+  }
+
+  function ensureApprovalRequestState(
+    approvalRequestId: ApprovalRequestId,
+    options: {
+      messageId?: AssistantMessageId
+      requestId?: AssistantRequestId
+      sessionId?: string | null
+    } = {},
+  ) {
+    const nextState: Partial<ApprovalRequestDetailState> = {}
+
+    if (options.requestId !== undefined) {
+      nextState.requestId = options.requestId
+    }
+
+    if (options.messageId !== undefined) {
+      nextState.messageId = options.messageId
+    }
+
+    if (options.sessionId !== undefined) {
+      nextState.sessionId = options.sessionId
+    }
+
+    upsertApprovalRequestState(approvalRequestId, nextState)
+
+    if (options.messageId) {
+      linkApprovalRequestMessage(options.messageId, approvalRequestId)
+    }
+  }
+
+  function startApprovalRequestDetailLoad(
+    approvalRequestId: ApprovalRequestId,
+    options: {
+      messageId?: AssistantMessageId
+      requestId?: AssistantRequestId
+      sessionId?: string | null
+    } = {},
+  ) {
+    ensureApprovalRequestState(approvalRequestId, options)
+    upsertApprovalRequestState(approvalRequestId, {
+      detailStatus: 'loading',
+      safeMessage: null,
+    })
+  }
+
+  function completeApprovalRequestDetailLoad(
+    detail: ApprovalRequestSummary,
+  ) {
+    const approvalRequestId = detail.approvalRequestId
+
+    ensureApprovalRequestState(approvalRequestId, {
+      messageId: detail.messageId,
+      requestId: detail.requestId,
+      sessionId: detail.sessionId ?? null,
+    })
+    upsertApprovalRequestState(approvalRequestId, {
+      detailStatus: 'available',
+      requestId: detail.requestId,
+      messageId: detail.messageId,
+      sessionId: detail.sessionId ?? null,
+      status: detail.status,
+      riskLevel: detail.riskLevel,
+      actionSummary: detail.actionSummary,
+      payloadSummary: detail.payloadSummary,
+      expiresAt: detail.expiresAt,
+      evidenceRefIds: detail.evidenceRefIds,
+      safeMessage: null,
+    })
+  }
+
+  function failApprovalRequestDetailLoad(
+    approvalRequestId: ApprovalRequestId,
+    safeMessage: string,
+  ) {
+    upsertApprovalRequestState(approvalRequestId, {
+      detailStatus: 'unavailable',
+      safeMessage,
+    })
+  }
+
+  function startApprovalRequestOpenDetail(
+    approvalRequestId: ApprovalRequestId,
+  ) {
+    upsertApprovalRequestState(approvalRequestId, {
+      openDetailStatus: 'opening',
+      openDetailSafeMessage: null,
+    })
+  }
+
+  function completeApprovalRequestOpenDetail(
+    approvalRequestId: ApprovalRequestId,
+  ) {
+    upsertApprovalRequestState(approvalRequestId, {
+      openDetailStatus: 'idle',
+      openDetailSafeMessage: null,
+    })
+  }
+
+  function failApprovalRequestOpenDetail(
+    approvalRequestId: ApprovalRequestId,
+    safeMessage: string,
+  ) {
+    upsertApprovalRequestState(approvalRequestId, {
+      openDetailStatus: 'failed',
+      openDetailSafeMessage: safeMessage,
+    })
   }
 
   function getFeedbackState(
@@ -766,6 +944,14 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
         messageId: event.messageId,
       })
     }
+
+    if (event.data.answerDecision === 'approval_required' && event.data.approvalRequestId) {
+      ensureApprovalRequestState(event.data.approvalRequestId, {
+        messageId: event.messageId,
+        requestId: event.requestId,
+        sessionId: event.sessionId,
+      })
+    }
   }
 
   function markStreamingStarted() {
@@ -833,6 +1019,8 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     activeAssistantMessageKey.value = initial.activeAssistantMessageKey
     feedbackByMessageId.value = {}
     actionDraftById.value = {}
+    approvalRequestById.value = {}
+    approvalRequestMessageLinks.value = {}
     lastError.value = initial.lastError
     recoveryReason.value = initial.recoveryReason
   }
@@ -850,6 +1038,8 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     activeAssistantMessageKey,
     feedbackByMessageId,
     actionDraftById,
+    approvalRequestById,
+    approvalRequestMessageLinks,
     lastError,
     recoveryReason,
     sessionId,
@@ -879,6 +1069,14 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     setActionDraftOperationStatus,
     completeActionDraftOperation,
     failActionDraftOperation,
+    getApprovalRequestState,
+    ensureApprovalRequestState,
+    startApprovalRequestDetailLoad,
+    completeApprovalRequestDetailLoad,
+    failApprovalRequestDetailLoad,
+    startApprovalRequestOpenDetail,
+    completeApprovalRequestOpenDetail,
+    failApprovalRequestOpenDetail,
     appendAssistantStreamingPlaceholder,
     setStreamingRequest,
     updateActiveStreamingStatus,

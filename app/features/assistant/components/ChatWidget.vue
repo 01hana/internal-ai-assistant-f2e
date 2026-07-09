@@ -30,12 +30,14 @@ const {
   historyLoadingMore,
   feedbackByMessageId,
   actionDraftById,
+  approvalRequestById,
   isBootstrapping,
   recoveryState,
   canSend,
   sendDisabledReason,
   isSending,
   isStreaming,
+  canOpenApprovalDetail,
 } = chat;
 const { isOpen, availability: storeAvailability } = storeToRefs(widgetStore);
 
@@ -93,6 +95,8 @@ async function togglePanel() {
         :history-loading-more="historyLoadingMore"
         :feedback-states="feedbackByMessageId"
         :action-draft-states="actionDraftById"
+        :approval-request-states="approvalRequestById"
+        :can-open-approval-detail="canOpenApprovalDetail"
         :session-loading="isBootstrapping"
         :recovery-state="recoveryState"
         :can-send="canSend"
@@ -107,6 +111,7 @@ async function togglePanel() {
         @feedback="chat.submitFeedback"
         @confirm-action-draft="({ actionDraftId }) => chat.confirmActionDraft(actionDraftId)"
         @cancel-action-draft="({ actionDraftId }) => chat.cancelActionDraft(actionDraftId)"
+        @open-approval-detail="chat.openApprovalDetail"
       />
     </Transition>
 

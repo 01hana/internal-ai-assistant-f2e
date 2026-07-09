@@ -281,12 +281,12 @@
 
 **Contract Surface**: `approval_required`、ApprovalRequest display-only message renderer、message-level approval mapping、`onOpenApprovalDetail`。
 
-- [ ] T081 [P] [US8] 建立 component tests，覆蓋 approval message renderer display-only 行為、`approvalRequestId` / `status` / `riskLevel` 呈現與 `onOpenApprovalDetail` callback 於 `tests/component/assistant/approval-request.spec.ts`
-- [ ] T082 [US8] 建立 `ApprovalRequestDisplayMessage`，顯示 `approvalRequestId`、status、`riskLevel`、action summary、safe evidence chips / summary，且不渲染 approve / reject / cancel buttons 於 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
-- [ ] T083 [US8] 在 `useAssistantSessionStore` 與 `useChat` 以 `approvalRequestId` 或 message-level mapping 管理 ApprovalRequest state，避免單一全域 `approvalStatus` 覆蓋多則訊息 於 `app/stores/assistant/useAssistantSessionStore.ts` 與 `app/features/assistant/composables/useChat.ts`
-- [ ] T084 [US8] 在 `app/services/api/assistant.ts` 落地 `AssistantService.getApprovalRequest()`，並將 `approval_required` event 接入 `ChatMessageArea` registry、綁定 `onOpenApprovalDetail` callback，維持 display-only boundary 於 `app/services/api/assistant.ts`、`app/features/assistant/components/ChatMessageArea.vue` 與 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
-- [ ] T085 [US8] 建立 contract tests，驗證 `AssistantService.getApprovalRequest()` 使用 read-only detail/status surface，且不引入 inline approve / reject / cancel controls，落點於 `tests/contract/assistant/approval-request.contract.spec.ts`
-- [ ] T086 [US8] 在 `ApprovalRequestDisplayMessage` 補上 `onOpenApprovalDetail` callback 缺失或失敗時的 safe disabled / unavailable UI，且不得將 callback failure 視為 approval failure，落點於 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
+- [x] T081 [P] [US8] 建立 component tests，覆蓋 approval message renderer display-only 行為、`approvalRequestId` / `status` / `riskLevel` 呈現與 `onOpenApprovalDetail` callback 於 `tests/component/assistant/approval-request.spec.ts`
+- [x] T082 [US8] 建立 `ApprovalRequestDisplayMessage`，顯示 `approvalRequestId`、status、`riskLevel`、action summary、safe evidence chips / summary，且不渲染 approve / reject / cancel buttons 於 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
+- [x] T083 [US8] 在 `useAssistantSessionStore` 與 `useChat` 以 `approvalRequestId` 或 message-level mapping 管理 ApprovalRequest state，避免單一全域 `approvalStatus` 覆蓋多則訊息 於 `app/stores/assistant/useAssistantSessionStore.ts` 與 `app/features/assistant/composables/useChat.ts`
+- [x] T084 [US8] 在 `app/services/api/assistant.ts` 落地 `AssistantService.getApprovalRequest()`，並將 `approval_required` event 接入 `ChatMessageArea` registry、綁定 `onOpenApprovalDetail` callback，維持 display-only boundary 於 `app/services/api/assistant.ts`、`app/features/assistant/components/ChatMessageArea.vue` 與 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
+- [x] T085 [US8] 建立 contract tests，驗證 `AssistantService.getApprovalRequest()` 使用 read-only detail/status surface，且不引入 inline approve / reject / cancel controls，落點於 `tests/contract/assistant/approval-request.contract.spec.ts`
+- [x] T086 [US8] 在 `ApprovalRequestDisplayMessage` 補上 `onOpenApprovalDetail` callback 缺失或失敗時的 safe disabled / unavailable UI，且不得將 callback failure 視為 approval failure，落點於 `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`
 
 **Checkpoint**: approval flow 已以 display-only 方式獨立可驗收，且未擴張為 approval management UI。
 
