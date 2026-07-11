@@ -21,6 +21,7 @@ import type {
   AssistantStreamingActivity,
   AssistantStreamingStatus,
   AssistantStreamingUiMessage,
+  AssistantSystemStateMessage,
   AssistantUiMessage,
   HistoryMessageSummary,
   UserUiMessage,
@@ -97,6 +98,7 @@ const TOOL_ACTIVITY = {
 >
 
 const MIN_TYPING_VISIBILITY_MS = 600
+const DEGRADED_MESSAGE_KEY = 'system:degraded-state'
 const ACTION_DRAFT_PENDING_GUARD_MESSAGE =
   '已送出確認，系統仍在處理，請勿重複操作。'
 
@@ -423,6 +425,45 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
 
   function appendUserMessage(message: UserUiMessage) {
     messages.value.push(message)
+  }
+
+  function upsertDegradedMessage(input: {
+    degradedKind: 'degraded' | 'unavailable'
+    safeTitle: string
+    content: string
+  }) {
+    const nextMessage = {
+      key: DEGRADED_MESSAGE_KEY,
+      kind: 'degraded',
+      role: 'assistant',
+      safeTitle: input.safeTitle,
+      degradedKind: input.degradedKind,
+      content: input.content,
+      createdAt: new Date().toISOString(),
+    } satisfies AssistantSystemStateMessage
+
+    const existingIndex = messages.value.findIndex(
+      message => 'kind' in message && message.key === DEGRADED_MESSAGE_KEY,
+    )
+
+    if (existingIndex === -1) {
+      messages.value.push(nextMessage)
+      return
+    }
+
+    messages.value.splice(existingIndex, 1, nextMessage)
+  }
+
+  function clearDegradedMessage() {
+    const existingIndex = messages.value.findIndex(
+      message => 'kind' in message && message.key === DEGRADED_MESSAGE_KEY,
+    )
+
+    if (existingIndex === -1) {
+      return
+    }
+
+    messages.value.splice(existingIndex, 1)
   }
 
   function getApprovalRequestState(
@@ -1058,6 +1099,8 @@ export const useAssistantSessionStore = defineStore('assistant-session', () => {
     appendHistoryPage,
     appendMessages,
     appendUserMessage,
+    upsertDegradedMessage,
+    clearDegradedMessage,
     getFeedbackState,
     startFeedbackSubmission,
     completeFeedbackSubmission,

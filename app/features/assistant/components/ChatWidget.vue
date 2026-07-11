@@ -23,10 +23,10 @@ const widgetStore = useChatWidgetStore();
 const chat = useChat({
   hostContextProvider: props.hostContextProvider,
 });
-const {
-  messages,
-  nextCursor,
-  historyLoading,
+  const {
+    messages,
+    nextCursor,
+    historyLoading,
   historyLoadingMore,
   feedbackByMessageId,
   actionDraftById,
@@ -35,10 +35,11 @@ const {
   recoveryState,
   canSend,
   sendDisabledReason,
-  isSending,
-  isStreaming,
-  canOpenApprovalDetail,
-} = chat;
+    isSending,
+    isStreaming,
+    retryingMessageKey,
+    canOpenApprovalDetail,
+  } = chat;
 const { isOpen, availability: storeAvailability } = storeToRefs(widgetStore);
 
 watch(
@@ -103,6 +104,7 @@ async function togglePanel() {
         :send-disabled-reason="sendDisabledReason"
         :is-sending="isSending"
         :is-streaming="isStreaming"
+        :retrying-message-key="retryingMessageKey"
         @close="closePanel"
         @load-more-history="chat.loadMoreHistory"
         @restart-session="chat.restartSession"
@@ -112,6 +114,7 @@ async function togglePanel() {
         @confirm-action-draft="({ actionDraftId }) => chat.confirmActionDraft(actionDraftId)"
         @cancel-action-draft="({ actionDraftId }) => chat.cancelActionDraft(actionDraftId)"
         @open-approval-detail="chat.openApprovalDetail"
+        @retry-requested="({ key }) => chat.retryMessage(key)"
       />
     </Transition>
 

@@ -316,6 +316,30 @@ describe('ChatWidget floating launcher shell', () => {
     expect(liveRegion.attributes('aria-live')).toBe('polite')
   })
 
+  it('renders degraded panel content safely without falling back to context-not-ready', async () => {
+    const wrapper = await mountSuspended(ChatPanel, {
+      props: {
+        availability: 'degraded',
+        messages: [
+          {
+            key: 'system:degraded-state',
+            kind: 'degraded',
+            role: 'assistant',
+            safeTitle: '助理服務暫時不穩定',
+            degradedKind: 'degraded',
+            content: '目前無法完成這次回覆，請稍後再試。',
+            createdAt,
+          } satisfies AssistantUiMessage,
+        ],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    expect(wrapper.get('[data-testid="assistant-degraded-message"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="assistant-message-context-not-ready"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-panel-status"]').text()).toContain('助理服務暫時不穩定')
+  })
+
   it('keeps the launcher and primary panel regions in a narrow viewport', async () => {
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
@@ -376,6 +400,35 @@ describe('ChatWidget floating launcher shell', () => {
     ])
     expect(wrapper.emitted('cancelActionDraft')).toEqual([
       [{ actionDraftId: 'action-draft-shell-001' }],
+    ])
+  })
+
+  it('forwards retry requests from degraded and interrupted renderers', async () => {
+    const wrapper = await mountSuspended(ChatPanel, {
+      props: {
+        availability: 'degraded',
+        messages: [
+          {
+            key: 'stream:interrupted-shell-001',
+            requestId: 'req-interrupted-shell-001',
+            messageId: 'message-interrupted-shell-001',
+            kind: 'assistant_streaming',
+            role: 'assistant',
+            content: '這是一段尚未完成的內容。',
+            createdAt,
+            status: 'interrupted',
+            lastSequence: 1,
+            evidence: [],
+          } satisfies AssistantStreamingUiMessage,
+        ],
+      },
+    })
+    mountedWrappers.push(wrapper)
+
+    await wrapper.get('[data-testid="assistant-interrupted-retry"]').trigger('click')
+
+    expect(wrapper.emitted('retryRequested')).toEqual([
+      [{ key: 'stream:interrupted-shell-001', requestId: 'req-interrupted-shell-001' }],
     ])
   })
 

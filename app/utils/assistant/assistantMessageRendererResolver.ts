@@ -139,6 +139,133 @@ function createResolvedMessage(
   }
 }
 
+function resolveStreamingMessageRenderer(
+  message: AssistantStreamingUiMessage,
+): ResolvedAssistantMessageRenderer {
+  if (['interrupted', 'failed', 'cancelled'].includes(message.status)) {
+    return createResolvedMessage(message, {
+      rendererKind: 'interrupted',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-interrupted-message',
+      timestampTestId: 'assistant-interrupted-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (message.status !== 'completed' || !message.finalAnswerDecision) {
+    return createResolvedMessage(message, {
+      rendererKind: 'assistant_streaming',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-streaming-message',
+      showTimestamp: false,
+    })
+  }
+
+  if (message.finalDecisionState?.kind === 'clarification_required') {
+    return createResolvedMessage(message, {
+      rendererKind: 'clarification',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-clarification-message',
+      timestampTestId: 'assistant-clarification-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (
+    (message.finalDecisionState?.kind ?? message.finalAnswerDecision)
+    === 'confirmation_required'
+  ) {
+    return createResolvedMessage(message, {
+      rendererKind: 'confirmation',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-action-draft-message',
+      timestampTestId: 'assistant-action-draft-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (
+    (message.finalDecisionState?.kind ?? message.finalAnswerDecision)
+    === 'approval_required'
+  ) {
+    return createResolvedMessage(message, {
+      rendererKind: 'approval',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-approval-request-message',
+      timestampTestId: 'assistant-approval-request-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (
+    message.finalDecisionState?.kind === 'no_answer'
+    && message.finalDecisionState.noAnswerReason !== 'tool_failure'
+  ) {
+    return createResolvedMessage(message, {
+      rendererKind: 'no_answer',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-no-answer-message',
+      timestampTestId: 'assistant-no-answer-time',
+      showTimestamp: true,
+    })
+  }
+
+  if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'answered') {
+    return createResolvedMessage(message, {
+      rendererKind: 'assistant_answer',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-ai-message',
+      timestampTestId: 'assistant-ai-message-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (
+    (message.finalDecisionState?.kind ?? message.finalAnswerDecision)
+    === 'permission_denied'
+  ) {
+    return createResolvedMessage(message, {
+      rendererKind: 'permission_denied',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-permission-denied-message',
+      timestampTestId: 'assistant-permission-denied-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (isToolFailureDecision(message)) {
+    return createResolvedMessage(message, {
+      rendererKind: 'tool_failure',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-tool-failure-message',
+      timestampTestId: 'assistant-tool-failure-time',
+      showTimestamp: true,
+    })
+  }
+
+  if (
+    (message.finalDecisionState?.kind ?? message.finalAnswerDecision)
+    === 'escalation_required'
+  ) {
+    return createResolvedMessage(message, {
+      rendererKind: 'escalation',
+      frameRole: 'assistant',
+      messageTestId: 'assistant-escalation-message',
+      timestampTestId: 'assistant-escalation-time',
+      showTimestamp: true,
+    })
+  }
+
+  return createResolvedMessage(message, {
+    rendererKind: 'unsupported_safe_state',
+    frameRole: 'assistant',
+    messageTestId: 'assistant-unsupported-safe-state',
+    timestampTestId: 'assistant-unsupported-safe-state-time',
+    showTimestamp: true,
+    fallbackKind: getUnsupportedFallbackKind(message),
+  })
+}
+
 export function resolveAssistantMessageRenderer(
   message: AssistantRenderableMessage,
 ): ResolvedAssistantMessageRenderer {
@@ -244,6 +371,10 @@ export function resolveAssistantMessageRenderer(
     })
   }
 
+  if (message.kind === 'assistant_streaming') {
+    return resolveStreamingMessageRenderer(message)
+  }
+
   switch (message.kind) {
     case 'user':
       return createResolvedMessage(message, {
@@ -261,106 +392,21 @@ export function resolveAssistantMessageRenderer(
         timestampTestId: 'assistant-ai-message-time',
         showTimestamp: true,
       })
-    case 'assistant_streaming':
-      if (message.status !== 'completed' || !message.finalAnswerDecision) {
-        return createResolvedMessage(message, {
-          rendererKind: 'assistant_streaming',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-streaming-message',
-          showTimestamp: false,
-        })
-      }
-
-      if (message.finalDecisionState?.kind === 'clarification_required') {
-        return createResolvedMessage(message, {
-          rendererKind: 'clarification',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-clarification-message',
-          timestampTestId: 'assistant-clarification-time',
-          showTimestamp: true,
-        })
-      }
-
-      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'confirmation_required') {
-        return createResolvedMessage(message, {
-          rendererKind: 'confirmation',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-action-draft-message',
-          timestampTestId: 'assistant-action-draft-time',
-          showTimestamp: true,
-        })
-      }
-
-      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'approval_required') {
-        return createResolvedMessage(message, {
-          rendererKind: 'approval',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-approval-request-message',
-          timestampTestId: 'assistant-approval-request-time',
-          showTimestamp: true,
-        })
-      }
-
-      if (
-        message.finalDecisionState?.kind === 'no_answer' &&
-        message.finalDecisionState.noAnswerReason !== 'tool_failure'
-      ) {
-        return createResolvedMessage(message, {
-          rendererKind: 'no_answer',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-no-answer-message',
-          timestampTestId: 'assistant-no-answer-time',
-          showTimestamp: true,
-        })
-      }
-
-      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'answered') {
-        return createResolvedMessage(message, {
-          rendererKind: 'assistant_answer',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-ai-message',
-          timestampTestId: 'assistant-ai-message-time',
-          showTimestamp: true,
-        })
-      }
-
-      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'permission_denied') {
-        return createResolvedMessage(message, {
-          rendererKind: 'permission_denied',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-permission-denied-message',
-          timestampTestId: 'assistant-permission-denied-time',
-          showTimestamp: true,
-        })
-      }
-
-      if (isToolFailureDecision(message)) {
-        return createResolvedMessage(message, {
-          rendererKind: 'tool_failure',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-tool-failure-message',
-          timestampTestId: 'assistant-tool-failure-time',
-          showTimestamp: true,
-        })
-      }
-
-      if ((message.finalDecisionState?.kind ?? message.finalAnswerDecision) === 'escalation_required') {
-        return createResolvedMessage(message, {
-          rendererKind: 'escalation',
-          frameRole: 'assistant',
-          messageTestId: 'assistant-escalation-message',
-          timestampTestId: 'assistant-escalation-time',
-          showTimestamp: true,
-        })
-      }
-
+    case 'degraded':
       return createResolvedMessage(message, {
-        rendererKind: 'unsupported_safe_state',
-        frameRole: 'assistant',
-        messageTestId: 'assistant-unsupported-safe-state',
-        timestampTestId: 'assistant-unsupported-safe-state-time',
+        rendererKind: 'degraded',
+        frameRole: message.role === 'assistant' ? 'assistant' : null,
+        messageTestId: 'assistant-degraded-message',
+        timestampTestId: 'assistant-degraded-time',
         showTimestamp: true,
-        fallbackKind: getUnsupportedFallbackKind(message),
+      })
+    case 'interrupted':
+      return createResolvedMessage(message, {
+        rendererKind: 'interrupted',
+        frameRole: message.role === 'assistant' ? 'assistant' : null,
+        messageTestId: 'assistant-interrupted-message',
+        timestampTestId: 'assistant-interrupted-time',
+        showTimestamp: true,
       })
     case 'clarification':
       return createResolvedMessage(message, {

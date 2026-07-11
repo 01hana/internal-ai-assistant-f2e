@@ -33,6 +33,7 @@ const props = withDefaults(
     sendDisabledReason?: AssistantSendDisabledReason | null;
     isSending?: boolean;
     isStreaming?: boolean;
+    retryingMessageKey?: string | null;
   }>(),
   {
     title: "AI 助理",
@@ -50,6 +51,7 @@ const props = withDefaults(
     sendDisabledReason: null,
     isSending: false,
     isStreaming: false,
+    retryingMessageKey: null,
   },
 );
 
@@ -76,12 +78,22 @@ const emit = defineEmits<{
       sessionId?: string;
     },
   ];
+  retryRequested: [payload: { key: string; requestId?: string | null }];
 }>();
 
-const contextReady = computed(() => props.availability === "normal");
-const statusMessage = computed(() =>
-  contextReady.value ? "AI 助理已就緒" : "目前頁面內容尚未就緒",
-);
+const contextReady = computed(() => props.availability !== "context_not_ready");
+const statusMessage = computed(() => {
+  switch (props.availability) {
+    case "degraded":
+      return "助理服務暫時不穩定";
+    case "unavailable":
+      return "助理暫時無法使用";
+    case "context_not_ready":
+      return "目前頁面內容尚未就緒";
+    default:
+      return "AI 助理已就緒";
+  }
+});
 
 onKeyStroke("Escape", () => {
   emit("close");
@@ -187,11 +199,13 @@ onKeyStroke("Escape", () => {
             :action-draft-states="actionDraftStates"
             :approval-request-states="approvalRequestStates"
             :can-open-approval-detail="canOpenApprovalDetail"
+            :retrying-message-key="retryingMessageKey"
             @load-more="emit('loadMoreHistory')"
             @feedback="emit('feedback', $event)"
             @confirm-action-draft="emit('confirmActionDraft', $event)"
             @cancel-action-draft="emit('cancelActionDraft', $event)"
             @open-approval-detail="emit('openApprovalDetail', $event)"
+            @retry-requested="emit('retryRequested', $event)"
           />
         </slot>
       </div>

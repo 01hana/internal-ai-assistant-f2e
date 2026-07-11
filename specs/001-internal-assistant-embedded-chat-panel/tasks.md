@@ -300,11 +300,11 @@
 
 **Contract Surface**: stream interrupted、timeout、error-after-partial、degraded / unavailable、retry / resend、cancel stream != cancel action。
 
-- [ ] T087 [P] [US9] 建立 unit / component tests，覆蓋 stream interrupted、final timeout、error-after-partial、backend degraded、retry / resend、unknown event fallback 於 `tests/component/assistant/degraded-states.spec.ts`
-- [ ] T088 [US9] 建立 `DegradedMessage` 與 `InterruptedMessage`，顯示 retry / resend / safe fallback 說明 於 `app/features/assistant/components/DegradedMessage.vue` 與 `app/features/assistant/components/InterruptedMessage.vue`
-- [ ] T089 [US9] 在 `useAssistantSessionStore` 建立 degraded / unavailable / interrupted / failed message state，並保留 safe terminal behavior 於 `app/stores/assistant/useAssistantSessionStore.ts`
-- [ ] T090 [US9] 在 `ChatInputBar` 與 `useChat` 實作 retry / resend UX，要求重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope 於 `app/features/assistant/components/ChatInputBar.vue` 與 `app/features/assistant/composables/useChat.ts`
-- [ ] T091 [US9] 在 `useAssistantSseStream` 與 `useAssistantSessionStore` 隔離 cancel stream、cancel ActionDraft、ApprovalRequest display-only 狀態，避免 cancel stream 誤取消 ActionDraft 或 ApprovalRequest 於 `app/features/assistant/composables/useAssistantSseStream.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
+- [x] T087 [P] [US9] 建立 unit / component tests，覆蓋 stream interrupted、final timeout、error-after-partial、backend degraded、retry / resend、unknown event fallback 於 `tests/component/assistant/degraded-states.spec.ts`
+- [x] T088 [US9] 建立 `DegradedMessage` 與 `InterruptedMessage`，顯示 retry / resend / safe fallback 說明 於 `app/features/assistant/components/DegradedMessage.vue` 與 `app/features/assistant/components/InterruptedMessage.vue`
+- [x] T089 [US9] 在 `useAssistantSessionStore` 建立 degraded / unavailable / interrupted / failed message state，並保留 safe terminal behavior 於 `app/stores/assistant/useAssistantSessionStore.ts`
+- [x] T090 [US9] 在 `ChatInputBar` 與 `useChat` 實作 retry / resend UX，要求重新呼叫 HostContextProvider 取得 latest `PageContext` 並重新解析 default session scope 於 `app/features/assistant/components/ChatInputBar.vue` 與 `app/features/assistant/composables/useChat.ts`
+- [x] T091 [US9] 在 `useAssistantSseStream` 與 `useAssistantSessionStore` 隔離 cancel stream、cancel ActionDraft、ApprovalRequest display-only 狀態，避免 cancel stream 誤取消 ActionDraft 或 ApprovalRequest 於 `app/features/assistant/composables/useAssistantSseStream.ts` 與 `app/stores/assistant/useAssistantSessionStore.ts`
 
 **Checkpoint**: degraded / interrupted / retry UX 已獨立可驗收，且不會把 partial answer 當成 final。
 

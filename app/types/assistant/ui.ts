@@ -144,6 +144,8 @@ export type AssistantSystemStateKind = Exclude<
 export interface AssistantSystemStateMessage extends AssistantUiMessageBase {
   kind: AssistantSystemStateKind
   role: 'assistant' | 'system'
+  safeTitle?: string
+  degradedKind?: 'degraded' | 'unavailable'
   answerDecision?: Exclude<AnswerDecisionStatus, 'answered'>
   noAnswerReason?: NoAnswerReason
   evidence?: EvidenceReferenceDisplay[]
@@ -176,6 +178,8 @@ export type ResolvedAssistantMessageRendererKind =
   | 'user'
   | 'assistant_answer'
   | 'assistant_streaming'
+  | 'degraded'
+  | 'interrupted'
   | 'confirmation'
   | 'approval'
   | 'clarification'

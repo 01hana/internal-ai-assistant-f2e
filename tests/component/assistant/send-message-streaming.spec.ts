@@ -12,6 +12,8 @@ import PreviewPage from "../../../app/pages/index.vue";
 import { useAssistantSessionStore } from "../../../app/stores/assistant/useSessionStore";
 import { useChatWidgetStore } from "../../../app/stores/assistant/useChatWidgetStore";
 import type {
+  ActionDraftDetailState,
+  ApprovalRequestDetailState,
   AssistantHostContextProvider,
   AssistantHostContextSnapshot,
   AssistantSession,
@@ -356,6 +358,9 @@ describe("ChatInputBar behavior", () => {
     expect(
       wrapper.find('[data-testid="assistant-chat-disabled-reason"]').exists(),
     ).toBe(false);
+    expect(
+      wrapper.get('[data-testid="assistant-chat-cancel"]').attributes("aria-label"),
+    ).toBe("停止回覆");
     expect(
       wrapper.get('[data-testid="assistant-chat-input"]').attributes("disabled"),
     ).toBeDefined();
@@ -1696,9 +1701,62 @@ beforeEach(() => {
       status: "interrupted",
     });
     expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+    expect(
       wrapper.find('[data-testid="assistant-streaming-finalized"]').exists(),
     ).toBe(false);
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
     expect(wrapper.find('[data-testid="assistant-typing-indicator"]').exists()).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("renders a safe interrupted state when the stream times out before any final event", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch(() => [], {
+      keepOpen: true,
+    });
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("測試 timeout");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(useAssistantSessionStore().messages[1]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "streaming",
+    });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await flushPromises();
+    await nextTick();
+
+    const sessionStore = useAssistantSessionStore();
+
+    expect(sessionStore.messages[1]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "failed",
+    });
+    expect(sessionStore.activeRequestId).toBeNull();
+    expect(sessionStore.activeAssistantMessageKey).toBeNull();
+    expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-testid="assistant-ai-message"]').exists(),
+    ).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
+    expect(wrapper.text()).not.toContain("rawError");
+    expect(wrapper.text()).not.toContain("stack");
     vi.useRealTimers();
   });
 
@@ -1746,7 +1804,379 @@ beforeEach(() => {
     expect(useAssistantSessionStore().messages[1]).not.toHaveProperty(
       "finalAnswerDecision",
     );
+    expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
     vi.useRealTimers();
+  });
+
+  it("renders a safe interrupted state when the streaming request fails before any final event", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url === "/api/v1/assistant/sessions") {
+        return createJsonResponse(createSessionEnvelope());
+      }
+
+      if (
+        url
+        === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`
+      ) {
+        return new Response(
+          JSON.stringify({
+            requestId: "req-stream-error-001",
+            error: {
+              code: "assistant_unavailable",
+              message: "must-not-render",
+            },
+          }),
+          {
+            status: 503,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("測試服務不可用");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(useAssistantSessionStore().messages[1]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "failed",
+    });
+    expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+    expect(wrapper.text()).not.toContain("must-not-render");
+    expect(wrapper.find('[data-testid="assistant-ai-message"]').exists()).toBe(false);
+    expect(
+      wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
+    ).toBe(false);
+  });
+
+  it("retries an interrupted message with a fresh requestId and a new placeholder", async () => {
+    let messageRequestCount = 0;
+    let firstRequestId: string | null = null;
+    let secondRequestId: string | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
+      const url = String(input);
+
+      if (url === "/api/v1/assistant/sessions") {
+        return createJsonResponse(createSessionEnvelope());
+      }
+
+      if (
+        url
+        === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`
+      ) {
+        const requestId = new Headers(requestOptions?.headers).get(
+          "x-request-id",
+        );
+
+        if (messageRequestCount === 0) {
+          firstRequestId = requestId;
+          messageRequestCount += 1;
+          return new Response(
+            JSON.stringify({
+              requestId: "req-stream-error-002",
+              error: {
+                code: "assistant_unavailable",
+                message: "must-not-render",
+              },
+            }),
+            {
+              status: 503,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        secondRequestId = requestId;
+        messageRequestCount += 1;
+        return createPendingSseResponse();
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = createProvider();
+    const wrapper = await mountWidget(provider);
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("重新送出這則訊息");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="assistant-interrupted-retry"]')
+      .trigger("click");
+    await waitFor(() => fetchMock.mock.calls.length === 3);
+    await nextTick();
+
+    const sessionStore = useAssistantSessionStore();
+    expect(provider.getSnapshot).toHaveBeenCalledWith({ purpose: "retry" });
+    expect(firstRequestId).toMatch(/^req-/);
+    expect(secondRequestId).toMatch(/^req-/);
+    expect(secondRequestId).not.toBe(firstRequestId);
+    expect(sessionStore.messages).toHaveLength(4);
+    expect(sessionStore.messages[1]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "failed",
+      requestId: firstRequestId,
+    });
+    expect(sessionStore.messages[2]).toMatchObject({
+      kind: "user",
+      content: "重新送出這則訊息",
+      requestId: secondRequestId,
+    });
+    expect(sessionStore.messages[3]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "streaming",
+      requestId: secondRequestId,
+    });
+
+    await wrapper.get('[data-testid="assistant-chat-cancel"]').trigger("click");
+    await waitFor(() => sessionStore.activeRequestId === null);
+    expect(sessionStore.messages[3]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "cancelled",
+      requestId: secondRequestId,
+    });
+  });
+
+  it("blocks retry when the latest retry snapshot resolves to a different scope", async () => {
+    let messageRequestCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _requestOptions?: RequestInit) => {
+      const url = String(input);
+
+      if (url === "/api/v1/assistant/sessions") {
+        return createJsonResponse(createSessionEnvelope());
+      }
+
+      if (
+        url
+        === `/api/v1/assistant/sessions/${createdSession.sessionId}/messages`
+      ) {
+        messageRequestCount += 1;
+
+        if (messageRequestCount === 1) {
+          return new Response(
+            JSON.stringify({
+              requestId: "req-stream-error-scope-001",
+              error: {
+                code: "assistant_unavailable",
+                message: "must-not-render",
+              },
+            }),
+            {
+              status: 503,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        throw new Error("Retry should be blocked before sending a new request.");
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = {
+      getSnapshot: vi.fn(({ purpose }: { purpose: string }) => {
+        if (purpose === "send") {
+          return pageHostContextSnapshot;
+        }
+
+        if (purpose === "retry") {
+          return entityHostContextSnapshot;
+        }
+
+        return pageHostContextSnapshot;
+      }),
+    } satisfies AssistantHostContextProvider & {
+      getSnapshot: ReturnType<typeof vi.fn>;
+    };
+    const wrapper = await mountWidget(provider);
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("重新送出 scope 變更測試");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      wrapper.get('[data-testid="assistant-interrupted-message"]').exists(),
+    ).toBe(true);
+
+    const sessionStore = useAssistantSessionStore();
+    const originalMessageCount = sessionStore.messages.length;
+
+    await wrapper
+      .get('[data-testid="assistant-interrupted-retry"]')
+      .trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(provider.getSnapshot).toHaveBeenCalledWith({ purpose: "retry" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sessionStore.messages).toHaveLength(originalMessageCount);
+    expect(
+      wrapper.get('[data-testid="assistant-chat-disabled-reason"]').text(),
+    ).toContain("頁面脈絡已變更，請重新開始此對話。");
+    expect(
+      sessionStore.messages.filter(message => message.kind === "user"),
+    ).toHaveLength(1);
+    expect(
+      sessionStore.messages.filter(
+        message =>
+          message.kind === "assistant_streaming"
+          && message.status === "streaming",
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("keeps existing action-draft and approval state when a stream is interrupted", async () => {
+    vi.useFakeTimers();
+    installEventStreamFetch((requestId) => [
+      {
+        requestId,
+        sessionId: createdSession.sessionId,
+        messageId: "message-keep-state-001",
+        eventType: "answer_delta",
+        sequence: 1,
+        data: {
+          delta: "這是一段尚未完成的內容。",
+        },
+      },
+    ]);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    const sessionStore = useAssistantSessionStore();
+    sessionStore.actionDraftById["action-draft-keep-001"] = {
+      actionDraftId: "action-draft-keep-001",
+      detailStatus: "available",
+      operationStatus: "idle",
+    } satisfies ActionDraftDetailState;
+    sessionStore.approvalRequestById["approval-request-keep-001"] = {
+      approvalRequestId: "approval-request-keep-001",
+      detailStatus: "available",
+      openDetailStatus: "idle",
+    } satisfies ApprovalRequestDetailState;
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("測試保留既有狀態");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await nextTick();
+
+    expect(sessionStore.actionDraftById["action-draft-keep-001"]).toMatchObject({
+      actionDraftId: "action-draft-keep-001",
+      detailStatus: "available",
+    });
+    expect(
+      sessionStore.approvalRequestById["approval-request-keep-001"],
+    ).toMatchObject({
+      approvalRequestId: "approval-request-keep-001",
+      detailStatus: "available",
+    });
+    vi.useRealTimers();
+  });
+
+  it("cancels only the active SSE stream and keeps action-draft and approval state isolated", async () => {
+    installEventStreamFetch(
+      (requestId) => [
+        {
+          requestId,
+          sessionId: createdSession.sessionId,
+          messageId: "message-cancel-isolation-001",
+          eventType: "answer_delta",
+          sequence: 1,
+          data: {
+            delta: "這是一段進行中的回覆。",
+          },
+        },
+      ],
+      {
+        keepOpen: true,
+      },
+    );
+
+    const wrapper = await mountWidget(createProvider());
+    await openReadyPanel(wrapper);
+
+    const sessionStore = useAssistantSessionStore();
+    sessionStore.actionDraftById["action-draft-isolation-001"] = {
+      actionDraftId: "action-draft-isolation-001",
+      detailStatus: "available",
+      operationStatus: "idle",
+    } satisfies ActionDraftDetailState;
+    sessionStore.approvalRequestById["approval-request-isolation-001"] = {
+      approvalRequestId: "approval-request-isolation-001",
+      detailStatus: "available",
+      openDetailStatus: "idle",
+      status: "pending",
+    } satisfies ApprovalRequestDetailState;
+
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("只停止這次回覆");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await waitFor(() => wrapper.find('[data-testid="assistant-chat-cancel"]').exists());
+
+    await wrapper.get('[data-testid="assistant-chat-cancel"]').trigger("click");
+    await waitFor(() => sessionStore.activeRequestId === null);
+
+    expect(sessionStore.messages[1]).toMatchObject({
+      kind: "assistant_streaming",
+      status: "cancelled",
+    });
+    expect(sessionStore.actionDraftById["action-draft-isolation-001"]).toMatchObject({
+      actionDraftId: "action-draft-isolation-001",
+      operationStatus: "idle",
+      detailStatus: "available",
+    });
+    expect(
+      sessionStore.approvalRequestById["approval-request-isolation-001"],
+    ).toMatchObject({
+      approvalRequestId: "approval-request-isolation-001",
+      detailStatus: "available",
+      openDetailStatus: "idle",
+      status: "pending",
+    });
   });
 
   it("renders an unknown event as a safe non-final activity", async () => {

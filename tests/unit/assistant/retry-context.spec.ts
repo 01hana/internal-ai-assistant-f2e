@@ -60,4 +60,29 @@ describe("retry and resend latest host context", () => {
     });
     expect(retry.scope.key).toContain("entity:order:so-20002");
   });
+
+  it("does not reuse the previous scope when retry reads a newer host snapshot", async () => {
+    const provider = {
+      getSnapshot: vi
+        .fn()
+        .mockReturnValueOnce(pageHostContextSnapshot)
+        .mockReturnValueOnce(entityHostContextSnapshot),
+    } satisfies AssistantHostContextProvider;
+    const hostContext = useAssistantHostContext(provider);
+
+    const firstSend = await resolveLatestAssistantSendContext(
+      hostContext,
+      "send",
+    );
+    const retry = await resolveLatestAssistantSendContext(
+      hostContext,
+      "retry",
+    );
+
+    expect(firstSend.scope.key).not.toBe(retry.scope.key);
+    expect(retry.scope.kind).toBe("entity");
+    expect(provider.getSnapshot).toHaveBeenNthCalledWith(2, {
+      purpose: "retry",
+    });
+  });
 });

@@ -79,6 +79,64 @@ const APPROVAL_REQUEST_OPEN_DETAIL_UNAVAILABLE_MESSAGE =
   "這個環境尚未提供審核詳情入口。";
 const APPROVAL_REQUEST_OPEN_DETAIL_ERROR_MESSAGE =
   "目前無法開啟審核詳情，請稍後再試。";
+const DEGRADED_MESSAGE = {
+  safeTitle: "助理服務暫時不穩定",
+  content: "目前無法完成這次回覆，請稍後再試。",
+} as const;
+const UNAVAILABLE_MESSAGE = {
+  safeTitle: "助理暫時無法使用",
+  content: "目前無法完成這次回覆，請稍後再試。",
+} as const;
+
+function syncLatestAvailabilityState(
+  snapshot: AssistantHostContextSnapshot,
+  sessionStore: ReturnType<typeof useAssistantSessionStore>,
+  widgetStore: ReturnType<typeof useChatWidgetStore>,
+) {
+  const ready = snapshot.readiness.status === "ready";
+  const hasIdentityHeaders = Boolean(snapshot.identityHeaders);
+  const hasPageContext = Boolean(snapshot.pageContext);
+
+  if (ready && hasIdentityHeaders && hasPageContext) {
+    sessionStore.setContextReady(true);
+    sessionStore.clearDegradedMessage();
+    widgetStore.setAvailability("normal");
+    return {
+      canProceed: true,
+    };
+  }
+
+  if (snapshot.readiness.status === "degraded") {
+    sessionStore.setContextReady(false);
+    sessionStore.upsertDegradedMessage({
+      degradedKind: "degraded",
+      safeTitle: DEGRADED_MESSAGE.safeTitle,
+      content: DEGRADED_MESSAGE.content,
+    });
+    widgetStore.setAvailability("degraded");
+    return {
+      canProceed: false,
+    };
+  }
+
+  sessionStore.setContextReady(false);
+  sessionStore.clearDegradedMessage();
+
+  if (!hasIdentityHeaders || !hasPageContext) {
+    widgetStore.setAvailability("unavailable");
+    sessionStore.upsertDegradedMessage({
+      degradedKind: "unavailable",
+      safeTitle: UNAVAILABLE_MESSAGE.safeTitle,
+      content: UNAVAILABLE_MESSAGE.content,
+    });
+  } else {
+    widgetStore.setAvailability("context_not_ready");
+  }
+
+  return {
+    canProceed: false,
+  };
+}
 
 function mapFeedbackValueToRequest(
   value: AssistantFeedbackValue,
@@ -128,6 +186,7 @@ export function useChat(options: UseChatOptions = {}) {
 
   const scopeChanged = ref(false);
   const sendInFlight = ref(false);
+  const retryingMessageKey = ref<string | null>(null);
   const stream = useAssistantSseStream({
     assistantService,
     callbacks: {
@@ -260,16 +319,37 @@ export function useChat(options: UseChatOptions = {}) {
   );
 
   watch(
-    hostContext.readiness,
-    (readiness) => {
+    [hostContext.readiness, () => sessionStore.status, recoveryReason],
+    ([readiness, sessionStatus, nextRecoveryReason]) => {
       const ready = readiness.status === "ready";
       sessionStore.setContextReady(ready);
 
       if (readiness.status === "degraded") {
         widgetStore.setAvailability("degraded");
-      } else {
-        widgetStore.setAvailability(ready ? "normal" : "context_not_ready");
+        sessionStore.upsertDegradedMessage({
+          degradedKind: "degraded",
+          safeTitle: DEGRADED_MESSAGE.safeTitle,
+          content: DEGRADED_MESSAGE.content,
+        });
+        return;
       }
+
+      if (
+        ready &&
+        sessionStatus === "error" &&
+        (nextRecoveryReason === "unavailable" || nextRecoveryReason === "unknown")
+      ) {
+        widgetStore.setAvailability("unavailable");
+        sessionStore.upsertDegradedMessage({
+          degradedKind: "unavailable",
+          safeTitle: UNAVAILABLE_MESSAGE.safeTitle,
+          content: UNAVAILABLE_MESSAGE.content,
+        });
+        return;
+      }
+
+      sessionStore.clearDegradedMessage();
+      widgetStore.setAvailability(ready ? "normal" : "context_not_ready");
     },
     { immediate: true },
   );
@@ -359,30 +439,32 @@ export function useChat(options: UseChatOptions = {}) {
       return false;
     }
 
-    if (!contextReady.value) {
+    if (purpose === "send" && !contextReady.value) {
       return false;
     }
 
     sendInFlight.value = true;
 
     try {
+      const { snapshot: latestSnapshot, scope: latestScope } =
+        await resolveLatestAssistantSendContext(hostContext, purpose);
+
+      if (
+        !syncLatestAvailabilityState(
+          latestSnapshot,
+          sessionStore,
+          widgetStore,
+        ).canProceed
+      ) {
+        return false;
+      }
+
       if (!sessionReady.value) {
         await bootstrapOnPanelOpen();
       }
 
       const sessionId = sessionStore.sessionId;
-      if (!sessionReady.value || !sessionId) {
-        return false;
-      }
-
-      const { snapshot: latestSnapshot, scope: latestScope } =
-        await resolveLatestAssistantSendContext(hostContext, purpose);
-      if (
-        latestSnapshot.readiness.status !== "ready" ||
-        !latestSnapshot.identityHeaders
-      ) {
-        sessionStore.setContextReady(false);
-        widgetStore.setAvailability("context_not_ready");
+      if (!sessionReady.value || !sessionId || !latestSnapshot.identityHeaders) {
         return false;
       }
 
@@ -468,6 +550,68 @@ export function useChat(options: UseChatOptions = {}) {
     }
 
     return resendMessage(latestUserMessage.content);
+  }
+
+  function resolveRetrySourceText(messageKey: string): string | null {
+    const currentMessages = messages.value;
+    const targetIndex = currentMessages.findIndex(
+      (message) => "key" in message && message.key === messageKey,
+    );
+
+    if (targetIndex === -1) {
+      return null;
+    }
+
+    const targetMessage = currentMessages[targetIndex];
+    if (!targetMessage || !("kind" in targetMessage)) {
+      return null;
+    }
+
+    if (
+      targetMessage.kind === "assistant_streaming" &&
+      ["interrupted", "failed", "cancelled"].includes(targetMessage.status)
+    ) {
+      for (let index = targetIndex - 1; index >= 0; index -= 1) {
+        const candidate = currentMessages[index];
+        if (candidate && candidate.role === "user" && candidate.content.trim()) {
+          return candidate.content;
+        }
+      }
+
+      return null;
+    }
+
+    if (targetMessage.kind === "degraded") {
+      for (let index = currentMessages.length - 1; index >= 0; index -= 1) {
+        const candidate = currentMessages[index];
+        if (candidate && candidate.role === "user" && candidate.content.trim()) {
+          return candidate.content;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  async function retryMessage(messageKey: string): Promise<boolean> {
+    if (retryingMessageKey.value) {
+      return false;
+    }
+
+    const sourceText = resolveRetrySourceText(messageKey);
+    if (!sourceText) {
+      return false;
+    }
+
+    retryingMessageKey.value = messageKey;
+
+    try {
+      return await resendMessage(sourceText);
+    } finally {
+      if (retryingMessageKey.value === messageKey) {
+        retryingMessageKey.value = null;
+      }
+    }
   }
 
   async function cancelStream(): Promise<void> {
@@ -830,7 +974,9 @@ export function useChat(options: UseChatOptions = {}) {
     restartSession,
     sendMessage,
     resendMessage,
+    retryMessage,
     retryLastMessage,
+    retryingMessageKey,
     cancelStream,
     loadActionDraftDetail,
     loadApprovalRequestDetail,

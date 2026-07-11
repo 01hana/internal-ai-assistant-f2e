@@ -28,7 +28,7 @@ const disabledMessages: Partial<Record<AssistantSendDisabledReason, string>> = {
   streaming: "助理正在回應中",
   degraded: "助理目前處於降級狀態",
   unavailable: "助理目前無法使用",
-  scope_changed: "頁面脈絡已變更，請稍後重新開始",
+  scope_changed: "頁面脈絡已變更，請重新開始此對話。",
 };
 
 const text = ref("");
@@ -85,7 +85,7 @@ function handleKeydown(event: KeyboardEvent) {
         variant="soft"
         class="w-10 h-10 justify-center rounded-full"
         data-testid="assistant-chat-cancel"
-        aria-label="停止產生回應"
+        aria-label="停止回覆"
         @click="emit('cancel')"
       />
       <UButton

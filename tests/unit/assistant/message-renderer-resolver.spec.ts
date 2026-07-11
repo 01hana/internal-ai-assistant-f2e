@@ -58,6 +58,49 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolved.showTimestamp).toBe(false)
   })
 
+  it('maps interrupted terminal streaming messages to interrupted', () => {
+    const resolved = resolveAssistantMessageRenderer(
+      createCompletedStreamingMessage({
+        status: 'interrupted',
+        finalAnswerDecision: undefined,
+        finalDecisionState: null,
+        content: '這是一段尚未完成的內容。',
+      }),
+    )
+
+    expect(resolved.rendererKind).toBe('interrupted')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.showTimestamp).toBe(true)
+  })
+
+  it('maps failed terminal streaming messages to interrupted instead of answered', () => {
+    const resolved = resolveAssistantMessageRenderer(
+      createCompletedStreamingMessage({
+        status: 'failed',
+        finalAnswerDecision: undefined,
+        finalDecisionState: null,
+        content: '這是一段尚未完成的內容。',
+      }),
+    )
+
+    expect(resolved.rendererKind).toBe('interrupted')
+    expect(resolved.rendererKind).not.toBe('assistant_answer')
+  })
+
+  it('maps cancelled terminal streaming messages to interrupted', () => {
+    const resolved = resolveAssistantMessageRenderer(
+      createCompletedStreamingMessage({
+        status: 'cancelled',
+        finalAnswerDecision: undefined,
+        finalDecisionState: null,
+        content: '',
+      }),
+    )
+
+    expect(resolved.rendererKind).toBe('interrupted')
+    expect(resolved.rendererKind).not.toBe('assistant_answer')
+  })
+
   it('maps clarification_required to clarification', () => {
     const resolved = resolveAssistantMessageRenderer(
       createCompletedStreamingMessage({
@@ -251,7 +294,7 @@ describe('assistantMessageRendererResolver', () => {
   it('keeps unknown system fallbacks on unsupported_safe_state', () => {
     const resolved = resolveAssistantMessageRenderer({
       key: 'system-unsupported-001',
-      kind: 'degraded',
+      kind: 'session_recovery',
       role: 'system',
       content: '系統目前暫時降級。',
       createdAt,
@@ -316,5 +359,21 @@ describe('assistantMessageRendererResolver', () => {
     expect(resolveAssistantMessageRenderer(messages[4]).rendererKind).toBe(
       'approval',
     )
+  })
+
+  it('maps degraded assistant safe-state messages to degraded', () => {
+    const resolved = resolveAssistantMessageRenderer({
+      key: 'system-degraded-001',
+      kind: 'degraded',
+      role: 'assistant',
+      safeTitle: '助理服務暫時不穩定',
+      degradedKind: 'degraded',
+      content: '目前無法完成這次回覆，請稍後再試。',
+      createdAt,
+    })
+
+    expect(resolved.rendererKind).toBe('degraded')
+    expect(resolved.frameRole).toBe('assistant')
+    expect(resolved.showTimestamp).toBe(true)
   })
 })

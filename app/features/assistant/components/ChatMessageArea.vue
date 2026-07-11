@@ -16,8 +16,10 @@ import ApprovalRequestDisplayMessage from "./ApprovalRequestDisplayMessage.vue";
 import AiMessageItem from "./AiMessageItem.vue";
 import AiStreamingItem from "./AiStreamingItem.vue";
 import ClarificationMessage from "./ClarificationMessage.vue";
+import DegradedMessage from "./DegradedMessage.vue";
 import EscalationMessage from "./EscalationMessage.vue";
 import FeedbackControls from "./FeedbackControls.vue";
+import InterruptedMessage from "./InterruptedMessage.vue";
 import NoAnswerMessage from "./NoAnswerMessage.vue";
 import PermissionDeniedMessage from "./PermissionDeniedMessage.vue";
 import ToolFailureMessage from "./ToolFailureMessage.vue";
@@ -27,6 +29,8 @@ const rendererComponents = {
   user: UserMessageItem,
   assistant_answer: AiMessageItem,
   assistant_streaming: AiStreamingItem,
+  degraded: DegradedMessage,
+  interrupted: InterruptedMessage,
   confirmation: ActionDraftConfirmationMessage,
   approval: ApprovalRequestDisplayMessage,
   clarification: ClarificationMessage,
@@ -47,6 +51,7 @@ const props = withDefaults(
     actionDraftStates?: Record<string, ActionDraftDetailState>;
     approvalRequestStates?: Record<string, ApprovalRequestDetailState>;
     canOpenApprovalDetail?: boolean;
+    retryingMessageKey?: string | null;
   }>(),
   {
     messages: () => [],
@@ -58,6 +63,7 @@ const props = withDefaults(
     actionDraftStates: () => ({}),
     approvalRequestStates: () => ({}),
     canOpenApprovalDetail: false,
+    retryingMessageKey: null,
   },
 );
 
@@ -73,6 +79,7 @@ const emit = defineEmits<{
   confirmActionDraft: [payload: { actionDraftId: string }];
   cancelActionDraft: [payload: { actionDraftId: string }];
   openApprovalDetail: [payload: OpenApprovalDetailPayload];
+  retryRequested: [payload: { key: string; requestId?: string | null }];
 }>();
 
 const messageAreaRef = ref<HTMLElement | null>(null);
@@ -273,6 +280,18 @@ function handleOpenApprovalDetail(
     sessionId: approvalRequestState?.sessionId ?? undefined,
   });
 }
+
+function handleRetryRequested(
+  resolvedMessage: ResolvedAssistantMessageRenderer,
+) {
+  emit("retryRequested", {
+    key: resolvedMessage.key,
+    requestId:
+      "requestId" in resolvedMessage.message
+        ? (resolvedMessage.message.requestId ?? null)
+        : null,
+  });
+}
 </script>
 
 <template>
@@ -369,7 +388,7 @@ function handleOpenApprovalDetail(
                               onConfirm: ({ actionDraftId }: { actionDraftId: string }) => handleConfirmActionDraft(actionDraftId),
                               onCancel: ({ actionDraftId }: { actionDraftId: string }) => handleCancelActionDraft(actionDraftId),
                             }
-                          : resolvedMessage.rendererKind === 'approval'
+                            : resolvedMessage.rendererKind === 'approval'
                             ? {
                                 approvalRequestState: getApprovalRequestState(resolvedMessage),
                                 canOpenDetail: canOpenApprovalDetail,
@@ -378,6 +397,14 @@ function handleOpenApprovalDetail(
                                   approvalRequestId,
                                 ),
                               }
+                            : resolvedMessage.rendererKind === 'interrupted'
+                              || resolvedMessage.rendererKind === 'degraded'
+                              ? {
+                                  isRetrying: retryingMessageKey === resolvedMessage.key,
+                                  onRetryRequested: () => handleRetryRequested(
+                                    resolvedMessage,
+                                  ),
+                                }
                           : {}),
                       }
                 "
