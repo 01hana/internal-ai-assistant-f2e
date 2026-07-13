@@ -152,6 +152,7 @@ onKeyStroke("Escape", () => {
             size="sm"
             class="shrink-0 rounded-full text-white hover:bg-white/15"
             data-testid="assistant-panel-restart"
+            aria-label="重新開始助理對話"
             @click="emit('restartSession')"
           />
 
@@ -162,6 +163,7 @@ onKeyStroke("Escape", () => {
             size="sm"
             class="shrink-0 rounded-full text-white hover:bg-white/15"
             data-testid="assistant-panel-close"
+            aria-label="關閉助理面板"
             @click="emit('close')"
           />
         </div>

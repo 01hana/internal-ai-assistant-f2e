@@ -318,11 +318,11 @@
 
 **Completion Criteria**: 主要 user stories 完成後，cross-cutting regression 與治理條件都能被自動化驗證。
 
-- [ ] T092 [P] 建立 no-public-chatbot-semantics regression tests，驗證 UI 中不存在 lead / handoff / phone / email / contact-us / customer-service copy 於 `tests/component/assistant/no-public-chatbot-semantics.spec.ts`
-- [ ] T093 [P] 建立 privacy guard tests，驗證不持久化 raw evidence、raw tool output、full prompt、sensitive payload、localStorage token primary strategy 於 `tests/unit/assistant/privacy-guards.spec.ts`
-- [ ] T094 [P] 建立 accessibility regression tests，覆蓋 keyboard navigation、focus management、ARIA labels、live region、confirmation / approval message renderers 可操作性 於 `tests/component/assistant/accessibility.spec.ts`
-- [ ] T095 [P] 建立 UI reference implementation boundary regression tests，驗證 production modules 不直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `tests/unit/assistant/reference-boundary.spec.ts`
-- [ ] T096 對齊最終 source-root、module-boundary、fixture coverage 與 story completion notes，回寫 `design.md`、`plan.md`、`tasks.md` 與 `tests/fixtures/assistant-api/README.md`，避免建立平行 architecture source-of-truth
+- [x] T092 [P] 建立 no-public-chatbot-semantics regression tests，驗證 UI 中不存在 lead / handoff / phone / email / contact-us / customer-service copy 於 `tests/component/assistant/no-public-chatbot-semantics.spec.ts`
+- [x] T093 [P] 建立 privacy guard tests，驗證不持久化 raw evidence、raw tool output、full prompt、sensitive payload、localStorage token primary strategy 於 `tests/unit/assistant/privacy-guards.spec.ts`
+- [x] T094 [P] 建立 accessibility regression tests，覆蓋 keyboard navigation、focus management、ARIA labels、live region、confirmation / approval message renderers 可操作性 於 `tests/component/assistant/accessibility.spec.ts`
+- [x] T095 [P] 建立 UI reference implementation boundary regression tests，驗證 production modules 不直接 import / copy / move `docs/reference/legacy-chatbot-widget/raw/` 於 `tests/unit/assistant/reference-boundary.spec.ts`
+- [x] T096 對齊最終 source-root、module-boundary、fixture coverage 與 story completion notes，回寫 `design.md`、`plan.md`、`tasks.md`、`tests/fixtures/assistant-api/README.md` 與 `tests/fixtures/assistant-sse/README.md`，避免建立平行 architecture source-of-truth
 
 **Checkpoint**: cross-cutting concerns 已完成，整體功能可依 constitution / spec / design / plan 驗證。
 
@@ -741,59 +741,59 @@ Host integration requirements are validated through US1 embedded shell, US2 / US
 
 ## Final Validation Checklist
 
-- [ ] constitution compliance confirmed
-- [ ] spec.md coverage confirmed
-- [ ] design.md coverage confirmed
-- [ ] plan.md Phase 0～8 coverage confirmed
-- [ ] User Story Coverage US1～US9 confirmed
-- [ ] backend contract compliance confirmed
-- [ ] UI reference implementation boundary confirmed
-- [ ] production modules do not directly import / copy / move `docs/reference/legacy-chatbot-widget/raw/`
-- [ ] no public chatbot semantics
-- [ ] no lead / handoff
-- [ ] no phone / email / contact-us / customer-service copy
-- [ ] no localStorage session token primary strategy
-- [ ] no `/history` endpoint
-- [ ] no `order=desc`
-- [ ] no `hasMore`
-- [ ] no `tool_failed` final state
-- [ ] `tool_failure` only appears as `NoAnswerReason` with `answerDecision=no_answer`
-- [ ] no inline approval
-- [ ] ApprovalRequest remains display-only
-- [ ] ApprovalRequest state is `approvalRequestId`-keyed or message-level, not single global `approvalStatus`
-- [ ] no raw evidence / raw tool output / full document text displayed
-- [ ] no evidence fabrication for `string[] evidenceRefs`
-- [ ] latest PageContext is read on send
-- [ ] latest PageContext is re-read on retry / resend
-- [ ] default session scope strategy `entity > page > global` is implemented
-- [ ] host app override for session scope is respected
-- [ ] `sessionStorage` fallback stores only minimal sessionId continuity
-- [ ] history uses `GET /api/v1/assistant/sessions/:sessionId/messages`
-- [ ] history pagination uses `nextCursor`
-- [ ] send message request is JSON
-- [ ] send message response is SSE
-- [ ] SSE final state only comes from `final.data.answerDecision`
-- [ ] partial answer is never promoted to final
-- [ ] error event is never treated as answered
-- [ ] unknown SSE event has safe fallback
-- [ ] cancel stream does not cancel ActionDraft
-- [ ] cancel stream does not affect ApprovalRequest display-only state
-- [ ] feedback uses backend API and links `messageId` / `requestId`
-- [ ] frontend does not create `ReviewItem`
-- [ ] ActionDraft confirm supports `idempotencyKey`
-- [ ] `pending_execution_guard` is not shown as side-effect completed
-- [ ] contract fixtures cover answered / clarification / no_answer / tool_failure / permission_denied / confirmation_required / approval_required / escalation_required / interrupted / unknown event / history pagination
-- [ ] component tests cover `ChatWidget` / `ChatPanel` / `ChatMessageArea` / `ChatInputBar` / message items / safe state message renderers
-- [ ] accessibility baseline covers keyboard / focus / ARIA / live region
-- [ ] privacy guards prevent sensitive payload persistence or logging
-- [ ] host integration public API readiness reviewed
-- [ ] host app embedding coverage confirmed in Spec Kit
-- [ ] PageContext examples cover list / detail / selectedRows / filters / visibleColumns / entity / page / global
-- [ ] identity headers handoff coverage confirmed in Spec Kit
-- [ ] onOpenApprovalDetail integration coverage confirmed in Spec Kit
-- [ ] host theme / layout coverage confirmed in Spec Kit
-- [ ] demo host / playground validation strategy coverage confirmed in Spec Kit
-- [ ] host integration acceptance coverage confirmed in Spec Kit
+- [x] constitution compliance confirmed
+- [x] spec.md coverage confirmed
+- [x] design.md coverage confirmed
+- [x] plan.md Phase 0～8 coverage confirmed
+- [x] User Story Coverage US1～US9 confirmed
+- [x] backend contract compliance confirmed
+- [x] UI reference implementation boundary confirmed
+- [x] production modules do not directly import / copy / move `docs/reference/legacy-chatbot-widget/raw/`
+- [x] no public chatbot semantics
+- [x] no lead / handoff
+- [x] no phone / email / contact-us / customer-service copy
+- [x] no localStorage session token primary strategy
+- [x] no `/history` endpoint
+- [x] no `order=desc`
+- [x] no `hasMore`
+- [x] no `tool_failed` final state
+- [x] `tool_failure` only appears as `NoAnswerReason` with `answerDecision=no_answer`
+- [x] no inline approval
+- [x] ApprovalRequest remains display-only
+- [x] ApprovalRequest state is `approvalRequestId`-keyed or message-level, not single global `approvalStatus`
+- [x] no raw evidence / raw tool output / full document text displayed
+- [x] no evidence fabrication for `string[] evidenceRefs`
+- [x] latest PageContext is read on send
+- [x] latest PageContext is re-read on retry / resend
+- [x] default session scope strategy `entity > page > global` is implemented
+- [x] host app override for session scope is respected
+- [x] `sessionStorage` fallback stores only minimal sessionId continuity
+- [x] history uses `GET /api/v1/assistant/sessions/:sessionId/messages`
+- [x] history pagination uses `nextCursor`
+- [x] send message request is JSON
+- [x] send message response is SSE
+- [x] SSE final state only comes from `final.data.answerDecision`
+- [x] partial answer is never promoted to final
+- [x] error event is never treated as answered
+- [x] unknown SSE event has safe fallback
+- [x] cancel stream does not cancel ActionDraft
+- [x] cancel stream does not affect ApprovalRequest display-only state
+- [x] feedback uses backend API and links `messageId` / `requestId`
+- [x] frontend does not create `ReviewItem`
+- [x] ActionDraft confirm supports `idempotencyKey`
+- [x] `pending_execution_guard` is not shown as side-effect completed
+- [x] contract fixtures cover answered / clarification / no_answer / tool_failure / permission_denied / confirmation_required / approval_required / escalation_required / interrupted / unknown event / history pagination
+- [x] component tests cover `ChatWidget` / `ChatPanel` / `ChatMessageArea` / `ChatInputBar` / message items / safe state message renderers
+- [x] accessibility baseline covers keyboard / focus / ARIA / live region
+- [x] privacy guards prevent sensitive payload persistence or logging
+- [x] host integration public API readiness reviewed
+- [x] host app embedding coverage confirmed in Spec Kit
+- [x] PageContext examples cover list / detail / selectedRows / filters / visibleColumns / entity / page / global
+- [x] identity headers handoff coverage confirmed in Spec Kit
+- [x] onOpenApprovalDetail integration coverage confirmed in Spec Kit
+- [x] host theme / layout coverage confirmed in Spec Kit
+- [x] demo host / playground validation strategy coverage confirmed in Spec Kit
+- [x] host integration acceptance coverage confirmed in Spec Kit
 - [ ] host app can mount the host-embedded floating assistant widget
 - [ ] bottom-right launcher toggles the chat panel dialog
 - [ ] host app can provide context ready / not ready state
@@ -803,47 +803,47 @@ Host integration requirements are validated through US1 embedded shell, US2 / US
 - [ ] host-managed sessionId flow is covered in Spec Kit
 - [ ] onOpenApprovalDetail missing / failed state is safe
 - [ ] theme / layout constraints are validated for narrow container and focus behavior
-- [ ] Testing Policy: Pragmatic TDD followed
-- [ ] task IDs are unique
-- [ ] no duplicated Txxx task IDs
-- [ ] contract-sensitive logic has test-first or same-batch tests
-- [ ] core pure functions have unit tests
-- [ ] API / SSE / history have contract tests
-- [ ] UI components have behavior-focused component tests
-- [ ] store / orchestration flows have state transition tests
-- [ ] no pixel-perfect TDD requirement was introduced
-- [ ] Nuxt 4 project initialization covered
-- [ ] Phase 0 contains executable project initialization tasks, not only planning docs
-- [ ] Nuxt UI setup covered
-- [ ] Tailwind CSS v4 setup covered
-- [ ] Pinia setup covered
-- [ ] vee-validate setup covered
-- [ ] Vitest setup covered
-- [ ] Vue Test Utils setup covered
-- [ ] Playwright setup covered
-- [ ] `app/features/assistant/components/` used
-- [ ] `app/features/assistant/composables/` used
-- [ ] `app/services/index.ts` is the only HTTP client
-- [ ] `app/services/api/assistant.ts` is the single assistant domain service
-- [ ] `AssistantService` methods covered
-- [ ] Phase 3 does not depend on `AssistantService` being first created in Phase 4
-- [ ] no `createChatClient` / `createAssistantClient`
-- [ ] no direct `$fetch` in `services/api/assistant.ts`
-- [ ] no `sessions.ts` / `messages.ts` / `feedback.ts` / `actionDrafts.ts` / `approvalRequests.ts` split
-- [ ] no `app/lib/assistant/`
-- [ ] no `app/components/assistant/cards/`
-- [ ] no card layer
-- [ ] safe states use message renderers
-- [ ] `ActionDraftConfirmationMessage` used
-- [ ] `ApprovalRequestDisplayMessage` used
-- [ ] `DegradedMessage` / `InterruptedMessage` used
-- [ ] `docs/reference/legacy-chatbot-widget/raw/` treated as UI reference implementation
-- [ ] reference UI files are not directly imported / copied / moved
-- [ ] reference UI visual parity checked where compatible
+- [x] Testing Policy: Pragmatic TDD followed
+- [x] task IDs are unique
+- [x] no duplicated Txxx task IDs
+- [x] contract-sensitive logic has test-first or same-batch tests
+- [x] core pure functions have unit tests
+- [x] API / SSE / history have contract tests
+- [x] UI components have behavior-focused component tests
+- [x] store / orchestration flows have state transition tests
+- [x] no pixel-perfect TDD requirement was introduced
+- [x] Nuxt 4 project initialization covered
+- [x] Phase 0 contains executable project initialization tasks, not only planning docs
+- [x] Nuxt UI setup covered
+- [x] Tailwind CSS v4 setup covered
+- [x] Pinia setup covered
+- [x] vee-validate setup covered
+- [x] Vitest setup covered
+- [x] Vue Test Utils setup covered
+- [x] Playwright setup covered
+- [x] `app/features/assistant/components/` used
+- [x] `app/features/assistant/composables/` used
+- [x] `app/services/index.ts` is the only HTTP client
+- [x] `app/services/api/assistant.ts` is the single assistant domain service
+- [x] `AssistantService` methods covered
+- [x] Phase 3 does not depend on `AssistantService` being first created in Phase 4
+- [x] no `createChatClient` / `createAssistantClient`
+- [x] no direct `$fetch` in `services/api/assistant.ts`
+- [x] no `sessions.ts` / `messages.ts` / `feedback.ts` / `actionDrafts.ts` / `approvalRequests.ts` split
+- [x] no `app/lib/assistant/`
+- [x] no `app/components/assistant/cards/`
+- [x] no card layer
+- [x] safe states use message renderers
+- [x] `ActionDraftConfirmationMessage` used
+- [x] `ApprovalRequestDisplayMessage` used
+- [x] `DegradedMessage` / `InterruptedMessage` used
+- [x] `docs/reference/legacy-chatbot-widget/raw/` treated as UI reference implementation
+- [x] reference UI files are not directly imported / copied / moved
+- [x] reference UI visual parity checked where compatible
 
 ## Notes
 
-- 所有 tasks 皆以暫定 Nuxt 4 路徑撰寫；若實際 source root 不同，必須先完成 Phase 0 的 source-root reconciliation。
+- repo 已確認使用 Nuxt 4 `app/` 作為正式 production source root；assistant module boundary 固定為 `app/features/assistant/components/`、`app/features/assistant/composables/`、`app/stores/assistant/`、`app/utils/assistant/`、`app/types/assistant/`、`app/services/index.ts` 與 `app/services/api/assistant.ts`。
 - `docs/reference/legacy-chatbot-widget/raw/` 是 UI reference implementation。
 - 可參考視覺、排版、互動節奏。
 - 不可直接 import、copy、move。
@@ -858,3 +858,15 @@ Host integration requirements are validated through US1 embedded shell, US2 / US
 - ApprovalRequest 僅能 display-only；不得在任何 task 中引入 inline approve / reject / cancel。
 - `string[] evidenceRefs` 只能顯示 safe chip / id，不得補造 `title`、`snippet`、`sourceType`、document content、raw evidence、raw tool output、full document text。
 - cancel stream 不等於 cancel ActionDraft；ApprovalRequest 也不可被 stream cancel 影響。
+- Story completion notes：
+  - US1：host-embedded floating launcher 與 panel shell 已完成。
+  - US2：session restore / create、history `order=asc` 與 `nextCursor` 已完成。
+  - US3：send message、latest `PageContext` 讀取與 SSE streaming / finalization 已完成。
+  - US4：AnswerDecision mapping 與 evidence normalization / rendering 已完成。
+  - US5：clarification、no-answer、permission、tool failure、escalation 等 safe-state renderer 已完成。
+  - US6：message-level feedback UI、API integration 與 optimistic state 已完成。
+  - US7：ActionDraft confirmation flow、`idempotencyKey` 與 `pending_execution_guard` safe-state 已完成。
+  - US8：ApprovalRequest display-only renderer、detail load 與 `onOpenApprovalDetail` host callback extension 已完成。
+  - US9：degraded / interrupted renderer、retry / resend 與 cancel stream isolation 已完成。
+  - Final Phase：no public chatbot semantics、privacy guards、accessibility baseline、reference boundary 與 fixture coverage consolidation 已完成。
+- formal admin host integration is deferred to `002-admin-host-assistant-integration`；本 feature 目前完成的是 Spec Kit readiness、demo host preview 與 widget-level integration contract。

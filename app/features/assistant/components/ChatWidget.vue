@@ -23,6 +23,7 @@ const widgetStore = useChatWidgetStore();
 const chat = useChat({
   hostContextProvider: props.hostContextProvider,
 });
+const launcherRef = ref<HTMLElement | { $el?: HTMLElement } | null>(null);
   const {
     messages,
     nextCursor,
@@ -60,6 +61,13 @@ async function openPanel() {
 
 async function closePanel() {
   widgetStore.close();
+  await nextTick();
+
+  const launcherElement = launcherRef.value instanceof HTMLElement
+    ? launcherRef.value
+    : launcherRef.value?.$el;
+
+  launcherElement?.focus();
 }
 
 async function togglePanel() {
@@ -119,6 +127,7 @@ async function togglePanel() {
     </Transition>
 
     <UButton
+      ref="launcherRef"
       data-testid="assistant-launcher"
       class="w-14 h-14 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center justify-center bg-gradient-to-r from-primary-800 to-primary-600 text-white"
       :aria-expanded="isOpen ? 'true' : 'false'"

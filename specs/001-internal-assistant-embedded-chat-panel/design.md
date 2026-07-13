@@ -151,22 +151,21 @@ assistant widget 採 feature-local 組織方式，專屬 UI 與專屬 orchestrat
 
 API 串接統一透過 `app/services/index.ts` 與 `app/services/api/assistant.ts`。
 
-若實際 repo source root 與 `app/` 不同，必須先完成 source-root reconciliation，再依本 design 的相同 module boundary 與 naming strategy 落地；不得透過額外 architecture memo 建立平行規格。
+目前 repo 已確認使用 `app/` 作為正式 production source root，後續實作與文件收斂皆以此結構為準；不得透過額外 architecture memo 建立平行規格。
 
 建議目錄結構如下：
 
 ```txt
 app/
+├── assets/
+│   └── css/
+├── composables/
 ├── features/
 │   └── assistant/
 │       ├── components/
-│       ├── composables/
-│       └── README.md
-│
-├── pages/
+│       └── composables/
 ├── layouts/
-├── components/
-├── composables/
+├── pages/
 ├── services/
 │   ├── index.ts
 │   └── api/
@@ -177,10 +176,6 @@ app/
 │   └── assistant/
 ├── types/
 │   └── assistant/
-├── plugins/
-├── libs/
-├── i18n/
-│   └── locales/
 └── error.vue
 ```
 
@@ -190,17 +185,12 @@ app/
 |---|---|
 | `pages/` | 路由對應頁面，只做資料組裝與 layout 編排，不含商業邏輯 |
 | `features/assistant/` | assistant chat widget 專屬 UI、message renderers、feature-local composables，只服務本 feature |
-| `components/` | 跨 domain 共用的純 UI 元件，例如 Button、Modal、Table |
 | `composables/` | 跨 domain 共用邏輯，例如 `useAppToast`、`useFormat`、`useModal`、`useAppState` |
 | `services/index.ts` | 專案統一 HTTP client 公版，封裝 baseURL、headers、params/body、error handling、HTTP methods、raw/stream request 能力 |
 | `services/api/assistant.ts` | assistant domain API 呼叫封裝，對應 backend assistant API，不含 UI 邏輯 |
 | `stores/` | 跨元件共享的持久狀態，例如 assistant session / message / widget state |
-| `middleware/` | 本期不設置路由守衛 |
-| `plugins/` | 全域第三方 library 初始化 |
-| `libs/` | 非全域套件設定或局部 library wrapper，以局部 import 使用 |
 | `utils/` | 純函數工具，例如 format、type guard、mapper、sanitizer、parser helper |
 | `types/` | TypeScript type / interface 定義 |
-| `i18n/locales/` | 多語系資源 |
 
 固定規則：
 
@@ -947,7 +937,7 @@ Playwright 用於：
 - raw evidence / raw tool output / full document text 不在 frontend UI contract 中
 - reference UI files 只能在其概念符合 internal assistant 行為時作為互動參考，不可直接作為 production source
 - public chatbot / lead / handoff / customer support 概念不得被帶入本 feature
-- repo 目前尚未看到正式 Nuxt source root，因此本文件中的目錄結構與初始化內容皆視為預期 production structure，而非現況保證
+- repo 已確認使用 Nuxt 4 的 `app/` 作為正式 production source root；assistant module boundary 固定為 `app/features/assistant/`、`app/stores/assistant/`、`app/utils/assistant/`、`app/types/assistant/` 與 `app/services/api/assistant.ts`
 - constitution 目前仍出現 `tool_failed` 文字，但 backend handoff 與已通過 spec 明確要求 internal assistant frontend 只能以 `no_answer + noAnswerReason = tool_failure` 呈現 tool failure；本 design 以 handoff + 已通過 spec 的 contract semantics 為實作依據
 
 ## 26. Follow-up Impact on plan.md and tasks.md

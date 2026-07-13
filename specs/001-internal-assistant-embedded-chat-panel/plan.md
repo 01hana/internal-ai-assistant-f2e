@@ -56,29 +56,33 @@ backend API contract handoff > design.md > spec.md > Known Decisions > docs/refe
 
 ## 3. Current Repository Assumptions
 
-- repo 目前主要由 Spec Kit 初始化檔案、feature documents、backend handoff 與 UI reference files 構成。
+- repo 已存在正式 Nuxt 4 production source root：`app/`。
+- 目前實際 assistant module boundary 已確認為：
+  - `app/features/assistant/components/`
+  - `app/features/assistant/composables/`
+  - `app/stores/assistant/`
+  - `app/utils/assistant/`
+  - `app/types/assistant/`
+- shared HTTP client 已固定為 `app/services/index.ts`。
+- single assistant domain service 已固定為 `app/services/api/assistant.ts`。
+- repo 內不存在 `app/lib/assistant/`。
+- repo 內不存在 `app/components/assistant/cards/`，也沒有 card-layer split。
 - `docs/reference/legacy-chatbot-widget/raw/` 是 UI reference implementation directory，不是 production source。
-- `spec.md`、`design.md`、`plan.md` 已存在。
-- 尚未發現正式 frontend production source root，例如 `app/`、`pages/`、`layouts/`、`services/`、`stores/`、`types/` 或 `nuxt.config.*`。
-- 若 repo 尚未有正式 frontend source structure，Phase 0 必須包含 Nuxt 4 project initialization。
-- Nuxt 4 source structure 應依 `design.md` 建立在 `app/` 底下。
-- production assistant feature 應使用 `app/features/assistant/`。
-- API service 應使用 `app/services/index.ts` 與 `app/services/api/assistant.ts`。
+- `spec.md`、`design.md`、`plan.md` 已存在，且持續作為本 feature 的 Spec Kit source of truth。
 - reference UI files 不得直接 import、copy 或 move。
-- source root / Nuxt app structure 仍需在 implementation 前確認。
 - Phase 0 architecture notes 已收斂於 `spec.md`、`design.md`、`plan.md`、`tasks.md`，不再維護平行 `docs/architecture/internal-assistant/*` source-of-truth 文件。
 
 ## 4. Technical Context
 
 ### 4.1 Intended Stack
 
-在目前 repo 尚未出現正式 frontend source structure 的前提下，本 feature 的 intended frontend stack 採：
+本 feature 的 confirmed frontend stack 採：
 
 ```txt
 Nuxt 4 / Vue 3 / TypeScript / Nuxt UI / Tailwind CSS v4 / Pinia / vee-validate / SSE / Vitest + Vue Test Utils + Playwright
 ```
 
-但 source root / Nuxt structure 仍需依 repo 實際初始化結果確認。
+production source root 與 module boundary 已確認落在既有 `app/` 結構中。
 
 ### 4.2 Technical Context Summary
 
@@ -171,7 +175,7 @@ Nuxt 4 / Vue 3 / TypeScript / Nuxt UI / Tailwind CSS v4 / Pinia / vee-validate /
 - `Vitest`
 - `Vue Test Utils`
 - `Playwright`
-- `source root / Nuxt structure` 仍需依 repo 實際初始化結果確認
+- `source root / Nuxt structure` 已確認採既有 `app/` 結構
 
 ### 5.2 Production naming strategy
 
