@@ -28,21 +28,33 @@ Frontend 002 只能封裝與整合既有能力，不得重新實作 ChatWidget�
 
 SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport / stream contract ownership，並重用 Frontend 001 既有 `app/utils/assistant/assistantSseParser.ts` 與 `app/features/assistant/composables/useAssistantSseStream.ts`；不得在 package 內建立第二套 SSE parser、fork parser、export parser internals、建立 mode-specific SSE parser，或讓 injected executor 自己解析 SSE 成第二套 contract。
 
+## Validation Command Policy
+
+- Package manager: npm.
+- Evidence: `package-lock.json` exists; `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`, and `pnpm-workspace.yaml` were not found.
+- T012 workspace registration path: root `package.json`.
+- Available scripts: `test`, `test:unit`, `test:component`, `test:contract`, `test:e2e`, `typecheck`, `build`, `lint`.
+- Missing scripts: `test:integration`, `test:style`, SDK package build script, Backend 002 gated integration script.
+- Contract tests use `npm run test:contract -- <pattern>`.
+- Unit tests use `npm run test:unit -- <pattern>`.
+- Component tests use `npm run test:component -- <pattern>`.
+- Do not hard-run missing scripts; integration/style/gated commands must be added or explicitly routed by later package setup before use.
+- Backend 002 gated tests do not block Independent Package Readiness.
+
 ## User Story / Phase Mapping
 
-| Phase | Focus | Primary User Stories |
-| --- | --- | --- |
-| Phase 0 | Contract and Architecture Guardrails | US5, US8 |
-| Phase 1 | Workspace Package Skeleton and Public Exports | US1 |
-| Phase 2 | Runtime Reuse Boundary and Frontend 001 Extraction Points | US5 |
-| Phase 3 | Provider / Configuration / Callbacks Boundary | US2, US6, US8 |
-| Phase 4 | Request Builder Modes and Sanitization | US2, US3, US8 |
-| Phase 5 | Transport Ownership and SSE Integration | US5, US8 |
-| Phase 6 | Session Ownership, Fallback and Lifecycle | US4, US8 |
-| Phase 7 | Host Events, Styling and Reference Consumer | US1, US6, US7 |
-| Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7 |
-| Phase 9 | Backend 002 Integration-dependent Smoke Gates | US9 |
-| Phase 10 | Release Readiness and Documentation | US1, US7, US8 |
+| Phase   | Focus                                                     | Primary User Stories |
+| ------- | --------------------------------------------------------- | -------------------- |
+| Phase 0 | Contract and Architecture Guardrails                      | US5, US8             |
+| Phase 1 | Workspace Package Skeleton and Public Exports             | US1                  |
+| Phase 2 | Runtime Reuse Boundary and Frontend 001 Extraction Points | US5                  |
+| Phase 3 | Provider / Configuration / Callbacks Boundary             | US2, US6, US8        |
+| Phase 4 | Request Builder Modes and Sanitization                    | US2, US3, US8        |
+| Phase 5 | Transport Ownership and SSE Integration                   | US5, US8             |
+| Phase 6 | Session Ownership, Fallback and Lifecycle                 | US4, US8             |
+| Phase 7 | Host Events, Styling and Reference Consumer               | US1, US6, US7        |
+| Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
+| Phase 9 | Backend 002 Integration-dependent Smoke Gates             | US9                  |
 
 ## Phase 0: Contract and Architecture Guardrails
 
@@ -51,11 +63,11 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T001 [P] Inspect repository package manager and validation scripts in `specs/002-internal-assistant-embedded-sdk-package/validation-commands.md`; depends on accepted spec/design/plan and root `package.json`; complete when npm + `package-lock.json`, existing scripts (`test:unit`, `test:component`, `test:contract`, `typecheck`, `build`, `test:e2e`), missing `test:integration`, and SDK validation command policy are documented; validate by comparing notes with root `package.json`.
-- [ ] T002 [P] [US5] Add public package boundary architecture guard tests in `tests/contract/assistant-sdk/public-boundary.spec.ts`; depends on T001 and accepted spec/design/plan; complete when tests assert root exports only and no Frontend 001 internal deep import contract; validate with command confirmed by T001 for contract tests.
-- [ ] T003 [P] [US5] Add no-second-runtime architecture guard tests in `tests/unit/assistant-sdk/no-second-runtime.spec.ts`; depends on T001 and Frontend 001 baseline files; complete when tests detect duplicate ChatWidget, API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, feedback/action/approval runtime; validate with command confirmed by T001 for unit tests.
-- [ ] T004 [P] [US8] Add forbidden backend authority field guard tests in `tests/security/assistant-sdk/forbidden-outgoing-fields.spec.ts`; depends on T001 and FR-050/FR-051; complete when tests cover `sourceSystem`, connector, adapter, dataSource, candidate tools, permission results, evidence source, raw evidence, routing hints, approval navigation metadata, token, credential, secret; validate with command confirmed by T001 for security/unit tests.
-- [ ] T005 [P] [US8] Add frontend mode boundary guard tests in `tests/contract/assistant-sdk/mode-boundary.spec.ts`; depends on T001 and Backend 001 contract notes; complete when tests assert modes are frontend integration / request-builder / provider validation modes, not backend request modes, and no nested `hostContext` or backend `sessionScope`; validate with command confirmed by T001 for contract tests.
+- [x] T001 [P] Inspect repository package manager and validation scripts in `package.json`; depends on accepted spec/design/plan plus `package-lock.json`, `vitest.config.ts`, `playwright.config.ts`, and `nuxt.config.ts`; complete when execution report confirms package manager, available scripts, missing scripts, and T012 workspace registration path; validate by comparing reported findings with the Validation Command Policy section.
+- [ ] T002 [P] [US5] Add public package boundary architecture guard tests in `tests/contract/assistant-sdk/public-boundary.spec.ts`; depends on T001 and accepted spec/design/plan; complete when tests assert root exports only and no Frontend 001 internal deep import contract; validate with `npm run test:contract -- public-boundary`.
+- [ ] T003 [P] [US5] Add no-second-runtime architecture guard tests in `tests/unit/assistant-sdk/no-second-runtime.spec.ts`; depends on T001 and Frontend 001 baseline files; complete when tests detect duplicate ChatWidget, API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, feedback/action/approval runtime; validate with `npm run test:unit -- no-second-runtime`.
+- [ ] T004 [P] [US8] Add forbidden backend authority field guard tests in `tests/unit/assistant-sdk/security/forbidden-outgoing-fields.spec.ts`; depends on T001 and FR-050/FR-051; complete when tests cover `sourceSystem`, connector, adapter, dataSource, candidate tools, permission results, evidence source, raw evidence, routing hints, approval navigation metadata, token, credential, secret; validate with `npm run test:unit -- forbidden-outgoing-fields`.
+- [ ] T005 [P] [US8] Add frontend mode boundary guard tests in `tests/contract/assistant-sdk/mode-boundary.spec.ts`; depends on T001 and Backend 001 contract notes; complete when tests assert modes are frontend integration / request-builder / provider validation modes, not backend request modes, and no nested `hostContext` or backend `sessionScope`; validate with `npm run test:contract -- mode-boundary`.
 
 ### Implementation
 
@@ -71,14 +83,14 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T008 [P] [US1] Add public export contract tests in `tests/contract/assistant-sdk/public-exports.spec.ts`; depends on T002; complete when tests assert `AssistantWidget`, `mountAssistantWidget`, provider/config/callback/event/session/transport/safe error/sanitized context types are reachable from root entry; validate with command confirmed by T001 for contract tests.
-- [ ] T009 [P] [US1] Add stylesheet export contract tests in `tests/contract/assistant-sdk/stylesheet-entry.spec.ts`; depends on T002; complete when tests assert `@internal-ai-assistant/assistant-sdk/styles.css` resolves as explicit public entry; validate with command confirmed by T001 for contract tests.
-- [ ] T010 [P] [US1] Add peer dependency boundary tests in `tests/unit/assistant-sdk/peer-dependency-boundary.spec.ts`; depends on package naming decision; complete when tests fail on bundled duplicate Vue runtime or missing diagnosable peer warnings; validate with command confirmed by T001 for unit tests.
+- [ ] T008 [P] [US1] Add public export contract tests in `tests/contract/assistant-sdk/public-exports.spec.ts`; depends on T002; complete when tests assert `AssistantWidget`, `mountAssistantWidget`, provider/config/callback/event/session/transport/safe error/sanitized context types are reachable from root entry; validate with `npm run test:contract -- public-exports`.
+- [ ] T009 [P] [US1] Add stylesheet export contract tests in `tests/contract/assistant-sdk/stylesheet-entry.spec.ts`; depends on T002; complete when tests assert `@internal-ai-assistant/assistant-sdk/styles.css` resolves as explicit public entry; validate with `npm run test:contract -- stylesheet-entry`.
+- [ ] T010 [P] [US1] Add peer dependency boundary tests in `tests/unit/assistant-sdk/peer-dependency-boundary.spec.ts`; depends on package naming decision; complete when tests fail on bundled duplicate Vue runtime or missing diagnosable peer warnings; validate with `npm run test:unit -- peer-dependency-boundary`.
 
 ### Implementation
 
 - [ ] T011 [US1] Create SDK package manifest in `packages/assistant-sdk/package.json`; depends on T008-T010; complete when package name is `@internal-ai-assistant/assistant-sdk`, exports root and `./styles.css`, and declares Vue/Nuxt as peer dependency boundary; validate with public export contract tests.
-- [ ] T012 [US1] Add npm workspace package registration in `package.json`; depends on T011; complete when `packages/assistant-sdk` is discoverable as `@internal-ai-assistant/assistant-sdk` by npm workspace resolution; validate with package-manager command confirmed by T001.
+- [ ] T012 [US1] Add npm workspace package registration in `package.json`; depends on T011; complete when `packages/assistant-sdk` is discoverable as `@internal-ai-assistant/assistant-sdk` by npm workspace resolution; validate with package-manager command from Validation Command Policy.
 - [ ] T013 [US1] Create Vite library config in `packages/assistant-sdk/vite.config.ts`; depends on T011-T012; complete when config supports Vue SFC library output and does not bundle a second Vue runtime; validate with peer dependency boundary tests.
 - [ ] T014 [US1] Create public root entry in `packages/assistant-sdk/src/index.ts`; depends on T011-T012; complete when only formal public API and public types are exported; validate with public export contract tests.
 - [ ] T015 [P] [US1] Create public type barrel in `packages/assistant-sdk/src/types/public.ts`; depends on T014; complete when public provider/config/callback/event/session/transport/safe error/sanitized context types have stable names; validate with type import assertions in `tests/contract/assistant-sdk/public-exports.spec.ts`.
@@ -95,9 +107,9 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T019 [P] [US5] Add ChatWidget reuse boundary tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`; depends on T003 and T017; complete when tests assert `AssistantWidget` wraps canonical `app/features/assistant/components/ChatWidget.vue` behavior, not a copied widget; validate with command confirmed by T001 for component tests.
-- [ ] T020 [P] [US5] Add composable reuse tests in `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`; depends on T003; complete when tests assert use of `useChat.ts`, `useAssistantSession.ts`, and `useAssistantSseStream.ts` boundaries; validate with command confirmed by T001 for unit tests.
-- [ ] T021 [P] [US5] Add service/store/helper reuse tests in `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`; depends on T003; complete when tests assert reuse of `app/services/api/assistant.ts`, `app/stores/assistant/useChatWidgetStore.ts`, `app/stores/assistant/useSessionStore.ts`, and assistant utils; validate with command confirmed by T001 for unit tests.
+- [ ] T019 [P] [US5] Add ChatWidget reuse boundary tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`; depends on T003 and T017; complete when tests assert `AssistantWidget` wraps canonical `app/features/assistant/components/ChatWidget.vue` behavior, not a copied widget; validate with `npm run test:component -- runtime-reuse`.
+- [ ] T020 [P] [US5] Add composable reuse tests in `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`; depends on T003; complete when tests assert use of `useChat.ts`, `useAssistantSession.ts`, and `useAssistantSseStream.ts` boundaries; validate with `npm run test:unit -- runtime-composables-reuse`.
+- [ ] T021 [P] [US5] Add service/store/helper reuse tests in `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`; depends on T003; complete when tests assert reuse of `app/services/api/assistant.ts`, `app/stores/assistant/useChatWidgetStore.ts`, `app/stores/assistant/useSessionStore.ts`, and assistant utils; validate with `npm run test:unit -- runtime-services-reuse`.
 
 ### Implementation
 
@@ -118,9 +130,9 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T029 [P] [US2] Add provider resolution tests in `tests/unit/assistant-sdk/host-context-provider.spec.ts`; depends on T015; complete when tests cover async resolve, re-resolve before send/retry, failure safe error, and stale context rejection; validate with command confirmed by T001 for unit tests.
-- [ ] T030 [P] [US8] Add provider/config/callback serialization boundary tests in `tests/security/assistant-sdk/local-only-boundary.spec.ts`; depends on T007 and T015; complete when tests reject WidgetConfiguration, HostCallbacks, callbacks, tokens, credentials, local UI state, and `sessionScope` from outgoing request; validate with command confirmed by T001 for security/unit tests.
-- [ ] T031 [P] [US6] Add callback exception isolation tests in `tests/unit/assistant-sdk/host-callbacks.spec.ts`; depends on T015; complete when callback throw does not crash assistant runtime and payload stays minimal; validate with command confirmed by T001 for unit tests.
+- [ ] T029 [P] [US2] Add provider resolution tests in `tests/unit/assistant-sdk/host-context-provider.spec.ts`; depends on T015; complete when tests cover async resolve, re-resolve before send/retry, failure safe error, and stale context rejection; validate with `npm run test:unit -- host-context-provider`.
+- [ ] T030 [P] [US8] Add provider/config/callback serialization boundary tests in `tests/unit/assistant-sdk/security/local-only-boundary.spec.ts`; depends on T007 and T015; complete when tests reject WidgetConfiguration, HostCallbacks, callbacks, tokens, credentials, local UI state, and `sessionScope` from outgoing request; validate with `npm run test:unit -- local-only-boundary`.
+- [ ] T031 [P] [US6] Add callback exception isolation tests in `tests/unit/assistant-sdk/host-callbacks.spec.ts`; depends on T015; complete when callback throw does not crash assistant runtime and payload stays minimal; validate with `npm run test:unit -- host-callbacks`.
 
 ### Implementation
 
@@ -139,10 +151,10 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T037 [P] [US2] Add Backend 001 Compatibility Mode request builder tests in `tests/contract/assistant-sdk/backend001-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert Backend 001 public shape, omission of Frontend 002-only fields, no unknown fields, no hidden prompt, no message text injection; validate with command confirmed by T001 for contract tests.
-- [ ] T038 [P] [US2] Add Backend 002 Mode fail-closed tests in `tests/contract/assistant-sdk/backend002-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert missing required organization / identity / permission context stops before transport; validate with command confirmed by T001 for contract tests.
-- [ ] T039 [P] [US3] Add PageContext sanitization tests in `tests/unit/assistant-sdk/page-context-sanitizer.spec.ts`; depends on existing `app/utils/assistant/pageContextSanitizer.ts`; complete when tests cover primitive/plain-object validation, raw row rejection, selectedRows max 20, >20 whole-context rejection, secret-like rejection, DOM/function/class/circular rejection; validate with command confirmed by T001 for unit tests.
-- [ ] T040 [P] [US8] Add forbidden field gate request tests in `tests/security/assistant-sdk/outgoing-request-gate.spec.ts`; depends on T007; complete when tests block backend-owned authority fields, local-only state, token, credential, secret, and approval navigation metadata before transport; validate with command confirmed by T001 for security/unit tests.
+- [ ] T037 [P] [US2] Add Backend 001 Compatibility Mode request builder tests in `tests/contract/assistant-sdk/backend001-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert Backend 001 public shape, omission of Frontend 002-only fields, no unknown fields, no hidden prompt, no message text injection; validate with `npm run test:contract -- backend001-request-builder`.
+- [ ] T038 [P] [US2] Add Backend 002 Mode fail-closed tests in `tests/contract/assistant-sdk/backend002-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert missing required organization / identity / permission context stops before transport; validate with `npm run test:contract -- backend002-request-builder`.
+- [ ] T039 [P] [US3] Add PageContext sanitization tests in `tests/unit/assistant-sdk/page-context-sanitizer.spec.ts`; depends on existing `app/utils/assistant/pageContextSanitizer.ts`; complete when tests cover primitive/plain-object validation, raw row rejection, selectedRows max 20, >20 whole-context rejection, secret-like rejection, DOM/function/class/circular rejection; validate with `npm run test:unit -- page-context-sanitizer`.
+- [ ] T040 [P] [US8] Add forbidden field gate request tests in `tests/unit/assistant-sdk/security/outgoing-request-gate.spec.ts`; depends on T007; complete when tests block backend-owned authority fields, local-only state, token, credential, secret, and approval navigation metadata before transport; validate with `npm run test:unit -- outgoing-request-gate`.
 
 ### Implementation
 
@@ -163,9 +175,9 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T048 [P] [US5] Add default transport reuse tests in `tests/contract/assistant-sdk/default-transport.spec.ts`; depends on T027 and T042; complete when tests assert default transport wraps existing `app/services/api/assistant.ts` behavior; validate with command confirmed by T001 for contract tests.
-- [ ] T049 [P] [US8] Add injected executor boundary tests in `tests/contract/assistant-sdk/injected-executor.spec.ts`; depends on T042 and T046; complete when tests assert executor cannot rewrite route, request envelope, parse SSE into second contract, or bypass sanitization/mode validation; validate with command confirmed by T001 for contract tests.
-- [ ] T050 [P] [US5] Add SSE ownership tests in `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T026; complete when tests assert package reuses `assistantSseParser.ts` and `useAssistantSseStream.ts` without copying parser internals or exposing them as public API; validate with command confirmed by T001 for unit tests.
+- [ ] T048 [P] [US5] Add default transport reuse tests in `tests/contract/assistant-sdk/default-transport.spec.ts`; depends on T027 and T042; complete when tests assert default transport wraps existing `app/services/api/assistant.ts` behavior; validate with `npm run test:contract -- default-transport`.
+- [ ] T049 [P] [US8] Add injected executor boundary tests in `tests/contract/assistant-sdk/injected-executor.spec.ts`; depends on T042 and T046; complete when tests assert executor cannot rewrite route, request envelope, parse SSE into second contract, or bypass sanitization/mode validation; validate with `npm run test:contract -- injected-executor`.
+- [ ] T050 [P] [US5] Add SSE ownership tests in `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T026; complete when tests assert package reuses `assistantSseParser.ts` and `useAssistantSseStream.ts` without copying parser internals or exposing them as public API; validate with `npm run test:unit -- sse-ownership`.
 
 ### Implementation
 
@@ -183,9 +195,9 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T055 [P] [US4] Add session fallback namespace tests in `tests/unit/assistant-sdk/session-fallback.spec.ts`; depends on existing `app/utils/assistant/sessionScopeKeyGenerator.ts`; complete when tests cover package/version, hostApp, organization, sessionScope, page identity, entity type, entity ID; validate with command confirmed by T001 for unit tests.
-- [ ] T056 [P] [US8] Add organization isolation and identity proof tests in `tests/security/assistant-sdk/session-isolation.spec.ts`; depends on T055; complete when tests assert missing organization prevents persistent fallback and memory/sessionId are not identity proof; validate with command confirmed by T001 for security/unit tests.
-- [ ] T057 [P] [US4] Add lifecycle cleanup tests in `tests/component/assistant-sdk/widget-lifecycle.spec.ts`; depends on T017 and T018; complete when tests cover duplicate mount, stale SSE cleanup, listener/timer/observer cleanup, unmount/destroy idempotency, post-unmount callback suppression; validate with command confirmed by T001 for component tests.
+- [ ] T055 [P] [US4] Add session fallback namespace tests in `tests/unit/assistant-sdk/session-fallback.spec.ts`; depends on existing `app/utils/assistant/sessionScopeKeyGenerator.ts`; complete when tests cover package/version, hostApp, organization, sessionScope, page identity, entity type, entity ID; validate with `npm run test:unit -- session-fallback`.
+- [ ] T056 [P] [US8] Add organization isolation and identity proof tests in `tests/unit/assistant-sdk/security/session-isolation.spec.ts`; depends on T055; complete when tests assert missing organization prevents persistent fallback and memory/sessionId are not identity proof; validate with `npm run test:unit -- session-isolation`.
+- [ ] T057 [P] [US4] Add lifecycle cleanup tests in `tests/component/assistant-sdk/widget-lifecycle.spec.ts`; depends on T017 and T018; complete when tests cover duplicate mount, stale SSE cleanup, listener/timer/observer cleanup, unmount/destroy idempotency, post-unmount callback suppression; validate with `npm run test:component -- widget-lifecycle`.
 
 ### Implementation
 
@@ -205,10 +217,10 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T064 [P] [US6] Add host event payload tests in `tests/unit/assistant-sdk/host-events.spec.ts`; depends on T035; complete when tests cover opened/closed, session created/changed, answer completed, error occurred, approval detail requested, escalation requested, context resolution failed; validate with command confirmed by T001 for unit tests.
-- [ ] T065 [P] [US6] Add approval detail IDs-only tests in `tests/unit/assistant-sdk/approval-callback.spec.ts`; depends on T035; complete when payload contains only `approvalRequestId`, `sessionId`, `messageId` and no navigation URL or raw object; validate with command confirmed by T001 for unit tests.
-- [ ] T066 [P] [US1] Add style isolation tests in `tests/style/assistant-sdk/style-isolation.spec.ts`; depends on T016; complete when tests assert no global reset, no host root token mutation outside documented CSS variables, and diagnosable missing stylesheet behavior; validate with command confirmed by T001 for style tests or with script added by package setup.
-- [ ] T067 [P] [US7] Add Nuxt reference consumer smoke tests in `tests/integration/assistant-sdk/reference-consumer.spec.ts`; depends on T011-T018; complete when tests assert public package entry, stylesheet import, provider registration, WidgetConfiguration, HostCallbacks, `AssistantWidget`, `mountAssistantWidget`, route and selectedRows updates; validate with command confirmed by T001 for integration tests or with script added by package setup.
+- [ ] T064 [P] [US6] Add host event payload tests in `tests/unit/assistant-sdk/host-events.spec.ts`; depends on T035; complete when tests cover opened/closed, session created/changed, answer completed, error occurred, approval detail requested, escalation requested, context resolution failed; validate with `npm run test:unit -- host-events`.
+- [ ] T065 [P] [US6] Add approval detail IDs-only tests in `tests/unit/assistant-sdk/approval-callback.spec.ts`; depends on T035; complete when payload contains only `approvalRequestId`, `sessionId`, `messageId` and no navigation URL or raw object; validate with `npm run test:unit -- approval-callback`.
+- [ ] T066 [P] [US1] Add style isolation tests in `tests/component/assistant-sdk/style-isolation.spec.ts`; depends on T016; complete when tests assert no global reset, no host root token mutation outside documented CSS variables, and diagnosable missing stylesheet behavior; validate with `npm run test:component -- style-isolation`.
+- [ ] T067 [P] [US7] Add Nuxt reference consumer smoke tests in `tests/integration/assistant-sdk/reference-consumer.spec.ts`; depends on T011-T018; complete when tests assert public package entry, stylesheet import, provider registration, WidgetConfiguration, HostCallbacks, `AssistantWidget`, `mountAssistantWidget`, route and selectedRows updates; validate with integration/smoke command added by package setup, not available at T001 time.
 
 ### Implementation
 
@@ -228,15 +240,14 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T074 [P] [US5] Add Backend 001 session/message smoke tests in `tests/integration/assistant-sdk/backend001-chat-flow.spec.ts`; depends on T051 and T072; complete when session creation, message send, history load, and SSE streaming work through SDK; validate with command confirmed by T001 for integration tests or with script added by package setup.
-- [ ] T075 [P] [US5] Add Backend 001 answer/evidence/feedback smoke tests in `tests/integration/assistant-sdk/backend001-rendering-flow.spec.ts`; depends on T053 and existing fixtures; complete when AnswerDecision, EvidenceRef, feedback, no-answer, clarification, permission-denied, tool-failure render through reused runtime; validate with command confirmed by T001 for integration tests or with script added by package setup.
-- [ ] T076 [P] [US7] Add reference consumer readiness smoke tests in `tests/integration/assistant-sdk/package-readiness.spec.ts`; depends on T067 and T074; complete when build/install/mount/provider/config/callback/session/lifecycle/Backend 001 flow pass without Backend 002; validate with command confirmed by T001 for integration tests or with script added by package setup.
-- [ ] T077 [P] [US5] Add Frontend 001 regression gate references in `tests/contract/assistant-sdk/frontend001-regression-gate.spec.ts`; depends on existing `tests/unit/assistant/`, `tests/component/assistant/`, `tests/contract/assistant/`; complete when gate documents and checks critical Frontend 001 tests required before SDK release; validate with command confirmed by T001 for contract tests.
+- [ ] T074 [P] [US5] Add Backend 001 session/message smoke tests in `tests/integration/assistant-sdk/backend001-chat-flow.spec.ts`; depends on T051 and T072; complete when session creation, message send, history load, and SSE streaming work through SDK; validate with integration/smoke command added by package setup, not available at T001 time.
+- [ ] T075 [P] [US5] Add Backend 001 answer/evidence/feedback smoke tests in `tests/integration/assistant-sdk/backend001-rendering-flow.spec.ts`; depends on T053 and existing fixtures; complete when AnswerDecision, EvidenceRef, feedback, no-answer, clarification, permission-denied, tool-failure render through reused runtime; validate with integration/smoke command added by package setup, not available at T001 time.
+- [ ] T076 [P] [US7] Add reference consumer readiness smoke tests in `tests/integration/assistant-sdk/reference-consumer-readiness.spec.ts`; depends on T067 and T074; complete when build/install/mount/provider/config/callback/session/lifecycle/Backend 001 flow pass without Backend 002; validate with integration/smoke command added by package setup, not available at T001 time.
+- [ ] T077 [P] [US5] Add Frontend 001 regression gate references in `tests/contract/assistant-sdk/frontend001-regression-gate.spec.ts`; depends on existing `tests/unit/assistant/`, `tests/component/assistant/`, `tests/contract/assistant/`; complete when gate documents and checks critical Frontend 001 tests required before SDK release; validate with `npm run test:contract -- frontend001-regression-gate`.
 
 ### Implementation
 
-- [ ] T078 [US5] Wire Backend 001 Compatibility Mode smoke fixtures in `tests/fixtures/assistant-sdk/backend001-compatibility.ts`; depends on T074-T075; complete when fixtures reuse Backend 001 public request/SSE/AnswerDecision/EvidenceRef behavior and do not claim host-aware semantics; validate with Backend 001 smoke tests.
-- [ ] T079 [US7] Create package readiness notes in `specs/002-internal-assistant-embedded-sdk-package/package-readiness.md`; depends on T076-T078; complete when notes distinguish Independent Package Readiness from Backend 002 Integration-dependent Acceptance and list minimum Backend 001 Compatibility Mode smoke / package readiness pass criteria; validate by reviewing package readiness notes with Phase 8 smoke tests.
+- [ ] T078 [US5] Wire Backend 001 Compatibility Mode smoke fixtures in `tests/fixtures/assistant-sdk/backend001-compatibility.ts`; depends on T074-T075; complete when fixtures reuse Backend 001 public request/SSE/AnswerDecision/EvidenceRef behavior and do not claim host-aware semantics; validate with Backend 001 smoke tests after integration/smoke command exists.
 
 **Checkpoint**: Independent Package Readiness can be validated without Backend 002.
 
@@ -247,41 +258,23 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 ### Tests First
 
-- [ ] T080 [P] [US9] Add gated Backend 002 missing-context tests in `tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts`; depends on T038 and T044; complete when missing organization / identity / permission context stops before request and emits context resolution failed; validate only with gated Backend 002 integration flag and command confirmed by T001.
-- [ ] T081 [P] [US9] Add gated sanitized context submission smoke in `tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts`; depends on T042-T046; complete when sanitized PageContext submits without frontend-owned source/connector/permission/evidence fields; validate only with gated Backend 002 integration flag and command confirmed by T001.
-- [ ] T082 [P] [US9] Add gated Backend 002 safe outcome rendering smoke in `tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts`; depends on T053 and T075; complete when host-aware clarification, permission_denied, tool_failure, permission-safe evidence, backend-derived source metadata, and SSE final safe outcomes are consumed; validate only with gated Backend 002 integration flag and command confirmed by T001.
+- [ ] T079 [P] [US9] Add gated Backend 002 missing-context tests in `tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts`; depends on T038 and T044; complete when missing organization / identity / permission context stops before request and emits context resolution failed; validate only with gated integration command and env flag added by package setup.
+- [ ] T080 [P] [US9] Add gated sanitized context submission smoke in `tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts`; depends on T042-T046; complete when sanitized PageContext submits without frontend-owned source/connector/permission/evidence fields; validate only with gated integration command and env flag added by package setup.
+- [ ] T081 [P] [US9] Add gated Backend 002 safe outcome rendering smoke in `tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts`; depends on T053 and T075; complete when host-aware clarification, permission_denied, tool_failure, permission-safe evidence, backend-derived source metadata, and SSE final safe outcomes are consumed; validate only with gated integration command and env flag added by package setup.
 
 ### Implementation
 
-- [ ] T083 [US9] Add Backend 002 gated test harness switch in `tests/fixtures/assistant-sdk/backend002-gated-env.ts`; depends on T080-T082; complete when tests skip unless integration environment is explicitly enabled and skip message states not package-readiness blocking; validate by running gated tests without env using command confirmed by T001.
-- [ ] T084 [US9] Add Backend 002 fixture contract notes in `tests/fixtures/assistant-sdk/backend002-contract-fixtures.ts`; depends on T081-T082; complete when fixtures align to Frontend 002 spec/design/plan boundary and do not define a third provider contract; validate with gated smoke tests.
+- [ ] T082 [US9] Add Backend 002 gated test harness switch in `tests/fixtures/assistant-sdk/backend002-gated-env.ts`; depends on T079-T081; complete when tests skip unless integration environment is explicitly enabled and skip message states not readiness blocking; validate with gated integration command once added, and confirm no-env execution skips.
+- [ ] T083 [US9] Add Backend 002 fixture contract notes in `tests/fixtures/assistant-sdk/backend002-contract-fixtures.ts`; depends on T080-T081; complete when fixtures align to Frontend 002 spec/design/plan boundary and do not define a third provider contract; validate with gated smoke tests once gated command exists.
 
 **Checkpoint**: Backend 002 integration-dependent tests are available later and explicitly non-blocking for package readiness.
-
-## Phase 10: Release Readiness and Documentation
-
-**Purpose**: 整理 release readiness、consumer guidance、documentation。  
-**Independent Test**: Consumer guidance explains public API, stylesheet, provider/config/callbacks, modes, security boundaries, and release gates.
-
-### Tests First
-
-- [ ] T085 [P] [US1] Add package documentation smoke test in `tests/contract/assistant-sdk/docs-readiness.spec.ts`; depends on T011-T018; complete when test checks public API docs mention install/import/mount/styles/provider/config/callbacks; validate with command confirmed by T001 for contract tests.
-- [ ] T086 [P] [US8] Add security documentation smoke test in `tests/security/assistant-sdk/security-docs.spec.ts`; depends on T046 and T063; complete when test checks docs mention privacy, forbidden fields, session isolation, Backend 001/002 boundaries, and no frontend permission/source/connector authority; validate with command confirmed by T001 for security/unit tests.
-
-### Implementation
-
-- [ ] T087 [US1] Create SDK package README in `packages/assistant-sdk/README.md`; depends on T085; complete when README documents install, public imports, `AssistantWidget`, `mountAssistantWidget`, stylesheet import, provider/config/callback examples, peer dependency diagnostics; validate with docs readiness test.
-- [ ] T088 [US8] Create SDK security and boundary notes in `packages/assistant-sdk/SECURITY.md`; depends on T086; complete when notes document sanitized PageContext, forbidden outgoing fields, token/credential prohibition, session isolation, Backend 002 non-authority boundary; validate with security docs test.
-- [ ] T089 [US7] Create release readiness checklist in `specs/002-internal-assistant-embedded-sdk-package/release-readiness.md`; depends on T079 and T087-T088; complete when checklist separates Independent Package Readiness from Backend 002 Integration-dependent Acceptance and states no public npm registry requirement for this feature; validate by reviewing docs readiness test and package readiness smoke.
-
-**Checkpoint**: SDK is documented for consumer integration and release readiness without expanding scope.
 
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
 - **Phase 0**: No dependencies; establishes validation preflight and guardrails.
-- **Phase 1**: Depends on Phase 0 guardrails and confirmed validation commands.
+- **Phase 1**: Depends on Phase 0 guardrails and validation command policy.
 - **Phase 2**: Depends on Phase 1 skeleton, npm workspace registration, and public entry.
 - **Phase 3**: Depends on Phase 2 runtime bridge and public types.
 - **Phase 4**: Depends on Phase 3 provider/config/callback boundary.
@@ -290,7 +283,6 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 - **Phase 7**: Depends on Phase 3, Phase 5, and Phase 6.
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Backend 002 integration environment; does not block package readiness.
-- **Phase 10**: Depends on desired readiness gates and docs smoke tests.
 
 ### User Story Dependencies
 
@@ -301,7 +293,7 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 - **US5 重用 Frontend 001 Chat Runtime (P1)**: Depends on Phase 0, Phase 2, Phase 5, Phase 8.
 - **US6 暴露安全的 Host Events 與 Callbacks (P2)**: Depends on Phase 3 and Phase 7 callbacks/events.
 - **US7 安裝到 Nuxt 4 Reference Host App (P2)**: Depends on Phase 7 and Phase 8.
-- **US8 保護隱私、隔離與 Host Boundaries (P1)**: Cross-cutting across Phases 0, 3, 4, 5, 6, 10.
+- **US8 保護隱私、隔離與 Host Boundaries (P1)**: Cross-cutting across Phases 0, 3, 4, 5, 6.
 - **US9 驗證 Backend 002 Contract Compatibility (P3)**: Depends on Phase 9 and external Backend 002 environment; not required for Independent Package Readiness.
 
 ### MVP Scope
@@ -319,8 +311,7 @@ MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runt
 - Phase 6 tests T055-T057 can run in parallel.
 - Phase 7 tests T064-T067 can run in parallel.
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
-- Phase 9 gated tests T080-T082 can run in parallel when Backend 002 environment is available.
-- Phase 10 documentation tests T085-T086 can run in parallel.
+- Phase 9 gated tests T079-T081 can run in parallel when Backend 002 environment is available.
 
 ## Parallel Examples
 
@@ -328,7 +319,7 @@ MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runt
 # Phase 0 guardrails after validation preflight T001
 Task: "T002 Add public package boundary architecture guard tests in tests/contract/assistant-sdk/public-boundary.spec.ts"
 Task: "T003 Add no-second-runtime architecture guard tests in tests/unit/assistant-sdk/no-second-runtime.spec.ts"
-Task: "T004 Add forbidden backend authority field guard tests in tests/security/assistant-sdk/forbidden-outgoing-fields.spec.ts"
+Task: "T004 Add forbidden backend authority field guard tests in tests/unit/assistant-sdk/security/forbidden-outgoing-fields.spec.ts"
 Task: "T005 Add frontend mode boundary guard tests in tests/contract/assistant-sdk/mode-boundary.spec.ts"
 ```
 
@@ -337,14 +328,14 @@ Task: "T005 Add frontend mode boundary guard tests in tests/contract/assistant-s
 Task: "T037 Add Backend 001 Compatibility Mode request builder tests in tests/contract/assistant-sdk/backend001-request-builder.spec.ts"
 Task: "T038 Add Backend 002 Mode fail-closed tests in tests/contract/assistant-sdk/backend002-request-builder.spec.ts"
 Task: "T039 Add PageContext sanitization tests in tests/unit/assistant-sdk/page-context-sanitizer.spec.ts"
-Task: "T040 Add forbidden field gate request tests in tests/security/assistant-sdk/outgoing-request-gate.spec.ts"
+Task: "T040 Add forbidden field gate request tests in tests/unit/assistant-sdk/security/outgoing-request-gate.spec.ts"
 ```
 
 ```bash
-# Phase 9 gated Backend 002 validation, not package-readiness blocking
-Task: "T080 Add gated Backend 002 missing-context tests in tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts"
-Task: "T081 Add gated sanitized context submission smoke in tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts"
-Task: "T082 Add gated Backend 002 safe outcome rendering smoke in tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts"
+# Phase 9 gated Backend 002 validation, not readiness blocking
+Task: "T079 Add gated Backend 002 missing-context tests in tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts"
+Task: "T080 Add gated sanitized context submission smoke in tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts"
+Task: "T081 Add gated Backend 002 safe outcome rendering smoke in tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts"
 ```
 
 ## Independent Package Readiness Tests
@@ -385,10 +376,12 @@ These tests are later / gated / optional integration-dependent validation:
 
 ## Final Validation Checklist
 
-- [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only generated or overwritten artifact for this cleanup.
+- [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only long-term task artifact for Frontend 002 implementation planning.
+- [ ] No extra documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`.
 - [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T089.
+- [ ] Task IDs are sequential from T001 to T083.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
+- [ ] No implementation task creates auxiliary documentation artifacts outside the Spec Kit four-file set.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
 - [ ] Every functional phase lists tests before implementation tasks.
 - [ ] Backend 002 integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
