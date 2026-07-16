@@ -180,7 +180,28 @@ Frontend 002 owns:
 
 Frontend 002 must not fork or copy a second implementation of Frontend 001 runtime. Same-version track means Frontend 001 and Frontend 002 release together; a Frontend 001 regression in session, SSE, history, evidence, feedback, risk-state rendering, or approval display blocks Frontend 002 release.
 
-## 7. AssistantHostContextProvider Design
+## 7. Packaging / Release Boundary
+
+Frontend 002 has two distinct reuse boundaries:
+
+- **Monorepo source-time**: SDK internal adapter seams MAY import Frontend 001 canonical source so implementation can reuse one runtime owner without copying code.
+- **Package build / release-time**: the built SDK artifact MUST include, bundle, compile, or formally depend on the runtime it needs without requiring consuming apps to resolve Frontend 001 internal app paths.
+
+The internal adapter seams, including `frontend001Runtime.ts`, `chatWidgetAdapter.ts`, `composableAdapter.ts`, future `serviceAdapter.ts`, future session adapter, and future SSE stream adapter, are SDK internal source boundaries only. They must not become package public exports, consumer deep import targets, consuming app contracts, or replacement runtime implementations.
+
+Acceptable release strategies are:
+
+- Vite library build bundles / compiles the canonical Frontend 001 runtime source needed by the SDK into package output while preserving one canonical source owner in the repo.
+- A later formal shared runtime package is introduced and the SDK depends on that package through a documented package contract.
+
+Forbidden architecture:
+
+- SDK consumer must not need `app/features/assistant`, `app/services/api/assistant.ts`, `app/stores/assistant`, or `app/utils/assistant`.
+- SDK package must not be only a monorepo source-mode wrapper.
+- SDK package must not copy a second ChatWidget, composables, SSE parser, assistant API client, session/history runtime, mapper, renderer, feedback, action, or approval runtime.
+- Package exports must not expose `./runtime`, `./runtime/*`, adapter internals, or Frontend 001 internal paths.
+
+## 8. AssistantHostContextProvider Design
 
 `AssistantHostContextProvider` is request-scoped and async-capable. The package resolves it before every send, retry, restore, or request-builder operation that needs host context.
 
@@ -216,7 +237,7 @@ Provider must not include:
 
 `sessionScope` is local-only. It is not serialized into backend request body, headers, PageContext, hidden prompt, message text, transport metadata, or HostCallbacks payload.
 
-## 8. Mode-tiered Request Builder Design
+## 9. Mode-tiered Request Builder Design
 
 These are frontend integration / request-builder / provider validation modes. They are not backend request modes.
 
@@ -255,7 +276,7 @@ Both modes share the same assistant session / message / SSE transport ownership.
 | `permissionResult` | Forbidden | Forbidden | Backend-owned decision |
 | token / credential | Forbidden | Forbidden | Never provider/config/callback/storage/log |
 
-## 9. PageContext Sanitization Design
+## 10. PageContext Sanitization Design
 
 Frontend 002 performs generic validation and minimization before request building:
 
@@ -273,7 +294,7 @@ Frontend 002 performs generic validation and minimization before request buildin
 
 Frontend sanitization does not replace Backend 002 HostApp-specific allowlists, row-level permission, field-level permission, organization authorization, capability governance, or backend validation.
 
-## 10. Forbidden Outgoing Request Fields
+## 11. Forbidden Outgoing Request Fields
 
 Request builder must include a forbidden-fields gate before sending any backend request. The gate blocks:
 
@@ -311,7 +332,7 @@ Failure behavior:
 - Show user-safe message without leaking rejected payload.
 - Do not ask backend to accept forbidden fields.
 
-## 11. Transport Ownership Design
+## 12. Transport Ownership Design
 
 The package owns:
 
@@ -335,7 +356,7 @@ Injected executor must not:
 
 Transport exceptions return to existing Frontend 001 error / retry flow.
 
-## 12. Session Ownership and Fallback Design
+## 13. Session Ownership and Fallback Design
 
 Session priority:
 
@@ -363,7 +384,7 @@ Safety rules:
 
 Host-managed `sessionId` is not identity / permission / organization proof. Memory-only session is not identity proof. `sessionScope` does not enter backend request.
 
-## 13. Widget Lifecycle Design
+## 14. Widget Lifecycle Design
 
 Lifecycle operations:
 
@@ -384,7 +405,7 @@ SSR import must be safe: no top-level `window`, `document`, `sessionStorage`, DO
 
 Mount container missing results in diagnosable integration error. Duplicate mount either returns the existing handle or fails safely according to implementation choice in `plan.md`, but must not create two active widget instances on one Host App page.
 
-## 14. HostCallbacks / HostEvents Design
+## 15. HostCallbacks / HostEvents Design
 
 Minimum event surface:
 
@@ -414,7 +435,7 @@ Approval detail callback payload contains only:
 
 Package does not infer, hardcode, or assemble Host App navigation URL. Host App owns routing and navigation. Callback exceptions are isolated and must not crash assistant runtime.
 
-## 15. Styling and Theming Design
+## 16. Styling and Theming Design
 
 Public stylesheet entry:
 
@@ -441,7 +462,7 @@ Avoid:
 
 Missing stylesheet import should produce diagnosable degraded appearance or documented integration gap, not opaque runtime failure.
 
-## 16. SSR / Nuxt 4 Integration Design
+## 17. SSR / Nuxt 4 Integration Design
 
 Nuxt integration supports:
 
@@ -455,7 +476,7 @@ Nuxt integration supports:
 - Peer dependency boundary for Vue / Nuxt, exact range deferred to `plan.md`.
 - Diagnosable install / build warning or error for missing incompatible peers.
 
-## 17. Backend 002 Integration-dependent Design
+## 18. Backend 002 Integration-dependent Design
 
 When Backend 002 is not ready:
 
@@ -469,7 +490,7 @@ When Backend 002 is ready:
 - Frontend consumes safe backend outcomes only.
 - Frontend does not validate, select, or control backend internal connector / tool selection.
 
-## 18. Testing Strategy
+## 19. Testing Strategy
 
 ### Independent Package Readiness Tests
 
@@ -502,7 +523,7 @@ When Backend 002 is ready:
 
 Test doubles may use fake provider, stub low-level executor, deterministic SSE fixture, and backend response fixture, but they must align with formal contracts and must not become a third integration mode.
 
-## 19. Security / Privacy / Isolation Design
+## 20. Security / Privacy / Isolation Design
 
 Security boundaries:
 
@@ -517,7 +538,7 @@ Security boundaries:
 - No approval navigation metadata in outgoing request.
 - No package-specific backend proxy.
 
-## 20. Risks and Mitigations
+## 21. Risks and Mitigations
 
 | Risk | Mitigation |
 | ---- | ---------- |
@@ -532,7 +553,7 @@ Security boundaries:
 | Frontend 001 runtime contract drift | Same-version track and Frontend 001 regression gate |
 | Backend 002 availability not ready | Keep Backend 001 Compatibility Mode independent package readiness path |
 
-## 21. Open Questions / Non-blocking Follow-ups
+## 22. Open Questions / Non-blocking Follow-ups
 
 No blocking open questions for design.md.
 

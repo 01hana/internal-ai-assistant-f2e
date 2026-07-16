@@ -13,6 +13,31 @@ export const canonicalFrontend001RuntimeFiles = [
   "app/utils/assistant/evidenceNormalizationAdapter.ts",
 ] as const;
 
+export const canonicalFrontend001ComposableFiles = [
+  "app/features/assistant/composables/useChat.ts",
+  "app/features/assistant/composables/useAssistantSession.ts",
+  "app/features/assistant/composables/useAssistantSseStream.ts",
+] as const;
+
+export const canonicalFrontend001ServiceStoreHelperFiles = [
+  "app/services/api/assistant.ts",
+  "app/stores/assistant/useChatWidgetStore.ts",
+  "app/stores/assistant/useSessionStore.ts",
+  "app/utils/assistant/assistantSseParser.ts",
+  "app/utils/assistant/answerDecisionStateMapper.ts",
+  "app/utils/assistant/assistantMessageRendererResolver.ts",
+  "app/utils/assistant/evidenceNormalizationAdapter.ts",
+] as const;
+
+export const approvedRuntimeBridgeFilePatterns = [
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/frontend001Runtime\.ts$/,
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/chatWidgetAdapter\.ts$/,
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/composableAdapter\.ts$/,
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/sessionAdapter\.ts$/,
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/sseStreamAdapter\.ts$/,
+  /(^|\/)packages\/assistant-sdk\/src\/runtime\/serviceAdapter\.ts$/,
+] as const;
+
 export const forbiddenDuplicateRuntimeFilePatterns = [
   /(^|\/)ChatWidget\.vue$/,
   /(^|\/)ChatPanel\.vue$/,

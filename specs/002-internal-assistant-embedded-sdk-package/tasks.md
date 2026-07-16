@@ -28,6 +28,8 @@ Frontend 002 只能封裝與整合既有能力，不得重新實作 ChatWidget�
 
 SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport / stream contract ownership，並重用 Frontend 001 既有 `app/utils/assistant/assistantSseParser.ts` 與 `app/features/assistant/composables/useAssistantSseStream.ts`；不得在 package 內建立第二套 SSE parser、fork parser、export parser internals、建立 mode-specific SSE parser，或讓 injected executor 自己解析 SSE 成第二套 contract。
 
+Packaging boundary 的意思是：SDK package artifact must be installable by consuming apps without requiring Frontend 001 internal app paths. Monorepo source-time adapter imports are allowed only as build-time canonical source reuse; published / installed package consumers must use `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css` public entries only.
+
 ## Validation Command Policy
 
 - Package manager: npm.
@@ -55,6 +57,7 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 | Phase 7 | Host Events, Styling and Reference Consumer               | US1, US6, US7        |
 | Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
 | Phase 9 | Backend 002 Integration-dependent Smoke Gates             | US9                  |
+| Phase 10 | Package Artifact Release Boundary Validation             | US1, US5, US7        |
 
 ## Phase 0: Contract and Architecture Guardrails
 
@@ -105,21 +108,23 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 **Purpose**: 讓 Frontend 002 能使用 Frontend 001 runtime，而不是複製 runtime。  
 **Independent Test**: SDK runtime entry wraps canonical Frontend 001 behavior and Frontend 001 regression tests remain valid.
 
+**Packaging Boundary Note**: Phase 2 adapter seams may source-time import canonical Frontend 001 source inside this monorepo, but they must remain internal-only and must not become package public exports, consumer deep imports, or unresolved `app/features` / `app/services` / `app/stores` / `app/utils` imports in the built SDK artifact. T025-T028 must preserve this boundary and later package artifact validation must prove it.
+
 ### Tests First
 
-- [ ] T019 [P] [US5] Add ChatWidget reuse boundary tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`; depends on T003 and T017; complete when tests assert `AssistantWidget` wraps canonical `app/features/assistant/components/ChatWidget.vue` behavior, not a copied widget; validate with `npm run test:component -- runtime-reuse`.
-- [ ] T020 [P] [US5] Add composable reuse tests in `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`; depends on T003; complete when tests assert use of `useChat.ts`, `useAssistantSession.ts`, and `useAssistantSseStream.ts` boundaries; validate with `npm run test:unit -- runtime-composables-reuse`.
-- [ ] T021 [P] [US5] Add service/store/helper reuse tests in `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`; depends on T003; complete when tests assert reuse of `app/services/api/assistant.ts`, `app/stores/assistant/useChatWidgetStore.ts`, `app/stores/assistant/useSessionStore.ts`, and assistant utils; validate with `npm run test:unit -- runtime-services-reuse`.
+- [x] T019 [P] [US5] Add ChatWidget reuse boundary tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`; depends on T003 and T017; complete when tests assert `AssistantWidget` wraps canonical `app/features/assistant/components/ChatWidget.vue` behavior, not a copied widget; validate with `npm run test:component -- runtime-reuse`.
+- [x] T020 [P] [US5] Add composable reuse tests in `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`; depends on T003; complete when tests assert use of `useChat.ts`, `useAssistantSession.ts`, and `useAssistantSseStream.ts` boundaries; validate with `npm run test:unit -- runtime-composables-reuse`.
+- [x] T021 [P] [US5] Add service/store/helper reuse tests in `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`; depends on T003; complete when tests assert reuse of `app/services/api/assistant.ts`, `app/stores/assistant/useChatWidgetStore.ts`, `app/stores/assistant/useSessionStore.ts`, and assistant utils; validate with `npm run test:unit -- runtime-services-reuse`.
 
 ### Implementation
 
-- [ ] T022 [US5] Create package runtime bridge in `packages/assistant-sdk/src/runtime/frontend001Runtime.ts`; depends on T019-T021; complete when bridge references canonical Frontend 001 runtime entry points without copying implementation; validate with runtime reuse tests.
-- [ ] T023 [US5] Add stable ChatWidget adapter seam in `app/features/assistant/components/ChatWidget.vue`; depends on T019; complete when existing component can be consumed by SDK bridge with minimal behavior-preserving boundary; validate with Frontend 001 component regression tests.
-- [ ] T024 [US5] Add stable chat composable adapter seam in `app/features/assistant/composables/useChat.ts`; depends on T020; complete when SDK can invoke canonical send/retry/cancel behavior without fork; validate with composable reuse tests and existing chat unit tests.
-- [ ] T025 [US5] Add stable session/SSE adapter seams in `app/features/assistant/composables/useAssistantSession.ts`; depends on T020; complete when session/history behavior remains canonical for SDK and Frontend 001; validate with existing session history tests.
-- [ ] T026 [US5] Add stable stream adapter seam in `app/features/assistant/composables/useAssistantSseStream.ts`; depends on T020; complete when SDK reuses existing stream runtime and no second SSE parser is introduced; validate with existing SSE stream tests.
-- [ ] T027 [US5] Add stable assistant service adapter seam in `app/services/api/assistant.ts`; depends on T021; complete when default SDK transport can call existing Backend 001 assistant service shape; validate with existing assistant service contract tests.
-- [ ] T028 [US5] Add stable assistant helper exports in `app/types/assistant/index.ts`; depends on T021; complete when SDK bridge can reuse public assistant types without deep importing private internals; validate with typecheck and runtime services reuse tests.
+- [x] T022 [US5] Create package runtime bridge in `packages/assistant-sdk/src/runtime/frontend001Runtime.ts`; depends on T019-T021; complete when bridge references canonical Frontend 001 runtime entry points without copying implementation; validate with runtime reuse tests.
+- [x] T023 [US5] Add stable ChatWidget adapter seam in `packages/assistant-sdk/src/runtime/chatWidgetAdapter.ts`; depends on T019; complete when SDK internal adapter references canonical Frontend 001 `app/features/assistant/components/ChatWidget.vue` without copying ChatWidget template, ChatPanel, message rendering pipeline, feedback, action, approval, session, or SSE runtime; validate with runtime reuse tests and public boundary tests.
+- [x] T024 [US5] Add stable chat composable adapter seam in `packages/assistant-sdk/src/runtime/composableAdapter.ts`; depends on T020; complete when SDK internal adapter references canonical Frontend 001 `useChat.ts`, `useAssistantSession.ts`, and `useAssistantSseStream.ts` boundaries without creating duplicate composables or local retry / cancel / interrupted runtime; validate with composable reuse tests and no-second-runtime tests.
+- [x] T025 [US5] Add stable session lifecycle adapter seam in `packages/assistant-sdk/src/runtime/sessionAdapter.ts`; depends on T020 and T024; complete when SDK internal adapter references canonical Frontend 001 session lifecycle owner without creating duplicate session/history runtime, `useAssistantSession.ts`, `useSessionStore.ts`, `useSessionHistory.ts`, cursor pagination, retry/cancel/interrupted state machine, or fallback session implementation; validate with runtime composables reuse tests and no-second-runtime tests.
+- [x] T026 [US5] Add stable SSE stream adapter seam in `packages/assistant-sdk/src/runtime/sseStreamAdapter.ts`; depends on T020 and T024; complete when SDK internal adapter references canonical Frontend 001 SSE stream owner without creating duplicate `useAssistantSseStream.ts`, `assistantSseParser.ts`, SSE event loop, token/done/error/interrupted/approval_required parsing, or mode-specific SSE parser; validate with runtime composables reuse tests, runtime services reuse tests, and no-second-runtime tests.
+- [x] T027 [US5] Add stable assistant service adapter seam in `packages/assistant-sdk/src/runtime/serviceAdapter.ts`; depends on T021; complete when SDK internal adapter references canonical Frontend 001 assistant service shape without creating a second assistant API client, backend proxy, transport, request builder, `fetchAssistant`, `sendAssistantMessage`, or `createAssistantClient`; validate with runtime services reuse tests and no-second-runtime tests.
+- [x] T028 [US5] Add stable assistant type/helper adapter seam in `packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts`; depends on T021 and T027; complete when SDK internal adapter can reference canonical Frontend 001 assistant public types/helpers needed by runtime bridge without deep-importing private internals from public SDK entry, exposing adapter internals, or duplicating AnswerDecision, EvidenceRef, renderer, feedback, action, or approval types; validate with typecheck, runtime services reuse tests, and public boundary tests.
 
 **Checkpoint**: Frontend 002 consumes Frontend 001 runtime through stable boundaries with no forked runtime.
 
@@ -269,6 +274,20 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 **Checkpoint**: Backend 002 integration-dependent tests are available later and explicitly non-blocking for package readiness.
 
+## Phase 10: Package Artifact Release Boundary Validation
+
+**Purpose**: 驗證 built / packed SDK artifact 可被 consuming app 只透過 public package entries 使用，而不是依賴 Frontend 001 repo source layout。  
+**Independent Test**: Local package artifact can be consumed through `@internal-ai-assistant/assistant-sdk` and stylesheet entry only, with no unresolved Frontend 001 internal app path imports.
+
+### Tests First
+
+- [ ] T084 [P] [US1] Add package artifact smoke test in `tests/contract/assistant-sdk/package-artifact-smoke.spec.ts`; depends on T013-T018 and T025-T028; complete when test validates an SDK build / pack artifact can be inspected without requiring consuming app access to Frontend 001 `app/**` paths; validate with `npm run test:contract -- package-artifact-smoke` after SDK package build command exists.
+- [ ] T085 [P] [US7] Add reference consumer public-entry install smoke in `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T064-T078 and T084; complete when reference consumer imports only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`, never `app/features`, `app/services`, `app/stores`, `app/utils`, or `packages/assistant-sdk/src/runtime`; validate with integration/smoke command added by package setup.
+- [ ] T086 [P] [US5] Add SDK dist unresolved internal path scan in `tests/contract/assistant-sdk/dist-internal-path-scan.spec.ts`; depends on T084; complete when scan fails on unresolved `../../../../app/features`, `../../../../app/services`, `../../../../app/stores`, `../../../../app/utils`, or equivalent Frontend 001 app-path imports in built SDK output; validate with `npm run test:contract -- dist-internal-path-scan` after SDK build command exists.
+- [ ] T087 [P] [US1] Add package export release-boundary validation in `tests/contract/assistant-sdk/package-release-exports.spec.ts`; depends on T084; complete when package artifact exports only root public API and `./styles.css`, and does not expose `./runtime`, `./runtime/*`, adapter internals, or Frontend 001 internal paths; validate with `npm run test:contract -- package-release-exports`.
+
+**Checkpoint**: SDK release boundary proves source-time Frontend 001 reuse does not leak into consuming app package installation.
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -283,6 +302,7 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 - **Phase 7**: Depends on Phase 3, Phase 5, and Phase 6.
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Backend 002 integration environment; does not block package readiness.
+- **Phase 10**: Depends on package build support, Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; validates release artifact boundary.
 
 ### User Story Dependencies
 
@@ -300,6 +320,8 @@ SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport 
 
 MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runtime bridge, Phase 3 provider boundary, Phase 4 Backend 001 request builder/sanitizer gates, Phase 5 default transport, Phase 6 basic session lifecycle, Phase 7 minimal reference consumer, and Phase 8 Backend 001 smoke. Phase 9 is excluded from MVP readiness.
 
+Package release readiness additionally requires Phase 10 artifact validation before the SDK package is declared installable outside the monorepo source tree.
+
 ## Parallel Opportunities
 
 - Phase 0 validation preflight T001 can run first; Phase 0 tests T002-T005 can run in parallel after T001.
@@ -312,6 +334,7 @@ MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runt
 - Phase 7 tests T064-T067 can run in parallel.
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
 - Phase 9 gated tests T079-T081 can run in parallel when Backend 002 environment is available.
+- Phase 10 package artifact tests T084-T087 can run in parallel after SDK build / pack support exists.
 
 ## Parallel Examples
 
@@ -356,6 +379,9 @@ Must pass before declaring package readiness:
 - host events / callbacks tests
 - style isolation tests
 - reference consumer smoke tests
+- package artifact smoke tests
+- SDK dist unresolved internal path scan
+- public package release export validation
 - Backend 001 Compatibility Mode integration tests
 - Frontend 001 regression gates
 
@@ -379,7 +405,7 @@ These tests are later / gated / optional integration-dependent validation:
 - [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only long-term task artifact for Frontend 002 implementation planning.
 - [ ] No extra documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`.
 - [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T083.
+- [ ] Task IDs are sequential from T001 to T087.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
 - [ ] No implementation task creates auxiliary documentation artifacts outside the Spec Kit four-file set.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.

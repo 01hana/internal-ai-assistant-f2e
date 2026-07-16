@@ -133,6 +133,7 @@ Package strategy:
 - `packages/assistant-sdk/styles.css` is the public stylesheet entry.
 - `package.json` exports only root public API and `./styles.css`.
 - Internal modules are not deep-import contracts.
+- Monorepo source-time adapters may reuse Frontend 001 canonical source, but built SDK artifacts must not require consuming apps to resolve Frontend 001 `app/features`, `app/services`, `app/stores`, or `app/utils` paths.
 - Vue and Nuxt are peer dependencies; exact ranges should align with existing repo versions and be finalized during implementation.
 - Package must not bundle a second Vue runtime.
 - Nuxt integration must not create a second Vue app.
@@ -401,6 +402,7 @@ Use the current Nuxt app as reference consumer / preview harness:
 ### Independent Package Readiness Tests
 
 - Package public export tests.
+- Package artifact / installability tests.
 - SSR import safety tests.
 - Component mount tests.
 - Provider resolution tests.
@@ -417,6 +419,19 @@ Use the current Nuxt app as reference consumer / preview harness:
 - Reference consumer smoke tests.
 - Backend 001 Compatibility Mode integration tests.
 - Frontend 001 regression gates.
+
+### Package Artifact Validation
+
+Packaging validation must verify that the built SDK package can be consumed through `@internal-ai-assistant/assistant-sdk` public entries without unresolved Frontend 001 app path imports.
+
+Required later validation:
+
+- Run `npm pack` or an equivalent package artifact smoke after SDK build support exists.
+- Install or consume the local tarball / workspace dist in the reference consumer.
+- Reference consumer may import only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`.
+- Reference consumer must not import `app/features`, `app/services`, `app/stores`, `app/utils`, or `packages/assistant-sdk/src/runtime`.
+- Scan SDK dist for unresolved `../../../../app/features`, `../../../../app/services`, `../../../../app/stores`, `../../../../app/utils`, and equivalent `app/**` internal imports.
+- Verify package exports still omit `./runtime` and `./runtime/*`.
 
 ### Backend 002 Integration-dependent Tests
 
@@ -439,7 +454,7 @@ Test doubles must not form a third formal provider contract. Fake provider, stub
 
 - Purpose: lock architecture boundaries before code movement.
 - Dependencies: accepted Frontend 002 spec/design, Frontend 001 baseline, Backend 001 contract docs.
-- Primary areas: package boundary docs, test fixtures, lint/type guard decisions.
+- Primary areas: package boundary guardrails, test fixtures, lint/type guard decisions.
 - Test-first entry criteria: failing tests or assertions for forbidden deep imports, forbidden fields, and no second runtime.
 - Implementation work: define guardrail helpers and expected validation seams.
 - Acceptance criteria: all later phases can reference a shared set of non-negotiable boundaries.
@@ -521,7 +536,7 @@ Test doubles must not form a third formal provider contract. Fake provider, stub
 - Dependencies: reference consumer integration.
 - Primary areas: contract tests, component tests, reference smoke, Frontend 001 regression suite.
 - Test-first entry criteria: Backend 001 session/message/history/SSE/feedback/action/approval flows.
-- Implementation work: smoke wiring and release gate documentation.
+- Implementation work: smoke wiring and package readiness gate validation.
 - Acceptance criteria: package readiness can be declared with Backend 001 Compatibility Mode.
 - Boundaries / non-goals: no claim that backend understands host-aware semantics.
 
@@ -535,14 +550,14 @@ Test doubles must not form a third formal provider contract. Fake provider, stub
 - Acceptance criteria: host-aware integration can be validated only when backend environment is available.
 - Boundaries / non-goals: not a package readiness blocker.
 
-### Phase 10 - Release Readiness and Documentation
+### Phase 10 - Release Readiness and Package Artifact Validation
 
-- Purpose: prepare package release and consumer guidance.
+- Purpose: prepare package release boundary and consumer installability validation.
 - Dependencies: all readiness gates.
-- Primary areas: package README or docs, release checklist, peer dependency diagnostics.
-- Test-first entry criteria: install/build diagnostics and public entry usage.
-- Implementation work: finalize docs, release gate checklist, compatibility notes.
-- Acceptance criteria: consumer can install, import, mount, style, configure, and verify package.
+- Primary areas: package artifact smoke, public-entry-only import validation, dist internal-path scan, peer dependency diagnostics.
+- Test-first entry criteria: install/build diagnostics, public entry usage, and package artifact scan.
+- Implementation work: validate package artifact boundary, release gate checks, and same-version compatibility gates.
+- Acceptance criteria: consumer can install, import, mount, style, configure, and verify package through public SDK entries without Frontend 001 internal app paths.
 - Boundaries / non-goals: no public npm registry requirement for this feature.
 
 ## 18. Planned File / Directory Changes

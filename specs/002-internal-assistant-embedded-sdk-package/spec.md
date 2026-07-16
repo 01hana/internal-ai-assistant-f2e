@@ -14,6 +14,8 @@
 
 本 feature 不是新的聊天產品，也不是 Frontend 001 的重寫。它不重新定義 chat runtime、assistant API client、SSE parser、session/history pipeline、AnswerDecision mapping、EvidenceRef rendering、feedback flow、ActionDraft confirmation 或 ApprovalRequest display behavior，而是把這些既有能力封裝為可安裝、可整合、可驗證的 package surface。
 
+Frontend 002 的發布產物必須是其他 Vue 3／Nuxt 4 Host App 可安裝並使用的 SDK package。Consuming app 只能依賴 `@internal-ai-assistant/assistant-sdk` root public entry 與 `@internal-ai-assistant/assistant-sdk/styles.css` stylesheet entry；不得需要 Frontend 001 repo layout、不得 deep-import `app/features`、`app/services`、`app/stores` 或 `app/utils` 等 Frontend 001 internal path。
+
 Frontend 002 的 public responsibility 必須拆分為三個彼此獨立的概念：
 
 - **AssistantHostContextProvider**：只負責每次 assistant request 前重新提供最新、request-scoped 的 host context。
@@ -64,6 +66,7 @@ Frontend 002 的 Backend 001 Compatibility Mode 與 Backend 002 Mode 只是 pack
 - v1 預設一個 Host App page 只啟用一個 assistant widget instance。
 - fallback session persistence 使用 package-scoped、host-scoped 的 `sessionStorage`，不得跨 Host App 或跨 organization 共用。
 - Frontend 002 以目前 repo 內的 workspace package 交付，Frontend 001 runtime 以可重用 runtime 單元被 Frontend 002 引用；consumer 對外只安裝 Frontend 002 public package，不得 deep-import Frontend 001 internal path。
+- Frontend 002 MAY 在 monorepo source-time 與 package build 階段重用 Frontend 001 canonical source；但 published / installed SDK package artifact MUST 只透過 SDK public entries 對 consumer 暴露能力，不得留下 unresolved `app/features`、`app/services`、`app/stores` 或 `app/utils` import 給 consuming app 解析，也不得為了可攜性而手寫第二套 runtime。
 - theme v1 僅提供有限 CSS variables、design tokens、light / dark / system mode 與基本 panel position / size 設定；正式 stylesheet entry 為 `@internal-ai-assistant/assistant-sdk/styles.css`，由 consumer 主動 import。
 - Backend 002 未完成時，Frontend 002 仍必須可 build、install、mount、提供 Host Context，並透過 Backend 001 Compatibility Mode 驗證一般聊天流程；測試可使用對齊正式 contract 的 deterministic test doubles，但這不是正式 integration mode。
 - 本 feature 不定義新的 frontend authentication system；package 提供 Frontend 001 相容的預設 transport，Host App 也可注入符合固定 contract 的 low-level authenticated transport executor，但兩者都必須維持同一套最終送出的 Backend 001 / Backend 002 request 與 SSE contract，且不得形成第二套 assistant API client。Injected executor 不得改寫 assistant API route、建立第二套 SSE parser、改變 public request envelope，或繞過 package sanitization / mode validation。
@@ -320,7 +323,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-034**: 當以下條件同時成立時，package MUST 使用 `sessionStorage` fallback session pointer：Host App 未提供 host-managed sessionId、當前 integration mode 允許 frontend fallback session、安全 namespace 所需欄位均存在，且 `sessionStorage` 可用；fallback namespace 至少 MUST 區分 package namespace 或 package major compatibility namespace、hostApp、organization identifier、session scope，以及 page identity 或 entity type / entity ID。
 - **FR-035**: 不同 Host App、不同 organization、不同 entity 或不同 session scope MUST NOT 共用同一 fallback session；organization 切換時，系統 MUST 終止舊 session context、SSE 與 history loading，再進入新 namespace。
 - **FR-036**: 若 `sessionStorage` 在當前環境不可用，package MUST NOT 建立 persistent browser fallback；v1 必須改採 same-runtime-only memory-only fallback，且不得靜默改用 `localStorage` 或 cookie。若 provider 無法提供建立安全 fallback 所需的 organization identifier，則 Frontend 002 只可退回 host-managed sessionId 或 memory-only continuity；這只影響 frontend session continuity，不代表 Backend 001 / Backend 002 identity requirement 已被滿足。Backend 002 Mode 仍 MUST fail closed，且 host-managed sessionId 不得被視為 organization proof。
-- **FR-037**: package MUST 重用 Frontend 001 的 session API、message API、history loading、cursor pagination、SSE parsing、sequence handling、cancel / timeout / retry、AnswerDecision rendering、EvidenceRef rendering、feedback API、ActionDraft confirmation、ApprovalRequest display 與 interrupted / no-answer / clarification / permission-denied / tool-failure UI。
+- **FR-037**: package MUST 重用 Frontend 001 的 session API、message API、history loading、cursor pagination、SSE parsing、sequence handling、cancel / timeout / retry、AnswerDecision rendering、EvidenceRef rendering、feedback API、ActionDraft confirmation、ApprovalRequest display 與 interrupted / no-answer / clarification / permission-denied / tool-failure UI。Source-time adapter imports MAY reference canonical Frontend 001 source inside this monorepo, but built / installed package artifacts MUST NOT require consuming apps to resolve Frontend 001 internal app paths.
 - **FR-038**: package MUST 只支援兩種正式 Frontend 002 integration / request-builder / provider validation mode，且這些 mode 不是 backend request mode，也不得改變 Backend 001 / Backend 002 既有 public API、route、SSE event contract、request envelope 或 AnswerDecision contract：
   - Backend 001 Compatibility Mode：沿用 Frontend 001 / Backend 001 既有 request shape 與 public contract，並由 transport adapter 明確省略 Backend 002 專屬 Host Integration 欄位。
   - Backend 002 Mode：驗證 package 可送出符合 contract 的 sanitized context，並正確消費 backend 回傳的 host-aware clarification、permission_denied、tool_failure、backend-derived source metadata、permission-safe evidence 與 safe outcomes。
@@ -334,7 +337,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-046**: package MUST NOT 提供完整 theme builder、arbitrary CSS injection、Host App 專屬硬編碼樣式、Shadow DOM 或 iframe styling system。
 - **FR-047**: package MUST 維持基本 accessibility 要求，包括鍵盤操作、focus 行為與可理解的狀態呈現。
 - **FR-048**: 系統 MUST 提供至少一個 Nuxt 4 reference consumer integration acceptance，用於驗證 `@internal-ai-assistant/assistant-sdk` install、`AssistantWidget` 或 `mountAssistantWidget` integration、provider registration、WidgetConfiguration、HostCallbacks、widget mount / unmount、route / entity / selectedRows update、sessionId handoff、approval detail callback，以及 Backend 001 Compatibility Mode flow；目前 repo 的 Nuxt app 為 v1 reference consumer / preview harness。
-- **FR-049**: 這個 reference consumer acceptance MUST 能在 Backend 002 未完成時獨立通過，且 reference consumer MUST 只使用 package 的正式公開 entry，不得 import package 內部 source path。
+- **FR-049**: 這個 reference consumer acceptance MUST 能在 Backend 002 未完成時獨立通過，且 reference consumer MUST 只使用 package 的正式公開 entry，不得 import package 內部 source path、`./runtime` deep import 或 Frontend 001 internal app path。
 - **FR-050**: package MUST 避免 raw、unsanitized、contract-disallowed business payload 以及 token、credential、secret、raw PageContext 出現在最終送往 backend 的 outgoing request、browser storage、一般 log、telemetry、`sessionStorage` 或 host event payload 中。Forbidden outgoing request fields 包含但不限於 frontend-provided `sourceSystem`、`connector`、`connectorId`、`adapter`、`adapterId`、`dataSource`、`candidateTool`、`candidateTools`、`toolName`、`permissionResult`、`fieldPermissionResult`、`rowPermissionResult`、`finalEvidenceSource`、`rawEvidence`、`rawConnectorPayload`、routing hints、approval navigation metadata、token、credential、secret 與 connection detail。
 - **FR-051**: frontend MUST NOT 擁有 `sourceSystem`、connector、adapter、organization authorization、row / field / operation permission decision authority，也 MUST NOT 自行生成、提升、降低、合併或推導 role / permission scopes；Frontend 002 只可轉送符合 contract 的 sanitized PageContext 與 handoff metadata，Backend 002 仍是 permission enforcement、connector / tool selection、source metadata 與 evidence/source handling 的唯一 source of truth。
 - **FR-052**: Frontend 002 Independent Package Readiness MUST 可在 Backend 002 未完成時完成 build、install、mount、provider / configuration / callbacks integration、session / lifecycle 驗證與 Backend 001 Compatibility Mode flow 驗證；unit / component / integration tests MAY 使用 deterministic test doubles，但 test doubles MUST 對齊被模擬的正式 contract，且 MUST NOT 成為正式 public API。
@@ -345,10 +348,12 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-057**: package MUST 支援 package stylesheet / theme token integration surface，且其正式 stylesheet entry 為 `@internal-ai-assistant/assistant-sdk/styles.css`，由 consumer 主動 import。
 - **FR-058**: package 的正式 npm package name / scope 為 `@internal-ai-assistant/assistant-sdk`。
 - **FR-059**: 現有 repo 的 Nuxt app MUST 作為 v1 Nuxt 4 reference consumer / preview harness 交付形態。
+- **FR-060**: package artifact MUST be installable and usable by a consuming Vue 3 / Nuxt 4 Host App without requiring that app to contain Frontend 001 internal source paths such as `app/features`, `app/services`, `app/stores`, or `app/utils`.
+- **FR-061**: package public exports MUST NOT expose `./runtime`, `./runtime/*`, adapter internals, Frontend 001 internal paths, unresolved monorepo-relative `app/**` imports, or any private runtime bridge; package consumers MUST use only documented SDK public entries.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Assistant Package**: 可安裝的 Frontend 002 package artifact，正式對外名稱為 `@internal-ai-assistant/assistant-sdk`，封裝 Frontend 001 的 widget 與 runtime 能力，供 Host App 整合使用。
+- **Assistant Package**: 可安裝的 Frontend 002 package artifact，正式對外名稱為 `@internal-ai-assistant/assistant-sdk`，封裝 Frontend 001 的 widget 與 runtime 能力，供 Host App 只透過 SDK public entries 整合使用；published / installed artifact 不得要求 consumer 擁有 Frontend 001 repo layout。
 - **AssistantHostContextProvider**: 由 Host App 提供最新 request-scoped host context 的 public contract，只包含 request 需要的 authenticated integration input，且每次 request 前必須重新解析；但它不必然是所有 authenticated identity / permission metadata 的唯一來源。
 - **WidgetConfiguration**: 控制 endpoint、transport mode、預設 transport 或 Host App 注入 low-level transport executor 的 ownership boundary、locale、theme、position、size、launcher、z-index、session behavior 與 integration mode 的穩定設定集合，不進入 backend request payload。
 - **HostCallbacks / HostEvents**: 供 Host App 接收 widget 狀態、session 狀態、completion、error、approval detail 與 escalation 請求的 callback / event surface，不進入 PageContext 或 backend transport。
@@ -398,6 +403,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - package consumer 為 Vue 3／Nuxt 4 專案。
 - widget 在 browser client runtime 中執行，且 v1 預設只有單一 active widget instance。
 - Frontend 002 採 same-version track 與 Frontend 001 runtime contract 對齊，並在目前 repo 內以 workspace package 交付；package 名稱固定為 `@internal-ai-assistant/assistant-sdk`、主要 component export 為 `AssistantWidget`、imperative helper 為 `mountAssistantWidget`、stylesheet entry 為 `@internal-ai-assistant/assistant-sdk/styles.css`，現有 Nuxt app 為 v1 reference consumer / preview harness。
+- Frontend 002 package build / release 必須把 source-time canonical runtime reuse 轉換為 consumer 可安裝的 artifact boundary；consumer 不被假設擁有 Frontend 001 app source tree。
 
 ## Dependencies
 
@@ -407,12 +413,14 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - Backend 002 Host Integration contract，僅作為完整 host-aware end-to-end acceptance dependency；Frontend 002 只驗證 sanitized context submission 與 backend 回傳的 clarification、permission-safe evidence、backend-derived source metadata 與 safe outcomes consumption，不驗證或控制 backend internal connector / tool selection。
 - 目前 repo 內的 workspace package build 與 artifact 產出能力。
 - 至少一個 Nuxt 4 reference consumer，用於驗證 Independent Package Readiness。
+- package artifact validation 能力，用於確認 built SDK 不含 unresolved Frontend 001 internal app path import，且 consuming app 僅使用 public package entries。
 
 > Backend 002 是完整 host-aware end-to-end integration dependency，但不是 Frontend 002 Independent Package Readiness 的阻塞依賴。
 
 ## In Scope
 
 - npm-compatible package artifact。
+- installable package artifact boundary。
 - package public exports 與 public types。
 - public / internal export boundary。
 - Vue 3 component exports。
@@ -468,6 +476,8 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - 不做 approval management UI。
 - 不要求公開發布到 public npm registry。
 - 不做 production connector。
+- 不要求 consuming app 擁有 Frontend 001 `app/features`、`app/services`、`app/stores` 或 `app/utils` source layout。
+- 不把 SDK package 降級為只能在原 repo source mode 運作的 wrapper。
 - 不在本 feature 解決真實 production connector integration。
 - 不做 MES / WMS / SCM / CRM Host App implementation。
 - 不做 production deployment、Kubernetes 或 Helm。
