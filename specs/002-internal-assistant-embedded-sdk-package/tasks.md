@@ -135,17 +135,17 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ### Tests First
 
-- [ ] T029 [P] [US2] Add provider resolution tests in `tests/unit/assistant-sdk/host-context-provider.spec.ts`; depends on T015; complete when tests cover async resolve, re-resolve before send/retry, failure safe error, and stale context rejection; validate with `npm run test:unit -- host-context-provider`.
-- [ ] T030 [P] [US8] Add provider/config/callback serialization boundary tests in `tests/unit/assistant-sdk/security/local-only-boundary.spec.ts`; depends on T007 and T015; complete when tests reject WidgetConfiguration, HostCallbacks, callbacks, tokens, credentials, local UI state, and `sessionScope` from outgoing request; validate with `npm run test:unit -- local-only-boundary`.
-- [ ] T031 [P] [US6] Add callback exception isolation tests in `tests/unit/assistant-sdk/host-callbacks.spec.ts`; depends on T015; complete when callback throw does not crash assistant runtime and payload stays minimal; validate with `npm run test:unit -- host-callbacks`.
+- [x] T029 [P] [US2] Add provider resolution tests in `tests/unit/assistant-sdk/host-context-provider.spec.ts`; depends on T015; complete when tests cover async resolve, re-resolve before send/retry, failure safe error, and stale context rejection; validate with `npm run test:unit -- host-context-provider`.
+- [x] T030 [P] [US8] Add provider/config/callback serialization boundary tests in `tests/unit/assistant-sdk/security/local-only-boundary.spec.ts`; depends on T007 and T015; complete when tests reject WidgetConfiguration, HostCallbacks, callbacks, tokens, credentials, local UI state, and `sessionScope` from outgoing request; validate with `npm run test:unit -- local-only-boundary`.
+- [x] T031 [P] [US6] Add callback exception isolation tests in `tests/unit/assistant-sdk/host-callbacks.spec.ts`; depends on T015; complete when callback throw does not crash assistant runtime and payload stays minimal; validate with `npm run test:unit -- host-callbacks`.
 
 ### Implementation
 
-- [ ] T032 [US2] Implement provider contract types and resolver in `packages/assistant-sdk/src/context/hostContextProvider.ts`; depends on T029; complete when provider supports async request-scoped resolution and fail-closed behavior; validate with provider resolution tests.
-- [ ] T033 [US2] Implement stale context prevention adapter in `packages/assistant-sdk/src/context/contextResolution.ts`; depends on T032; complete when send/retry always resolves fresh context and never reuses failed snapshot; validate with host context provider tests.
-- [ ] T034 [US8] Implement WidgetConfiguration local-only types in `packages/assistant-sdk/src/types/widgetConfiguration.ts`; depends on T030; complete when endpoint/transport mode, locale, theme, panel position, size, launcher, z-index, session behavior, integration mode, and feature flags are typed as local-only; validate with local-only boundary tests.
-- [ ] T035 [US6] Implement HostCallbacks and HostEvents types in `packages/assistant-sdk/src/events/hostEvents.ts`; depends on T031; complete when event payloads are minimal and never serialize to PageContext or backend request; validate with host callbacks tests.
-- [ ] T036 [US6] Implement callback isolation runner in `packages/assistant-sdk/src/events/callbackRunner.ts`; depends on T035; complete when callback errors emit safe error events without breaking runtime; validate with callback exception isolation tests.
+- [x] T032 [US2] Implement provider contract types and resolver in `packages/assistant-sdk/src/context/hostContextProvider.ts`; depends on T029; complete when provider supports async request-scoped resolution and fail-closed behavior; validate with provider resolution tests.
+- [x] T033 [US2] Implement stale context prevention adapter in `packages/assistant-sdk/src/context/contextResolution.ts`; depends on T032; complete when send/retry always resolves fresh context and never reuses failed snapshot; validate with host context provider tests.
+- [x] T034 [US8] Implement WidgetConfiguration local-only types in `packages/assistant-sdk/src/types/widgetConfiguration.ts`; depends on T030; complete when endpoint/transport mode, locale, theme, panel position, size, launcher, z-index, session behavior, integration mode, and feature flags are typed as local-only; validate with local-only boundary tests.
+- [x] T035 [US6] Implement HostCallbacks and HostEvents types in `packages/assistant-sdk/src/events/hostEvents.ts`; depends on T031; complete when event payloads are minimal and never serialize to PageContext or backend request; validate with host callbacks tests.
+- [x] T036 [US6] Implement callback isolation runner in `packages/assistant-sdk/src/events/callbackRunner.ts`; depends on T035; complete when callback errors emit safe error events without breaking runtime; validate with callback exception isolation tests.
 
 **Checkpoint**: Provider, configuration, and callbacks are separate public contracts with local-only boundaries enforced.
 

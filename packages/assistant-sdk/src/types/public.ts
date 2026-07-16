@@ -1,3 +1,5 @@
+import type { WidgetConfiguration } from "./widgetConfiguration";
+
 export type IntegrationMode = "backend001-compatibility" | "backend002";
 
 export type SanitizedPrimitive = string | number | boolean | null;
@@ -13,17 +15,23 @@ export interface SanitizedPageContext {
   readonly selectedRows?: readonly SanitizedRecord[];
 }
 
-export type AssistantHostContextProvider =
-  () => SanitizedPageContext | Promise<SanitizedPageContext>;
-
-export interface WidgetConfiguration {
-  readonly integrationMode?: IntegrationMode;
-  readonly locale?: "zh-TW" | "en";
-  readonly theme?: "light" | "dark" | "system";
-  readonly position?: "bottom-right" | "bottom-left";
-  readonly zIndex?: number;
-  readonly sessionScope?: string;
+export interface AssistantHostContext {
+  readonly actor?: Readonly<Record<string, unknown>>;
+  readonly actorId?: string;
+  readonly correlation?: Readonly<Record<string, unknown>>;
+  readonly hostApp?: string;
+  readonly organizationId?: string;
+  readonly pageContext?: SanitizedPageContext | Readonly<Record<string, unknown>>;
+  readonly permissionContext?: Readonly<Record<string, unknown>>;
+  readonly requestId?: string;
+  readonly sessionId?: string;
+  readonly [key: string]: unknown;
 }
+
+export type AssistantHostContextProvider =
+  () => AssistantHostContext | Promise<AssistantHostContext>;
+
+export type { WidgetConfiguration } from "./widgetConfiguration";
 
 export interface ApprovalDetailRequestedEvent {
   readonly approvalRequestId: string;
