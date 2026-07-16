@@ -1,0 +1,63 @@
+.assistant-sdk-root {
+  --assistant-sdk-z-index: 2147483000;
+  --assistant-sdk-panel-width: min(420px, calc(100vw - 32px));
+  --assistant-sdk-panel-height: min(720px, calc(100vh - 32px));
+  --assistant-sdk-launcher-size: 56px;
+  --assistant-sdk-gap: 16px;
+  --assistant-sdk-radius: 18px;
+  --assistant-sdk-background: #ffffff;
+  --assistant-sdk-foreground: #172033;
+  --assistant-sdk-border: color-mix(in srgb, currentColor 14%, transparent);
+  --assistant-sdk-shadow: 0 24px 80px color-mix(in srgb, #172033 24%, transparent);
+  position: fixed;
+  z-index: var(--assistant-sdk-z-index);
+  color: var(--assistant-sdk-foreground);
+}
+
+.assistant-sdk-root[data-theme="dark"] {
+  --assistant-sdk-background: #121722;
+  --assistant-sdk-foreground: #f4f7fb;
+  --assistant-sdk-border: color-mix(in srgb, currentColor 18%, transparent);
+  --assistant-sdk-shadow: 0 24px 80px color-mix(in srgb, #000000 40%, transparent);
+}
+
+.assistant-sdk-root[data-theme="light"] {
+  color-scheme: light;
+}
+
+.assistant-sdk-root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.assistant-sdk-root[data-position="bottom-right"] {
+  right: var(--assistant-sdk-gap);
+  bottom: var(--assistant-sdk-gap);
+}
+
+.assistant-sdk-root[data-position="bottom-left"] {
+  left: var(--assistant-sdk-gap);
+  bottom: var(--assistant-sdk-gap);
+}
+
+.assistant-sdk-launcher {
+  inline-size: var(--assistant-sdk-launcher-size);
+  block-size: var(--assistant-sdk-launcher-size);
+  border-radius: 999px;
+}
+
+.assistant-sdk-panel {
+  inline-size: var(--assistant-sdk-panel-width);
+  block-size: var(--assistant-sdk-panel-height);
+  max-inline-size: calc(100vw - 32px);
+  max-block-size: calc(100vh - 32px);
+  overflow: hidden;
+  border: 1px solid var(--assistant-sdk-border);
+  border-radius: var(--assistant-sdk-radius);
+  background: var(--assistant-sdk-background);
+  box-shadow: var(--assistant-sdk-shadow);
+}
+
+.assistant-sdk-root :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
