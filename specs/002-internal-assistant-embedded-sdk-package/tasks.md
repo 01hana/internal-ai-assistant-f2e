@@ -156,20 +156,20 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ### Tests First
 
-- [ ] T037 [P] [US2] Add Backend 001 Compatibility Mode request builder tests in `tests/contract/assistant-sdk/backend001-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert Backend 001 public shape, omission of Frontend 002-only fields, no unknown fields, no hidden prompt, no message text injection; validate with `npm run test:contract -- backend001-request-builder`.
-- [ ] T038 [P] [US2] Add Backend 002 Mode fail-closed tests in `tests/contract/assistant-sdk/backend002-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert missing required organization / identity / permission context stops before transport; validate with `npm run test:contract -- backend002-request-builder`.
-- [ ] T039 [P] [US3] Add PageContext sanitization tests in `tests/unit/assistant-sdk/page-context-sanitizer.spec.ts`; depends on existing `app/utils/assistant/pageContextSanitizer.ts`; complete when tests cover primitive/plain-object validation, raw row rejection, selectedRows max 20, >20 whole-context rejection, secret-like rejection, DOM/function/class/circular rejection; validate with `npm run test:unit -- page-context-sanitizer`.
-- [ ] T040 [P] [US8] Add forbidden field gate request tests in `tests/unit/assistant-sdk/security/outgoing-request-gate.spec.ts`; depends on T007; complete when tests block backend-owned authority fields, local-only state, token, credential, secret, and approval navigation metadata before transport; validate with `npm run test:unit -- outgoing-request-gate`.
+- [x] T037 [P] [US2] Add core assistant contract compatibility request builder tests in `tests/contract/assistant-sdk/core-assistant-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert Backend 001 public shape, omission of Frontend 002-only fields, no unknown fields, no hidden prompt, no message text injection; validate with `npm run test:contract -- core-assistant-request-builder`.
+- [x] T038 [P] [US2] Add host integration contract fail-closed tests in `tests/contract/assistant-sdk/host-integration-request-builder.spec.ts`; depends on T005 and T032; complete when tests assert missing required organization / identity / permission context stops before transport; validate with `npm run test:contract -- host-integration-request-builder`.
+- [x] T039 [P] [US3] Add PageContext sanitization tests in `tests/unit/assistant-sdk/page-context-sanitizer.spec.ts`; depends on existing `app/utils/assistant/pageContextSanitizer.ts`; complete when tests cover primitive/plain-object validation, raw row rejection, selectedRows max 20, >20 whole-context rejection, secret-like rejection, DOM/function/class/circular rejection; validate with `npm run test:unit -- page-context-sanitizer`.
+- [x] T040 [P] [US8] Add forbidden field gate request tests in `tests/unit/assistant-sdk/security/outgoing-request-gate.spec.ts`; depends on T007; complete when tests block backend-owned authority fields, local-only state, token, credential, secret, and approval navigation metadata before transport; validate with `npm run test:unit -- outgoing-request-gate`.
 
 ### Implementation
 
-- [ ] T041 [US2] Implement integration mode types in `packages/assistant-sdk/src/types/integrationMode.ts`; depends on T037-T038; complete when only Backend 001 Compatibility Mode and Backend 002 Mode are formal public modes; validate with mode boundary tests.
-- [ ] T042 [US2] Implement request builder entry in `packages/assistant-sdk/src/transport/requestBuilder.ts`; depends on T041; complete when request builder owns final outgoing request construction before transport; validate with Backend 001 and Backend 002 request builder tests.
-- [ ] T043 [US2] Implement Backend 001 omission adapter in `packages/assistant-sdk/src/transport/backend001RequestAdapter.ts`; depends on T042; complete when Frontend 002-only Host Context fields are omitted from Backend 001 request transport; validate with backend001 request builder tests.
-- [ ] T044 [US2] Implement Backend 002 validation adapter in `packages/assistant-sdk/src/transport/backend002RequestAdapter.ts`; depends on T042; complete when required context failures stop request with `context unavailable` / `integration error`; validate with backend002 request builder tests.
-- [ ] T045 [US3] Extend generic PageContext sanitizer in `app/utils/assistant/pageContextSanitizer.ts`; depends on T039; complete when raw row objects, functions, DOM nodes, class instances, circular structures, secret-like fields, and `selectedRows` >20 are rejected as specified; validate with page-context sanitizer tests.
-- [ ] T046 [US8] Implement forbidden outgoing fields gate in `packages/assistant-sdk/src/transport/forbiddenFieldsGate.ts`; depends on T040; complete when blocked fields never reach request builder output or transport executor; validate with outgoing request gate tests.
-- [ ] T047 [US3] Implement developer diagnostics and user-safe context errors in `packages/assistant-sdk/src/types/safeErrors.ts`; depends on T044-T046; complete when diagnostics are actionable for engineers and safe for users; validate with request builder and sanitizer tests.
+- [x] T041 [US2] Implement integration mode types in `packages/assistant-sdk/src/types/integrationMode.ts`; depends on T037-T038; complete when only Backend 001 Compatibility Mode and Backend 002 Mode are formal public modes; validate with mode boundary tests.
+- [x] T042 [US2] Implement request builder entry in `packages/assistant-sdk/src/transport/requestBuilder.ts`; depends on T041; complete when request builder owns final outgoing request construction before transport; validate with core assistant and host integration request builder tests.
+- [x] T043 [US2] Implement core assistant request contract omission adapter in `packages/assistant-sdk/src/request/coreAssistantRequestAdapter.ts`; depends on T042; complete when Frontend 002-only Host Context fields are omitted from Backend 001 request transport; validate with core assistant request builder tests.
+- [x] T044 [US2] Implement host integration request contract validation adapter in `packages/assistant-sdk/src/request/hostIntegrationRequestAdapter.ts`; depends on T042; complete when required context failures stop request with `context unavailable` / `integration error`; validate with host integration request builder tests.
+- [x] T045 [US3] Extend generic PageContext sanitizer in `app/utils/assistant/pageContextSanitizer.ts`; depends on T039; complete when raw row objects, functions, DOM nodes, class instances, circular structures, secret-like fields, and `selectedRows` >20 are rejected as specified; validate with page-context sanitizer tests.
+- [x] T046 [US8] Implement forbidden outgoing fields gate in `packages/assistant-sdk/src/transport/forbiddenFieldsGate.ts`; depends on T040; complete when blocked fields never reach request builder output or transport executor; validate with outgoing request gate tests.
+- [x] T047 [US3] Implement developer diagnostics and user-safe context errors in `packages/assistant-sdk/src/types/safeErrors.ts`; depends on T044-T046; complete when diagnostics are actionable for engineers and safe for users; validate with request builder and sanitizer tests.
 
 **Checkpoint**: Request building and sanitization are enforced before any default or injected transport runs.
 
@@ -348,8 +348,8 @@ Task: "T005 Add frontend mode boundary guard tests in tests/contract/assistant-s
 
 ```bash
 # Phase 4 request and sanitization tests
-Task: "T037 Add Backend 001 Compatibility Mode request builder tests in tests/contract/assistant-sdk/backend001-request-builder.spec.ts"
-Task: "T038 Add Backend 002 Mode fail-closed tests in tests/contract/assistant-sdk/backend002-request-builder.spec.ts"
+Task: "T037 Add core assistant contract compatibility request builder tests in tests/contract/assistant-sdk/core-assistant-request-builder.spec.ts"
+Task: "T038 Add host integration contract fail-closed tests in tests/contract/assistant-sdk/host-integration-request-builder.spec.ts"
 Task: "T039 Add PageContext sanitization tests in tests/unit/assistant-sdk/page-context-sanitizer.spec.ts"
 Task: "T040 Add forbidden field gate request tests in tests/unit/assistant-sdk/security/outgoing-request-gate.spec.ts"
 ```
