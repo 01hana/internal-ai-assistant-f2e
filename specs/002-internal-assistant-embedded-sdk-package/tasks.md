@@ -180,16 +180,16 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ### Tests First
 
-- [ ] T048 [P] [US5] Add default transport reuse tests in `tests/contract/assistant-sdk/default-transport.spec.ts`; depends on T027 and T042; complete when tests assert default transport wraps existing `app/services/api/assistant.ts` behavior; validate with `npm run test:contract -- default-transport`.
-- [ ] T049 [P] [US8] Add injected executor boundary tests in `tests/contract/assistant-sdk/injected-executor.spec.ts`; depends on T042 and T046; complete when tests assert executor cannot rewrite route, request envelope, parse SSE into second contract, or bypass sanitization/mode validation; validate with `npm run test:contract -- injected-executor`.
-- [ ] T050 [P] [US5] Add SSE ownership tests in `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T026; complete when tests assert package reuses `assistantSseParser.ts` and `useAssistantSseStream.ts` without copying parser internals or exposing them as public API; validate with `npm run test:unit -- sse-ownership`.
+- [x] T048 [P] [US5] Add default transport reuse tests in `tests/contract/assistant-sdk/default-transport.spec.ts`; depends on T027 and T042; complete when tests assert default transport wraps existing `app/services/api/assistant.ts` behavior; validate with `npm run test:contract -- default-transport`.
+- [x] T049 [P] [US8] Add injected executor boundary tests in `tests/contract/assistant-sdk/injected-executor.spec.ts`; depends on T042 and T046; complete when tests assert executor cannot rewrite route, request envelope, parse SSE into second contract, or bypass sanitization/mode validation; validate with `npm run test:contract -- injected-executor`.
+- [x] T050 [P] [US5] Add SSE ownership tests in `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T026; complete when tests assert package reuses `assistantSseParser.ts` and `useAssistantSseStream.ts` without copying parser internals or exposing them as public API; validate with `npm run test:unit -- sse-ownership`.
 
 ### Implementation
 
-- [ ] T051 [US5] Implement default transport adapter in `packages/assistant-sdk/src/transport/defaultTransport.ts`; depends on T048; complete when adapter delegates to existing assistant service and preserves Backend 001 request/SSE contract; validate with default transport tests.
-- [ ] T052 [US8] Implement low-level authenticated executor adapter in `packages/assistant-sdk/src/transport/authenticatedExecutor.ts`; depends on T049; complete when executor receives only package-built request/stream instructions and cannot own endpoint, envelope, parser, retry, cancel, or error flow; validate with injected executor tests.
-- [ ] T053 [US5] Implement SSE stream bridge in `packages/assistant-sdk/src/transport/sseStreamBridge.ts`; depends on T050; complete when bridge uses existing stream runtime and parser behavior without second parser; validate with SSE ownership tests and existing SSE parser tests.
-- [ ] T054 [US5] Implement transport error propagation in `packages/assistant-sdk/src/transport/transportErrors.ts`; depends on T051-T053; complete when transport exceptions return to existing Frontend 001 error / retry flow; validate with default transport and injected executor tests.
+- [x] T051 [US5] Implement default transport adapter in `packages/assistant-sdk/src/transport/defaultTransport.ts`; depends on T048; complete when adapter delegates to existing assistant service and preserves Backend 001 request/SSE contract; validate with default transport tests.
+- [x] T052 [US8] Implement low-level authenticated executor adapter in `packages/assistant-sdk/src/transport/authenticatedExecutor.ts`; depends on T049; complete when executor receives only package-built request/stream instructions and cannot own endpoint, envelope, parser, retry, cancel, or error flow; validate with injected executor tests.
+- [x] T053 [US5] Implement SSE stream bridge in `packages/assistant-sdk/src/transport/sseStreamBridge.ts`; depends on T050; complete when bridge uses existing stream runtime and parser behavior without second parser; validate with SSE ownership tests and existing SSE parser tests.
+- [x] T054 [US5] Implement transport error propagation in `packages/assistant-sdk/src/transport/transportErrors.ts`; depends on T051-T053; complete when transport exceptions return to existing Frontend 001 error / retry flow; validate with default transport and injected executor tests.
 
 **Checkpoint**: Transport ownership is package-controlled while HTTP authentication execution may be host-injected at low level only.
 

@@ -5,6 +5,7 @@ export interface FieldMatch {
 }
 
 const localOnlyFieldNames = [
+  "hostContext",
   "sessionScope",
   "widgetConfiguration",
   "hostCallbacks",
@@ -14,6 +15,8 @@ const localOnlyFieldNames = [
   "callback",
   "callbacks",
   "callbackPayload",
+  "hiddenPrompt",
+  "messageText",
   "onOpened",
   "onClosed",
   "onError",
