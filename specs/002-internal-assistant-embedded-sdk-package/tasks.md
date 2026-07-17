@@ -238,21 +238,21 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 **Checkpoint**: Host App integration surface is usable through public SDK entries and safe callback/style boundaries.
 
-## Phase 8: Backend 001 Compatibility Mode Smoke and Regression Gates
+## Phase 8: Compatibility Mode Smoke and Canonical Runtime Regression Gates
 
 **Purpose**: 證明 Backend 002 未完成時仍可宣告 package readiness。  
-**Independent Test**: Backend 001 session/message/history/SSE/feedback/action/approval flows work through SDK package and Frontend 001 regression gates remain intact.
+**Independent Test**: Compatibility Mode session/message/history/SSE/feedback/action/approval flows work through SDK package and canonical assistant runtime regression gates remain intact.
 
 ### Tests First
 
-- [ ] T074 [P] [US5] Add Backend 001 session/message smoke tests in `tests/integration/assistant-sdk/backend001-chat-flow.spec.ts`; depends on T051 and T072; complete when session creation, message send, history load, and SSE streaming work through SDK; validate with integration/smoke command added by package setup, not available at T001 time.
-- [ ] T075 [P] [US5] Add Backend 001 answer/evidence/feedback smoke tests in `tests/integration/assistant-sdk/backend001-rendering-flow.spec.ts`; depends on T053 and existing fixtures; complete when AnswerDecision, EvidenceRef, feedback, no-answer, clarification, permission-denied, tool-failure render through reused runtime; validate with integration/smoke command added by package setup, not available at T001 time.
-- [ ] T076 [P] [US7] Add reference consumer readiness smoke tests in `tests/integration/assistant-sdk/reference-consumer-readiness.spec.ts`; depends on T067 and T074; complete when build/install/mount/provider/config/callback/session/lifecycle/Backend 001 flow pass without Backend 002; validate with integration/smoke command added by package setup, not available at T001 time.
-- [ ] T077 [P] [US5] Add Frontend 001 regression gate references in `tests/contract/assistant-sdk/frontend001-regression-gate.spec.ts`; depends on existing `tests/unit/assistant/`, `tests/component/assistant/`, `tests/contract/assistant/`; complete when gate documents and checks critical Frontend 001 tests required before SDK release; validate with `npm run test:contract -- frontend001-regression-gate`.
+- [x] T074 [P] [US5] Add Compatibility Mode session/message smoke tests in `tests/integration/assistant-sdk/compatibility-chat-flow.spec.ts`; depends on T051 and T072; complete when session creation, message send, history load, and SSE streaming work through SDK for integrationMode `"backend001-compatibility"`; validate with integration/smoke command added by package setup, not available at T001 time.
+- [x] T075 [P] [US5] Add Compatibility Mode answer/evidence/feedback smoke tests in `tests/integration/assistant-sdk/compatibility-rendering-flow.spec.ts`; depends on T053 and existing fixtures; complete when AnswerDecision, EvidenceRef, feedback, no-answer, clarification, permission-denied, tool-failure render through reused runtime; validate with integration/smoke command added by package setup, not available at T001 time.
+- [x] T076 [P] [US7] Add reference consumer readiness smoke tests in `tests/integration/assistant-sdk/reference-consumer-readiness.spec.ts`; depends on T067 and T074; complete when build/install/mount/provider/config/callback/session/lifecycle/Compatibility Mode flow pass without Backend 002; validate with integration/smoke command added by package setup, not available at T001 time.
+- [x] T077 [P] [US5] Add canonical assistant runtime regression gate references in `tests/contract/assistant-sdk/runtime-regression-gate.spec.ts`; depends on existing `tests/unit/assistant/`, `tests/component/assistant/`, `tests/contract/assistant/`; complete when gate documents and checks critical canonical assistant runtime tests required before SDK release; validate with `npm run test:contract -- runtime-regression-gate`.
 
 ### Implementation
 
-- [ ] T078 [US5] Wire Backend 001 Compatibility Mode smoke fixtures in `tests/fixtures/assistant-sdk/backend001-compatibility.ts`; depends on T074-T075; complete when fixtures reuse Backend 001 public request/SSE/AnswerDecision/EvidenceRef behavior and do not claim host-aware semantics; validate with Backend 001 smoke tests after integration/smoke command exists.
+- [x] T078 [US5] Wire Compatibility Mode smoke fixtures in `tests/fixtures/assistant-sdk/compatibility-mode-fixtures.ts`; depends on T074-T075; complete when fixtures reuse the integrationMode `"backend001-compatibility"` public request/SSE/AnswerDecision/EvidenceRef behavior and do not claim host-aware semantics; validate with Compatibility Mode smoke tests after integration/smoke command exists.
 
 **Checkpoint**: Independent Package Readiness can be validated without Backend 002.
 
@@ -382,8 +382,8 @@ Must pass before declaring package readiness:
 - package artifact smoke tests
 - SDK dist unresolved internal path scan
 - public package release export validation
-- Backend 001 Compatibility Mode integration tests
-- Frontend 001 regression gates
+- Compatibility Mode integration tests
+- canonical assistant runtime regression gates
 
 ## Backend 002 Integration-dependent Tests
 
