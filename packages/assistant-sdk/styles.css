@@ -1,4 +1,5 @@
-.assistant-sdk-root {
+.assistant-sdk-root,
+[data-assistant-sdk-root] {
   --assistant-sdk-z-index: 2147483000;
   --assistant-sdk-panel-width: min(420px, calc(100vw - 32px));
   --assistant-sdk-panel-height: min(720px, calc(100vh - 32px));
@@ -14,38 +15,50 @@
   color: var(--assistant-sdk-foreground);
 }
 
-.assistant-sdk-root[data-theme="dark"] {
+.assistant-sdk-root[data-theme="dark"],
+[data-assistant-sdk-root][data-theme="dark"] {
   --assistant-sdk-background: #121722;
   --assistant-sdk-foreground: #f4f7fb;
   --assistant-sdk-border: color-mix(in srgb, currentColor 18%, transparent);
   --assistant-sdk-shadow: 0 24px 80px color-mix(in srgb, #000000 40%, transparent);
 }
 
-.assistant-sdk-root[data-theme="light"] {
+.assistant-sdk-root[data-theme="light"],
+[data-assistant-sdk-root][data-theme="light"] {
   color-scheme: light;
 }
 
-.assistant-sdk-root[data-theme="dark"] {
+.assistant-sdk-root[data-theme="dark"],
+[data-assistant-sdk-root][data-theme="dark"] {
   color-scheme: dark;
 }
 
-.assistant-sdk-root[data-position="bottom-right"] {
+.assistant-sdk-root[data-theme="system"],
+[data-assistant-sdk-root][data-theme="system"] {
+  color-scheme: light dark;
+}
+
+.assistant-sdk-root[data-position="bottom-right"],
+[data-assistant-sdk-root][data-position="bottom-right"] {
   right: var(--assistant-sdk-gap);
   bottom: var(--assistant-sdk-gap);
 }
 
-.assistant-sdk-root[data-position="bottom-left"] {
+.assistant-sdk-root[data-position="bottom-left"],
+[data-assistant-sdk-root][data-position="bottom-left"] {
   left: var(--assistant-sdk-gap);
   bottom: var(--assistant-sdk-gap);
 }
 
-.assistant-sdk-launcher {
+.assistant-sdk-root .assistant-sdk-launcher,
+[data-assistant-sdk-root] .assistant-sdk-launcher {
   inline-size: var(--assistant-sdk-launcher-size);
   block-size: var(--assistant-sdk-launcher-size);
   border-radius: 999px;
 }
 
-.assistant-sdk-panel {
+.assistant-sdk-root .assistant-sdk-panel,
+[data-assistant-sdk-root] .assistant-sdk-panel {
   inline-size: var(--assistant-sdk-panel-width);
   block-size: var(--assistant-sdk-panel-height);
   max-inline-size: calc(100vw - 32px);
@@ -57,7 +70,10 @@
   box-shadow: var(--assistant-sdk-shadow);
 }
 
-.assistant-sdk-root :focus-visible {
+.assistant-sdk-root .assistant-sdk-launcher:focus-visible,
+.assistant-sdk-root .assistant-sdk-panel:focus-visible,
+[data-assistant-sdk-root] .assistant-sdk-launcher:focus-visible,
+[data-assistant-sdk-root] .assistant-sdk-panel:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }

@@ -1,4 +1,10 @@
+import { fileURLToPath, URL } from "node:url";
+
 export default defineNuxtConfig({
+  alias: {
+    "@internal-ai-assistant/assistant-sdk/styles.css": fileURLToPath(new URL("./packages/assistant-sdk/styles.css", import.meta.url)),
+    "@internal-ai-assistant/assistant-sdk": fileURLToPath(new URL("./packages/assistant-sdk/src/index.ts", import.meta.url)),
+  },
   modules: [
     "@nuxt/ui",
     "@pinia/nuxt",
@@ -17,6 +23,9 @@ export default defineNuxtConfig({
   },
   pinia: {
     storesDirs: ["./stores/**"],
+  },
+  build: {
+    transpile: ["@internal-ai-assistant/assistant-sdk"],
   },
   components: [
     {
