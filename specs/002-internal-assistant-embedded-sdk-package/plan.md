@@ -4,7 +4,7 @@
 **Date**: 2026-07-15  
 **Spec**: `specs/002-internal-assistant-embedded-sdk-package/spec.md`  
 **Design**: `specs/002-internal-assistant-embedded-sdk-package/design.md`  
-**Status**: Ready for `tasks.md`
+**Status**: Phase 11 planning added; ready for task execution after review
 
 ## 1. Overview
 
@@ -22,10 +22,13 @@ Frontend 002
 
 Frontend 002 不是新的聊天產品，也不是 Frontend 001 的重寫。Implementation 必須重用 Frontend 001 runtime，不建立第二套 assistant runtime，不修改 Backend 001 / Backend 002 public API，也不把 Backend 002 integration-dependent acceptance 當成 package readiness 的阻塞條件。
 
-Frontend 002 的完成狀態分成兩層：
+Frontend 002 的完成狀態分成三層：
 
 - Independent Package Readiness：build / install / mount / provider / configuration / callbacks / session / lifecycle / Backend 001 Compatibility Mode smoke。
 - Backend 002 Integration-dependent Acceptance：需要 backend host-aware capability governance、PageContext policy、permission boundary、source consistency 與 safe outcomes 可用後才能驗證。
+- Productized SDK Publish Readiness：built package contains complete AssistantWidget runtime, `mountAssistantWidget` mounts the complete widget, README and publish metadata are present, package can be prepared for GitHub Packages publish readiness, and external consuming apps can install through public entries only.
+
+Phase 10 closes the artifact release boundary. Phase 11 closes productized SDK runtime and publish readiness.
 
 ## 2. Source Documents and Constraints
 
@@ -74,13 +77,24 @@ Existing Frontend 001 runtime:
 - PageContext and session helpers: `app/utils/assistant/pageContextSanitizer.ts`, `app/utils/assistant/sessionScopeKeyGenerator.ts`, `app/utils/assistant/sessionStorageSessionMap.ts`, `app/utils/assistant/sessionRecovery.ts`, `app/utils/assistant/defaultSessionScopeResolver.ts`, `app/utils/assistant/requestIdGenerator.ts`
 - Current Nuxt reference consumer / preview harness: repository root app with `nuxt.config.ts`
 
-Repository gaps:
+### Initial Repository Gaps Before Phase 0
+
+These gaps describe the initial state before Phase 0 execution and are retained only as historical planning context.
 
 - `packages/assistant-sdk/` does not exist.
 - `@internal-ai-assistant/assistant-sdk` workspace package does not exist.
 - Library build config for the SDK package has not been selected or created.
 - Public package export boundary does not exist yet.
 - Reference consumer does not yet consume the assistant through package public entry.
+
+### Post-Phase-10 Baseline
+
+- `packages/assistant-sdk/` exists.
+- `@internal-ai-assistant/assistant-sdk` workspace package exists.
+- Vite library build support exists.
+- Public package exports exist and remain limited to root entry plus `./styles.css`.
+- Phase 10 validates real build / pack / dist / package artifact boundary.
+- Remaining Phase 11 gap is productized runtime completeness and publish readiness, not basic package skeleton or artifact existence.
 
 ## 4. Implementation Strategy
 
@@ -101,6 +115,9 @@ contract / architecture guardrails
 -> Backend 001 Compatibility Mode smoke
 -> Backend 002 integration-dependent smoke gates
 -> release / regression gates
+-> productized runtime completeness
+-> packaged runtime install / mount / chat flow validation
+-> publish metadata / README / final publish readiness gates
 ```
 
 Each phase must define purpose, dependencies, primary areas, test-first entry criteria, implementation work, acceptance criteria, and non-goals. The later `tasks.md` will split these phases into executable tasks.
@@ -132,12 +149,18 @@ Package strategy:
 - `packages/assistant-sdk/src/index.ts` is the public root entry.
 - `packages/assistant-sdk/styles.css` is the public stylesheet entry.
 - `package.json` exports only root public API and `./styles.css`.
+- Phase 11 must not add `./nuxt`.
 - Internal modules are not deep-import contracts.
 - Monorepo source-time adapters may reuse Frontend 001 canonical source, but built SDK artifacts must not require consuming apps to resolve Frontend 001 `app/features`, `app/services`, `app/stores`, or `app/utils` paths.
-- Vue and Nuxt are peer dependencies; exact ranges should align with existing repo versions and be finalized during implementation.
+- Vue remains a peer dependency; Nuxt becomes an optional peer dependency for the productized SDK.
 - Package must not bundle a second Vue runtime.
 - Nuxt integration must not create a second Vue app.
 - Same-version track with Frontend 001 runtime is required.
+- Productized package contents include `dist`, `styles.css`, and `README.md`; sourcemaps are not included initially.
+- GitHub Packages is the selected publish-readiness target with registry `https://npm.pkg.github.com` and `publishConfig.access` set to `restricted`.
+- Package name remains `@internal-ai-assistant/assistant-sdk` for now; before actual publish, confirm `@internal-ai-assistant` maps to the correct GitHub Packages owner / org scope and authentication setup.
+- `private: true` remains until runtime completeness passes, then Phase 11 may remove it for publish readiness.
+- Version remains `0.1.0`; license is `UNLICENSED`.
 
 ## 6. Public API / Export Plan
 
@@ -165,6 +188,9 @@ Forbidden exports:
 - Frontend 001 internal paths
 - Private Vue components
 - Undocumented deep imports
+- `./nuxt`
+- `./runtime`, `./transport`, `./session`, `./context`, `./request`
+- `./fixtures` or `./tests`
 
 Acceptance criteria:
 
@@ -197,6 +223,15 @@ Frontend 002 wraps:
 - Reference consumer package integration
 
 Implementation may extract reusable runtime entry points from current app paths, but must not copy or fork them. If extraction is needed, keep one canonical runtime owner and update Frontend 001 imports to use the shared boundary. Frontend 001 regression tests become a Frontend 002 release gate.
+
+Productized runtime packaging strategy:
+
+- Short-term: bundle required compiled canonical runtime into SDK dist.
+- Long-term: consider extracting a shared runtime package.
+- Built package may contain compiled runtime code, but must not expose internal exports or retain unresolved `app/**` imports.
+- `AssistantWidget` must not remain a shell placeholder.
+- `mountAssistantWidget` must mount the complete productized widget.
+- Guardrails remain: no second ChatWidget, assistant API client, SSE parser, session/history runtime, AnswerDecision mapper, or EvidenceRef renderer.
 
 ## 8. Provider / Configuration / Callbacks Plan
 
@@ -448,6 +483,18 @@ These tests are later / gated / optional integration-dependent validation and do
 
 Test doubles must not form a third formal provider contract. Fake provider, stub executor, and SSE fixtures must align with public contracts.
 
+### Productized SDK Publish Readiness Tests
+
+- Productized widget runtime completeness.
+- Productized mount smoke.
+- Packaged Compatibility Mode chat flow.
+- Packaged runtime source boundary.
+- Publish metadata validation.
+- README / usage documentation validation.
+- Final productized SDK release readiness gate.
+
+Phase 11 tests must not call external backend services. They use mock transport / mock SSE, create temporary consuming apps only under `/private/tmp`, and never execute real npm publish.
+
 ## 17. Phase Plan
 
 ### Phase 0 - Contract and Architecture Guardrails
@@ -560,6 +607,16 @@ Test doubles must not form a third formal provider contract. Fake provider, stub
 - Acceptance criteria: consumer can install, import, mount, style, configure, and verify package through public SDK entries without Frontend 001 internal app paths.
 - Boundaries / non-goals: no public npm registry requirement for this feature.
 
+### Phase 11 - Productized SDK Runtime and Publish Readiness
+
+- Purpose: turn the buildable package artifact into a productized SDK ready for formal publish readiness review.
+- Dependencies: Phase 10 real build / pack / install artifact closeout, Phase 8 Compatibility Mode smoke, and Phase 0 architecture guardrails.
+- Primary areas: `packages/assistant-sdk/src/components/AssistantWidget.vue`, `packages/assistant-sdk/src/mountAssistantWidget.ts`, `packages/assistant-sdk/vite.config.ts`, `packages/assistant-sdk/tsconfig.build.json`, `packages/assistant-sdk/package.json`, `packages/assistant-sdk/README.md`, and Phase 11 productized SDK tests.
+- Test-first entry criteria: tests fail when `AssistantWidget` is still a shell placeholder, `mountAssistantWidget` only returns a shell handle, dist contains unresolved `app/**` imports, README / publish metadata are missing, or a consuming app cannot resolve packed SDK public entries.
+- Implementation work: connect `AssistantWidget` to complete canonical runtime, implement productized mount helper, stabilize packaging strategy, add GitHub Packages publish metadata, add README, and harden final release readiness gates.
+- Acceptance criteria: external consuming app can install / resolve packed SDK, import root public entry and `styles.css` only, render complete chat UI, run Compatibility Mode with mock transport / mock SSE, and pass publish readiness validation without real publish.
+- Boundaries / non-goals: no real npm publish, no external backend call, no new `./nuxt` export, no Shadow DOM, no second runtime, no Backend 002 production dependency, no DataAdapter / connector implementation.
+
 ## 18. Planned File / Directory Changes
 
 ### New Package Files
@@ -603,6 +660,17 @@ These files may need stable reusable boundaries, but must not be rewritten or fo
 - Reference consumer smoke tests.
 - Optional Backend 002 integration-dependent smoke area.
 
+### Phase 11 Productized SDK Files
+
+- `packages/assistant-sdk/README.md`
+- `tests/component/assistant-sdk/productized-widget-runtime.spec.ts`
+- `tests/integration/assistant-sdk/productized-mount-smoke.spec.ts`
+- `tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts`
+- `tests/contract/assistant-sdk/packaged-runtime-source-boundary.spec.ts`
+- `tests/contract/assistant-sdk/publish-readiness.spec.ts`
+
+Implementation may update package build config and SDK source only in Phase 11 execution, not during this planning update.
+
 ## 19. Architecture Guardrails
 
 - No second ChatWidget.
@@ -641,17 +709,37 @@ These files may need stable reusable boundaries, but must not be rewritten or fo
 | Peer dependency / duplicate Vue runtime risk | Vue/Nuxt peer dependency strategy and install/build diagnostics |
 | Workspace package build complexity | Use Vite library mode aligned with current Nuxt/Vite stack |
 | Backend 002 not available | Keep Backend 001 Compatibility Mode package readiness path |
+| AssistantWidget remains shell after packaging | Productized widget runtime completeness tests fail on shell placeholder output |
+| Compiled runtime bundling leaks `app/**` source imports | Dist scan and packaged runtime source boundary tests block unresolved app-path imports |
+| `private` flag removed before runtime completeness | Publish-readiness tests require runtime completeness gates before metadata changes |
+| GitHub Packages scope / auth mismatch | Treat owner/org scope and authentication confirmation as a blocker before actual publish |
+| README insufficient for external product engineers | README readiness tests require installation, usage, security, troubleshooting, compatibility, and release notes placeholder |
+| Nuxt treated as required peer instead of optional peer | Publish metadata tests require Nuxt to be optional peer for Phase 11 |
 
 ## 21. Open Questions / Decisions for plan.md
 
-No blocking open questions for plan.md.
+No blocking open questions for Phase 11 planning after productized SDK decisions below.
 
 Plan decisions made:
 
 - Library build tool: Vite library mode.
 - Package structure: `packages/assistant-sdk/`.
 - Public export strategy: root public entry plus stylesheet entry only.
-- Peer dependency strategy: Vue / Nuxt as peers; exact ranges aligned to repo versions during implementation.
+- GitHub Packages publish-readiness target.
+- Package name remains `@internal-ai-assistant/assistant-sdk` for now.
+- Runtime completeness before private flag removal.
+- Short-term bundle compiled canonical runtime into SDK dist.
+- Shared runtime package is a long-term consideration.
+- `AssistantWidget` must become a complete widget.
+- `mountAssistantWidget` must mount the complete widget.
+- Exports remain root and styles only; no `./nuxt` in Phase 11.
+- Peer dependency strategy: Vue as peer dependency, Nuxt as optional peer dependency.
+- README is included in package artifact.
+- License is `UNLICENSED`.
+- Version remains `0.1.0`.
+- No sourcemaps initially.
+- No external backend calls in publish gates.
+- No real npm publish in Phase 11.
 - Reference consumer strategy: current Nuxt app as preview harness.
 - Backend 001 Compatibility Mode readiness gate: independent package readiness smoke.
 - Backend 002 integration-dependent gate: later gated smoke; not readiness blocker.

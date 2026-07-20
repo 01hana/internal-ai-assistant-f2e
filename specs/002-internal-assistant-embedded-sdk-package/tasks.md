@@ -36,7 +36,9 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - Evidence: `package-lock.json` exists; `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`, and `pnpm-workspace.yaml` were not found.
 - T012 workspace registration path: root `package.json`.
 - Available scripts: `test`, `test:unit`, `test:component`, `test:contract`, `test:e2e`, `typecheck`, `build`, `lint`.
-- Missing scripts: `test:integration`, `test:style`, SDK package build script, Backend 002 gated integration script.
+- Initial missing scripts at T001: `test:integration`, `test:style`, SDK package build script, Backend 002 gated integration script.
+- Current status after Phase 10: SDK package build script is available through the implemented Phase 10 package setup.
+- `test:integration`, `test:style`, and Backend 002 gated integration commands may still require direct Vitest execution or `/private/tmp` temporary config routing unless dedicated scripts are added later.
 - Contract tests use `npm run test:contract -- <pattern>`.
 - Unit tests use `npm run test:unit -- <pattern>`.
 - Component tests use `npm run test:component -- <pattern>`.
@@ -58,6 +60,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 | Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
 | Phase 9 | Host Integration-dependent Smoke Gates                    | US9                  |
 | Phase 10 | Package Artifact Release Boundary Validation             | US1, US5, US7        |
+| Phase 11 | Productized SDK Runtime and Publish Readiness            | US1, US5, US7, US8   |
 
 ## Phase 0: Contract and Architecture Guardrails
 
@@ -295,6 +298,30 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 **Checkpoint**: SDK release boundary proves source-time Frontend 001 reuse does not leak into consuming app package installation only after tests-first guardrails and T088-T091 build / pack / install closeout tasks pass.
 
+## Phase 11: Productized SDK Runtime and Publish Readiness
+
+**Purpose**: 將已可 build / pack / local install 的 SDK artifact 產品化，讓 built `AssistantWidget` 成為完整聊天 widget，讓 `mountAssistantWidget` 可真正掛載完整 widget，並補齊 GitHub Packages publish readiness metadata、README、final release gates。  
+**Independent Test**: A temporary consuming app can install / resolve the packed SDK through `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css` only, render the complete `AssistantWidget` chat UI, run Compatibility Mode through mock transport / mock SSE, and validate publish readiness metadata without real npm publish or external backend calls.
+
+### Tests First
+
+- [ ] T092 [P] [US5] Add productized AssistantWidget runtime completeness tests in `tests/component/assistant-sdk/productized-widget-runtime.spec.ts`; depends on T088-T091 and existing runtime reuse guardrails; complete when tests fail if built `AssistantWidget` contains shell placeholder text, lacks complete chat UI structure, creates a second ChatWidget/runtime, or leaves unresolved Frontend 001 `app/**` imports in the package artifact; validate with `npm run test:component -- productized-widget-runtime`, `npm run test:unit -- no-second-runtime`, and `npm run test:contract -- dist-internal-path-scan`.
+- [ ] T093 [P] [US1] Add productized `mountAssistantWidget` smoke tests in `tests/integration/assistant-sdk/productized-mount-smoke.spec.ts`; depends on T088-T092; complete when tests prove `mountAssistantWidget` in a temporary consuming app mounts the complete widget DOM, supports open/close/unmount/destroy, cleans listeners and callbacks, and does not require Host Integration or external backend calls; validate with direct Vitest execution or an integration smoke command using `/private/tmp` temporary config only.
+- [ ] T094 [P] [US7] Add packaged Compatibility Mode chat flow smoke tests in `tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts`; depends on T088-T093 and Phase 8 compatibility fixtures; complete when a temporary consuming app installs or resolves the packed SDK, imports only root public entry and stylesheet, initializes provider/config/callbacks, sends a Compatibility Mode message through mock transport / mock SSE, and renders safe answer states through canonical runtime; validate with direct Vitest execution and no external backend calls.
+- [ ] T095 [P] [US5] Add packaged runtime source boundary tests in `tests/contract/assistant-sdk/packaged-runtime-source-boundary.spec.ts`; depends on T088-T094 and T086; complete when tests assert the packed SDK may contain compiled canonical runtime code but never exposes internal exports, never requires consuming app to resolve `app/features`, `app/services`, `app/stores`, `app/utils`, `packages/assistant-sdk/src/**`, specs, tests, or fixtures, and does not include sourcemaps; validate with `npm run test:contract -- packaged-runtime-source-boundary` and `npm run test:contract -- dist-internal-path-scan`.
+- [ ] T096 [P] [US1] Add GitHub Packages publish metadata and README readiness tests in `tests/contract/assistant-sdk/publish-readiness.spec.ts`; depends on T088-T091 and confirmed Phase 11 publish decisions; complete when tests assert package name remains `@internal-ai-assistant/assistant-sdk`, version remains `0.1.0`, license is `UNLICENSED`, GitHub Packages `publishConfig.registry` and restricted access are present only after runtime completeness gate, Nuxt is optional peer, README is included in package files, and no real publish is required; validate with `npm run test:contract -- publish-readiness`.
+
+### Implementation
+
+- [ ] T097 [US5] Replace AssistantWidget shell with productized canonical runtime wrapper in `packages/assistant-sdk/src/components/AssistantWidget.vue`; depends on T092-T096; complete when the built SDK no longer contains shell placeholder text, `AssistantWidget` renders the complete canonical assistant chat UI, SDK props wire provider/configuration/callbacks into existing package boundaries, and no second ChatWidget/runtime is created; validate with `npm run test:component -- productized-widget-runtime`, `npm run test:component -- runtime-reuse`, `npm run test:unit -- no-second-runtime`, `npm run test:contract -- dist-internal-path-scan`, and `npm run typecheck`.
+- [ ] T098 [US1] Implement productized mount helper in `packages/assistant-sdk/src/mountAssistantWidget.ts`; depends on T093 and T097; complete when `mountAssistantWidget` creates an isolated Vue app instance, mounts the complete `AssistantWidget`, passes provider/configuration/callbacks, supports open/close/unmount/destroy, diagnoses duplicate mount, and preserves Nuxt component usage without bundling a second Vue runtime; validate with productized mount smoke tests, widget lifecycle tests, session isolation tests, and typecheck.
+- [ ] T099 [US5] Stabilize packaged runtime bundling in `packages/assistant-sdk/vite.config.ts`, `packages/assistant-sdk/tsconfig.build.json`, and `packages/assistant-sdk/package.json`; depends on T095 and T097-T098; complete when required compiled canonical runtime is included in `dist/index.mjs`, public declarations remain stable in `dist/index.d.ts`, Vue remains external, Nuxt is optional peer, no sourcemaps are emitted, package exports remain only `"."` and `"./styles.css"`, and dist has no unresolved `app/**` imports; validate with clean SDK build, package artifact smoke, dist internal path scan, packaged runtime source boundary tests, npm pack dry-run, and typecheck.
+- [ ] T100 [US1] Add GitHub Packages publish-readiness metadata in `packages/assistant-sdk/package.json`; depends on T096-T099 runtime completeness gates; complete when package remains named `@internal-ai-assistant/assistant-sdk`, version is `0.1.0`, `private: true` is removed or set to false only after runtime completeness passes, `publishConfig.registry` targets GitHub Packages, `publishConfig.access` is `restricted`, license is `UNLICENSED`, package files include `dist`, `styles.css`, and `README.md`, Nuxt is optional peer, and no real publish is executed; validate with publish-readiness tests, package-release-exports tests, npm pack dry-run, and typecheck.
+- [ ] T101 [US7] Add productized SDK usage documentation in `packages/assistant-sdk/README.md`; depends on T096 and T100; complete when README covers installation, stylesheet import, `AssistantWidget`, `mountAssistantWidget`, provider contract, configuration, callbacks/events, Compatibility Mode, Host Integration Mode, session lifecycle, security boundary, forbidden frontend-owned fields, backend responsibilities, troubleshooting, version compatibility, GitHub Packages install notes, and a release notes placeholder without creating a full changelog; validate with publish-readiness tests and npm pack dry-run.
+- [ ] T102 [US8] Close productized SDK release readiness in `tests/fixtures/assistant-sdk/release-readiness-contract.ts`; depends on T092-T101; complete when final release gates require clean SDK build, packed SDK install/resolve, complete widget runtime, productized mount smoke, packaged Compatibility Mode smoke, package artifact checks, source boundary scan, GitHub Packages publish metadata, README inclusion, no sourcemaps, no temporary markers, no private runtime exports, no external backend calls, and no real publish; validate with all Phase 11 tests, Phase 10 artifact tests, Phase 8 compatibility tests, Phase 9 gated disabled/enabled checks, Phase 4-7 regressions, runtime regression gate, typecheck, and npm pack dry-run.
+
+**Checkpoint**: Productized SDK reaches formal publish readiness review without executing real publish or calling external backend services.
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -310,6 +337,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Host Integration environment; does not block package readiness.
 - **Phase 10**: Depends on Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; includes tests first plus build / pack / install artifact closeout tasks, with T088 package build support required before final artifact validation.
+- **Phase 11**: Depends on Phase 10 real build / pack / install artifact closeout, Phase 8 Compatibility Mode smoke, and Phase 0 architecture guardrails; validates productized runtime completeness and publish readiness without real publish.
 
 ### User Story Dependencies
 
@@ -329,6 +357,8 @@ MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runt
 
 Package release readiness additionally requires Phase 10 tests-first guardrails plus real build / pack / install artifact closeout validation before the SDK package is declared installable outside the monorepo source tree.
 
+Formal Productized SDK Release Readiness additionally requires Phase 11.
+
 ## Parallel Opportunities
 
 - Phase 0 validation preflight T001 can run first; Phase 0 tests T002-T005 can run in parallel after T001.
@@ -342,6 +372,13 @@ Package release readiness additionally requires Phase 10 tests-first guardrails 
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
 - Phase 9 gated tests T079-T081 can run in parallel when Host Integration environment is available.
 - Phase 10 package artifact tests T084-T087 can run in parallel as guardrails; T088 must run before T089-T091 final validation, and T089-T091 depend on the built artifact from T088.
+- Phase 11 tests T092-T096 can run in parallel after Phase 10 closeout.
+- T097 depends on T092-T096.
+- T098 depends on T093 and T097.
+- T099 depends on T095 and T097-T098.
+- T100 depends on T096-T099.
+- T101 depends on T096 and T100.
+- T102 depends on T092-T101.
 
 ## Parallel Examples
 
@@ -393,6 +430,20 @@ Must pass before declaring package readiness:
 - Compatibility Mode integration tests
 - canonical assistant runtime regression gates
 
+## Productized SDK Publish Readiness Tests
+
+Must pass before declaring formal productized SDK publish readiness:
+
+- productized widget runtime completeness
+- productized mount smoke
+- packaged Compatibility Mode chat flow
+- packaged runtime source boundary
+- publish metadata validation
+- README / usage documentation validation
+- GitHub Packages publish readiness checks
+- no sourcemap validation
+- final productized SDK release readiness gate
+
 ## Host Integration-dependent Tests
 
 Host Integration-dependent tests do not block Independent Package Readiness.
@@ -411,12 +462,17 @@ These tests are later / gated / optional integration-dependent validation:
 ## Final Validation Checklist
 
 - [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only long-term task artifact for Frontend 002 implementation planning.
-- [ ] No extra documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`.
+- [ ] No extra Spec Kit documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`; `packages/assistant-sdk/README.md` is allowed only as a Phase 11 package artifact / product documentation task.
 - [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T091.
+- [ ] Task IDs are sequential from T001 to T102.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
-- [ ] No implementation task creates auxiliary documentation artifacts outside the Spec Kit four-file set.
+- [ ] No implementation task creates auxiliary Spec Kit documentation artifacts outside the Spec Kit four-file set.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
 - [ ] Every functional phase lists tests before implementation tasks.
 - [ ] Host Integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
+- [ ] Phase 11 does not duplicate completed Phase 0-10 work.
+- [ ] Phase 11 does not execute real npm publish.
+- [ ] Phase 11 does not require external backend calls.
+- [ ] Phase 11 does not add `./nuxt` or runtime/internal public exports.
+- [ ] Phase 11 keeps GitHub Packages publish readiness separate from actual publish execution.
 - [ ] No task plans a second ChatWidget, assistant API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, frontend-owned permission/source/connector/evidence authority, DataAdapter runtime, HostApp Registry copy, backend request mode, nested `hostContext`, backend `sessionScope`, iframe, Shadow DOM, framework-agnostic SDK, package backend proxy, production connector implementation, approval navigation URL generation, hidden prompt context injection, or message text context injection.
