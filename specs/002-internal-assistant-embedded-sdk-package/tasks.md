@@ -56,7 +56,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 | Phase 6 | Session Ownership, Fallback and Lifecycle                 | US4, US8             |
 | Phase 7 | Host Events, Styling and Reference Consumer               | US1, US6, US7        |
 | Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
-| Phase 9 | Backend 002 Integration-dependent Smoke Gates             | US9                  |
+| Phase 9 | Host Integration-dependent Smoke Gates                    | US9                  |
 | Phase 10 | Package Artifact Release Boundary Validation             | US1, US5, US7        |
 
 ## Phase 0: Contract and Architecture Guardrails
@@ -256,23 +256,23 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 **Checkpoint**: Independent Package Readiness can be validated without Backend 002.
 
-## Phase 9: Backend 002 Integration-dependent Smoke Gates
+## Phase 9: Host Integration-dependent Smoke Gates
 
-**Purpose**: 建立 later / gated / optional Backend 002 integration-dependent validation。  
-**Independent Test**: When Backend 002 integration environment exists, SDK can fail closed on missing context and consume backend safe outcomes; these tests do not block Independent Package Readiness.
+**Purpose**: 建立 later / gated / optional Host Integration validation。  
+**Independent Test**: When Host Integration environment exists, SDK can fail closed on missing context and consume backend safe outcomes; these tests do not block Independent Package Readiness.
 
 ### Tests First
 
-- [ ] T079 [P] [US9] Add gated Backend 002 missing-context tests in `tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts`; depends on T038 and T044; complete when missing organization / identity / permission context stops before request and emits context resolution failed; validate only with gated integration command and env flag added by package setup.
-- [ ] T080 [P] [US9] Add gated sanitized context submission smoke in `tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts`; depends on T042-T046; complete when sanitized PageContext submits without frontend-owned source/connector/permission/evidence fields; validate only with gated integration command and env flag added by package setup.
-- [ ] T081 [P] [US9] Add gated Backend 002 safe outcome rendering smoke in `tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts`; depends on T053 and T075; complete when host-aware clarification, permission_denied, tool_failure, permission-safe evidence, backend-derived source metadata, and SSE final safe outcomes are consumed; validate only with gated integration command and env flag added by package setup.
+- [x] T079 [P] [US9] Add gated Host Integration missing-context tests in `tests/integration/assistant-sdk/host-integration-fail-closed.gated.spec.ts`; depends on T038 and T044; complete when missing organization / identity / permission context stops before request and emits context resolution failed; validate only with gated integration command and env flag added by package setup.
+- [x] T080 [P] [US9] Add gated Host Integration sanitized context submission smoke in `tests/integration/assistant-sdk/host-integration-sanitized-context.gated.spec.ts`; depends on T042-T046; complete when sanitized PageContext submits without frontend-owned source/connector/permission/evidence fields; validate only with gated integration command and env flag added by package setup.
+- [x] T081 [P] [US9] Add gated Host Integration safe outcome rendering smoke in `tests/integration/assistant-sdk/host-integration-safe-outcomes.gated.spec.ts`; depends on T053 and T075; complete when host-aware clarification, permission_denied, tool_failure, permission-safe evidence, backend-derived source metadata, and SSE final safe outcomes are consumed; validate only with gated integration command and env flag added by package setup.
 
 ### Implementation
 
-- [ ] T082 [US9] Add Backend 002 gated test harness switch in `tests/fixtures/assistant-sdk/backend002-gated-env.ts`; depends on T079-T081; complete when tests skip unless integration environment is explicitly enabled and skip message states not readiness blocking; validate with gated integration command once added, and confirm no-env execution skips.
-- [ ] T083 [US9] Add Backend 002 fixture contract notes in `tests/fixtures/assistant-sdk/backend002-contract-fixtures.ts`; depends on T080-T081; complete when fixtures align to Frontend 002 spec/design/plan boundary and do not define a third provider contract; validate with gated smoke tests once gated command exists.
+- [x] T082 [US9] Add Host Integration gated test harness switch in `tests/fixtures/assistant-sdk/host-integration-gated-env.ts`; depends on T079-T081; complete when tests skip unless integration environment is explicitly enabled and skip message states not readiness blocking; validate with gated integration command once added, and confirm no-env execution skips.
+- [x] T083 [US9] Add Host Integration fixture contract notes in `tests/fixtures/assistant-sdk/host-integration-contract-fixtures.ts`; depends on T080-T081; complete when fixtures align to Frontend 002 spec/design/plan boundary and do not define a third provider contract; validate with gated smoke tests once gated command exists.
 
-**Checkpoint**: Backend 002 integration-dependent tests are available later and explicitly non-blocking for package readiness.
+**Checkpoint**: Host Integration-dependent tests are available later and explicitly non-blocking for package readiness.
 
 ## Phase 10: Package Artifact Release Boundary Validation
 
@@ -301,7 +301,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **Phase 6**: Depends on Phase 2 runtime bridge and Phase 4 request boundary.
 - **Phase 7**: Depends on Phase 3, Phase 5, and Phase 6.
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
-- **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Backend 002 integration environment; does not block package readiness.
+- **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Host Integration environment; does not block package readiness.
 - **Phase 10**: Depends on package build support, Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; validates release artifact boundary.
 
 ### User Story Dependencies
@@ -314,7 +314,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **US6 暴露安全的 Host Events 與 Callbacks (P2)**: Depends on Phase 3 and Phase 7 callbacks/events.
 - **US7 安裝到 Nuxt 4 Reference Host App (P2)**: Depends on Phase 7 and Phase 8.
 - **US8 保護隱私、隔離與 Host Boundaries (P1)**: Cross-cutting across Phases 0, 3, 4, 5, 6.
-- **US9 驗證 Backend 002 Contract Compatibility (P3)**: Depends on Phase 9 and external Backend 002 environment; not required for Independent Package Readiness.
+- **US9 驗證 Host Integration Contract Compatibility (P3)**: Depends on Phase 9 and external Host Integration environment; not required for Independent Package Readiness.
 
 ### MVP Scope
 
@@ -333,7 +333,7 @@ Package release readiness additionally requires Phase 10 artifact validation bef
 - Phase 6 tests T055-T057 can run in parallel.
 - Phase 7 tests T064-T067 can run in parallel.
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
-- Phase 9 gated tests T079-T081 can run in parallel when Backend 002 environment is available.
+- Phase 9 gated tests T079-T081 can run in parallel when Host Integration environment is available.
 - Phase 10 package artifact tests T084-T087 can run in parallel after SDK build / pack support exists.
 
 ## Parallel Examples
@@ -355,10 +355,10 @@ Task: "T040 Add forbidden field gate request tests in tests/unit/assistant-sdk/s
 ```
 
 ```bash
-# Phase 9 gated Backend 002 validation, not readiness blocking
-Task: "T079 Add gated Backend 002 missing-context tests in tests/integration/assistant-sdk/backend002-fail-closed.gated.spec.ts"
-Task: "T080 Add gated sanitized context submission smoke in tests/integration/assistant-sdk/backend002-sanitized-context.gated.spec.ts"
-Task: "T081 Add gated Backend 002 safe outcome rendering smoke in tests/integration/assistant-sdk/backend002-safe-outcomes.gated.spec.ts"
+# Phase 9 gated Host Integration validation, not readiness blocking
+Task: "T079 Add gated Host Integration missing-context tests in tests/integration/assistant-sdk/host-integration-fail-closed.gated.spec.ts"
+Task: "T080 Add gated Host Integration sanitized context submission smoke in tests/integration/assistant-sdk/host-integration-sanitized-context.gated.spec.ts"
+Task: "T081 Add gated Host Integration safe outcome rendering smoke in tests/integration/assistant-sdk/host-integration-safe-outcomes.gated.spec.ts"
 ```
 
 ## Independent Package Readiness Tests
@@ -385,13 +385,13 @@ Must pass before declaring package readiness:
 - Compatibility Mode integration tests
 - canonical assistant runtime regression gates
 
-## Backend 002 Integration-dependent Tests
+## Host Integration-dependent Tests
 
-Backend 002 Integration-dependent tests do not block Independent Package Readiness.
+Host Integration-dependent tests do not block Independent Package Readiness.
 
 These tests are later / gated / optional integration-dependent validation:
 
-- Backend 002 Mode fail-closed context tests
+- Host Integration fail-closed context tests
 - sanitized context submission smoke
 - host-aware clarification consumption
 - permission_denied rendering
@@ -410,5 +410,5 @@ These tests are later / gated / optional integration-dependent validation:
 - [ ] No implementation task creates auxiliary documentation artifacts outside the Spec Kit four-file set.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
 - [ ] Every functional phase lists tests before implementation tasks.
-- [ ] Backend 002 integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
+- [ ] Host Integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
 - [ ] No task plans a second ChatWidget, assistant API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, frontend-owned permission/source/connector/evidence authority, DataAdapter runtime, HostApp Registry copy, backend request mode, nested `hostContext`, backend `sessionScope`, iframe, Shadow DOM, framework-agnostic SDK, package backend proxy, production connector implementation, approval navigation URL generation, hidden prompt context injection, or message text context injection.
