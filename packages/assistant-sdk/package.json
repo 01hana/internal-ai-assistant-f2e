@@ -1,7 +1,15 @@
 {
   "name": "@internal-ai-assistant/assistant-sdk",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "files": [
+    "dist",
+    "styles.css"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

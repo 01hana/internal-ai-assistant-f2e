@@ -281,12 +281,19 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ### Tests First
 
-- [ ] T084 [P] [US1] Add package artifact smoke test in `tests/contract/assistant-sdk/package-artifact-smoke.spec.ts`; depends on T013-T018 and T025-T028; complete when test validates an SDK build / pack artifact can be inspected without requiring consuming app access to Frontend 001 `app/**` paths; validate with `npm run test:contract -- package-artifact-smoke` after SDK package build command exists.
-- [ ] T085 [P] [US7] Add reference consumer public-entry install smoke in `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T064-T078 and T084; complete when reference consumer imports only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`, never `app/features`, `app/services`, `app/stores`, `app/utils`, or `packages/assistant-sdk/src/runtime`; validate with integration/smoke command added by package setup.
-- [ ] T086 [P] [US5] Add SDK dist unresolved internal path scan in `tests/contract/assistant-sdk/dist-internal-path-scan.spec.ts`; depends on T084; complete when scan fails on unresolved `../../../../app/features`, `../../../../app/services`, `../../../../app/stores`, `../../../../app/utils`, or equivalent Frontend 001 app-path imports in built SDK output; validate with `npm run test:contract -- dist-internal-path-scan` after SDK build command exists.
-- [ ] T087 [P] [US1] Add package export release-boundary validation in `tests/contract/assistant-sdk/package-release-exports.spec.ts`; depends on T084; complete when package artifact exports only root public API and `./styles.css`, and does not expose `./runtime`, `./runtime/*`, adapter internals, or Frontend 001 internal paths; validate with `npm run test:contract -- package-release-exports`.
+- [x] T084 [P] [US1] Add package artifact smoke test in `tests/contract/assistant-sdk/package-artifact-smoke.spec.ts`; depends on T013-T018 and T025-T028; complete when test validates an SDK build / pack artifact can be inspected without requiring consuming app access to Frontend 001 `app/**` paths; validate with `npm run test:contract -- package-artifact-smoke` after SDK package build command exists.
+- [x] T085 [P] [US7] Add reference consumer public-entry install smoke in `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T064-T078 and T084; complete when reference consumer imports only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`, never `app/features`, `app/services`, `app/stores`, `app/utils`, or `packages/assistant-sdk/src/runtime`; validate with integration/smoke command added by package setup.
+- [x] T086 [P] [US5] Add SDK dist unresolved internal path scan in `tests/contract/assistant-sdk/dist-internal-path-scan.spec.ts`; depends on T084; complete when scan fails on unresolved `../../../../app/features`, `../../../../app/services`, `../../../../app/stores`, `../../../../app/utils`, or equivalent Frontend 001 app-path imports in built SDK output; validate with `npm run test:contract -- dist-internal-path-scan` after SDK build command exists.
+- [x] T087 [P] [US1] Add package export release-boundary validation in `tests/contract/assistant-sdk/package-release-exports.spec.ts`; depends on T084; complete when package artifact exports only root public API and `./styles.css`, and does not expose `./runtime`, `./runtime/*`, adapter internals, or Frontend 001 internal paths; validate with `npm run test:contract -- package-release-exports`.
 
-**Checkpoint**: SDK release boundary proves source-time Frontend 001 reuse does not leak into consuming app package installation.
+### Implementation / Closeout
+
+- [x] T088 [US1] Add SDK package build support in `packages/assistant-sdk/package.json`, `packages/assistant-sdk/vite.config.ts`, and root `package.json`; depends on T084-T087 and existing npm workspace setup; complete when npm workspace can build `@internal-ai-assistant/assistant-sdk` into `packages/assistant-sdk/dist/index.mjs` and `packages/assistant-sdk/dist/index.d.ts` without bundling a second Vue runtime or leaving unresolved Frontend 001 `app/**` imports for consuming apps; validate with the SDK build command established by implementation, `npm run test:contract -- package-artifact-smoke`, `npm run test:contract -- dist-internal-path-scan`, and `npm run typecheck`; implementation must inspect existing tools before adding any dependency for `.d.ts` generation.
+- [x] T089 [US1] Define package artifact contents and files boundary in `packages/assistant-sdk/package.json` and `packages/assistant-sdk/styles.css`; depends on T088 built artifact; complete when package artifact contains only public install contents including `package.json`, `dist/index.mjs`, `dist/index.d.ts`, and `styles.css`, excludes tests/fixtures/specs/app source/private SDK internals, and exports only `"."` plus `"./styles.css"` with no `./runtime`, `./transport`, `./session`, `./context`, `./request`, or adapter internals; validate with `npm run test:contract -- package-release-exports`, `npm run test:contract -- package-artifact-smoke`, and `npm pack --dry-run` or equivalent local pack inspection.
+- [x] T090 [US7] Add local package pack / install smoke validation in `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T088-T089; complete when reference consumer package smoke verifies a built / packed SDK can be resolved by a consuming app using only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`; validate with direct Vitest execution for the integration spec or the integration/smoke command added by package setup, using `/private/tmp` temporary consumer fixtures only and without repo config changes, real publish, external backend calls, or Host Integration environment requirements.
+- [x] T091 [US1] Close Phase 10 artifact readiness validation in `tests/fixtures/assistant-sdk/release-readiness-contract.ts`; depends on T088-T090; complete when build / pack / install / artifact contents checklist items validate the real SDK dist / package artifact directly with no temporary pass condition; validate with `npm run test:contract -- package-artifact-smoke`, `npm run test:contract -- dist-internal-path-scan`, `npm run test:contract -- package-release-exports`, direct Vitest execution for `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts` or the added integration command, and `npm run typecheck`.
+
+**Checkpoint**: SDK release boundary proves source-time Frontend 001 reuse does not leak into consuming app package installation only after tests-first guardrails and T088-T091 build / pack / install closeout tasks pass.
 
 ## Dependencies & Execution Order
 
@@ -302,7 +309,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **Phase 7**: Depends on Phase 3, Phase 5, and Phase 6.
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Host Integration environment; does not block package readiness.
-- **Phase 10**: Depends on package build support, Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; validates release artifact boundary.
+- **Phase 10**: Depends on Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; includes tests first plus build / pack / install artifact closeout tasks, with T088 package build support required before final artifact validation.
 
 ### User Story Dependencies
 
@@ -320,7 +327,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runtime bridge, Phase 3 provider boundary, Phase 4 Backend 001 request builder/sanitizer gates, Phase 5 default transport, Phase 6 basic session lifecycle, Phase 7 minimal reference consumer, and Phase 8 Backend 001 smoke. Phase 9 is excluded from MVP readiness.
 
-Package release readiness additionally requires Phase 10 artifact validation before the SDK package is declared installable outside the monorepo source tree.
+Package release readiness additionally requires Phase 10 tests-first guardrails plus real build / pack / install artifact closeout validation before the SDK package is declared installable outside the monorepo source tree.
 
 ## Parallel Opportunities
 
@@ -334,7 +341,7 @@ Package release readiness additionally requires Phase 10 artifact validation bef
 - Phase 7 tests T064-T067 can run in parallel.
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
 - Phase 9 gated tests T079-T081 can run in parallel when Host Integration environment is available.
-- Phase 10 package artifact tests T084-T087 can run in parallel after SDK build / pack support exists.
+- Phase 10 package artifact tests T084-T087 can run in parallel as guardrails; T088 must run before T089-T091 final validation, and T089-T091 depend on the built artifact from T088.
 
 ## Parallel Examples
 
@@ -382,6 +389,7 @@ Must pass before declaring package readiness:
 - package artifact smoke tests
 - SDK dist unresolved internal path scan
 - public package release export validation
+- real SDK dist / package artifact validation before external install readiness is declared
 - Compatibility Mode integration tests
 - canonical assistant runtime regression gates
 
@@ -405,7 +413,7 @@ These tests are later / gated / optional integration-dependent validation:
 - [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only long-term task artifact for Frontend 002 implementation planning.
 - [ ] No extra documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`.
 - [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T087.
+- [ ] Task IDs are sequential from T001 to T091.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
 - [ ] No implementation task creates auxiliary documentation artifacts outside the Spec Kit four-file set.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
