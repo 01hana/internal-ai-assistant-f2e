@@ -3,7 +3,7 @@
 **Input**: `spec.md`, `design.md`, `plan.md`  
 **Prerequisites**: Frontend 002 accepted spec/design/plan; Frontend 001 existing runtime; Backend 001 public contract handoff.  
 **Tests**: Test-first. Every feature phase must create contract / unit / component / integration tests before implementation.  
-**Organization**: Tasks are grouped by Frontend 002 plan phases. Frontend 001 remains the only chat runtime owner; Frontend 002 adds package / SDK integration boundaries only.
+**Organization**: Tasks are grouped by Frontend 002 plan phases. Frontend 001 remains the product behavior and regression baseline through the Frontend 001 Nuxt Adapter. `packages/assistant-runtime/**` becomes the single reusable canonical runtime implementation owner during Phase 11 extraction. Frontend 002 owns the SDK/public integration, lifecycle, security, transport-adapter, and package artifact boundaries.
 
 ## Format: `[ID] [P?] [US?] Description`
 
@@ -15,20 +15,34 @@
 ## Product Positioning
 
 ```text
-Frontend 001
-= AI 助理聊天面板本體與 chat runtime
+Frontend 001 Nuxt Adapter
+= Nuxt / app-specific integration、product behavior baseline、
+  regression expectations、Nuxt runtime config、Nuxt HTTP/auth/headers、
+  route/page/layout/theme integration
 
-Frontend 002
+Shared Canonical Assistant Runtime
+= packages/assistant-runtime/**、
+  reusable canonical assistant implementation、
+  session / history orchestration、canonical SSE parser and stream lifecycle、
+  retry / cancel / timeout / interrupted state、AnswerDecision / safe outcomes、
+  EvidenceRef、feedback、ActionDraft / confirmation、ApprovalRequest display、
+  Pinia stores / runtime controller、library-safe canonical Vue UI
+
+Frontend 002 SDK Adapter
 = npm package / SDK、Host App integration contract、
-  package lifecycle、context provider、session isolation、
-  consumer integration 與 package compatibility
+  public SDK API、provider / configuration / callbacks、
+  request / security adapter、Compatibility Mode omission、
+  default / injected transport adapter、session / lifecycle adapter、
+  public component / mount integration 與 package compatibility
 ```
 
-Frontend 002 只能封裝與整合既有能力，不得重新實作 ChatWidget、assistant API client、SSE parser、session / history pipeline、AnswerDecision mapping、EvidenceRef rendering、feedback flow、ActionDraft confirmation、ApprovalRequest display behavior、retry / cancel / interrupted behavior。
+Frontend 002 不是新的聊天產品，也不是 Frontend 001 runtime 的 fork。Phase 11 的目標不是把 Frontend 001 app source 直接包入 SDK，而是將 canonical reusable implementation 抽取到 `packages/assistant-runtime/**`，再由 Frontend 001 與 Frontend 002 透過各自 adapter 使用同一 shared runtime。
 
-SSE parser ownership 的意思是：Frontend 002 package 對外保有 transport / stream contract ownership，並重用 Frontend 001 既有 `app/utils/assistant/assistantSseParser.ts` 與 `app/features/assistant/composables/useAssistantSseStream.ts`；不得在 package 內建立第二套 SSE parser、fork parser、export parser internals、建立 mode-specific SSE parser，或讓 injected executor 自己解析 SSE 成第二套 contract。
+Frontend 002 只能封裝與整合 shared canonical runtime 與 SDK adapter 能力，不得重新實作 ChatWidget、assistant API client contract、SSE parser、session / history pipeline、AnswerDecision mapping、EvidenceRef rendering、feedback flow、ActionDraft confirmation、ApprovalRequest display behavior、retry / cancel / timeout / interrupted behavior。
 
-Packaging boundary 的意思是：SDK package artifact must be installable by consuming apps without requiring Frontend 001 internal app paths. Monorepo source-time adapter imports are allowed only as build-time canonical source reuse; published / installed package consumers must use `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css` public entries only.
+SSE ownership 的意思是：Shared Canonical Assistant Runtime owns the canonical SSE parser, stream event model, stream lifecycle, and retry / cancel / timeout / interrupted flow. Frontend 001 Nuxt Adapter provides Nuxt / app transport capability and does not own a second parser. Frontend 002 SDK Adapter provides request / security / default or injected transport capability and must not parse SSE into a second contract or own a second parser. Phase 11 final SDK code must not directly import `app/utils/assistant/assistantSseParser.ts` or `app/features/assistant/composables/useAssistantSseStream.ts`; historical Phase 2 / Phase 5 seams are baseline records to migrate toward `packages/assistant-runtime/**`.
+
+Packaging boundary 的意思是：SDK package artifact must be installable by consuming apps without requiring Frontend 001 internal app paths. Historical Phase 2 source-time `app/**` bridge seams were early reuse / no-fork guardrails, not the final Phase 11 SDK architecture. Phase 11新增或修改的 Frontend 002 SDK code 不得 import `app/**`; it may consume only `packages/assistant-runtime/**`, approved internal shared-runtime entries, and Frontend 002-owned public/internal adapter modules. Published / installed package consumers must use `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css` public entries only, and SDK source graph / dist must retain no active Frontend 001 internal path dependency.
 
 ## Validation Command Policy
 
@@ -51,16 +65,16 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 | ------- | --------------------------------------------------------- | -------------------- |
 | Phase 0 | Contract and Architecture Guardrails                      | US5, US8             |
 | Phase 1 | Workspace Package Skeleton and Public Exports             | US1                  |
-| Phase 2 | Runtime Reuse Boundary and Frontend 001 Extraction Points | US5                  |
+| Phase 2 | Historical Runtime Reuse Seams and Guardrails             | US5                  |
 | Phase 3 | Provider / Configuration / Callbacks Boundary             | US2, US6, US8        |
 | Phase 4 | Request Builder Modes and Sanitization                    | US2, US3, US8        |
-| Phase 5 | Transport Ownership and SSE Integration                   | US5, US8             |
+| Phase 5 | Historical Transport Seam and SSE Integration Baseline     | US5, US8             |
 | Phase 6 | Session Ownership, Fallback and Lifecycle                 | US4, US8             |
 | Phase 7 | Host Events, Styling and Reference Consumer               | US1, US6, US7        |
 | Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
 | Phase 9 | Host Integration-dependent Smoke Gates                    | US9                  |
 | Phase 10 | Package Artifact Release Boundary Validation             | US1, US5, US7        |
-| Phase 11 | Productized SDK Runtime and Publish Readiness            | US1, US5, US7, US8   |
+| Phase 11 | Canonical Runtime Library-Safe Extraction, Adapter Migration and Productized SDK Publish Readiness | US1, US5, US7, US8   |
 
 ## Phase 0: Contract and Architecture Guardrails
 
@@ -111,7 +125,9 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 **Purpose**: 讓 Frontend 002 能使用 Frontend 001 runtime，而不是複製 runtime。  
 **Independent Test**: SDK runtime entry wraps canonical Frontend 001 behavior and Frontend 001 regression tests remain valid.
 
-**Packaging Boundary Note**: Phase 2 adapter seams may source-time import canonical Frontend 001 source inside this monorepo, but they must remain internal-only and must not become package public exports, consumer deep imports, or unresolved `app/features` / `app/services` / `app/stores` / `app/utils` imports in the built SDK artifact. T025-T028 must preserve this boundary and later package artifact validation must prove it.
+**Historical Scope Note**: Phase 2 completed early runtime reuse contracts, source-time adapter seams, no-fork / no-second-runtime guardrails, and initial SDK integration points. Phase 2 did not complete `packages/assistant-runtime/**`, library-safe canonical source extraction, Nuxt dependency removal, vue-tsc-safe declaration boundaries, or full SDK source graph removal of `app/**` imports. Phase 11 is not a rerun of Phase 2; it adds the missing Canonical Runtime Library-Safe Extraction prerequisite discovered after package artifact work.
+
+**Packaging Boundary Note**: Phase 2 adapter seams historically allowed source-time Frontend 001 app source references inside this monorepo as early reuse seams. Those seams must remain internal-only and must not become package public exports, consumer deep imports, or unresolved `app/features` / `app/services` / `app/stores` / `app/utils` imports in the built SDK artifact. Phase 11 must migrate active SDK runtime reuse to `packages/assistant-runtime/**` or approved shared-runtime entries and must not preserve active SDK `app/**` dependency as the final architecture.
 
 ### Tests First
 
@@ -129,7 +145,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - [x] T027 [US5] Add stable assistant service adapter seam in `packages/assistant-sdk/src/runtime/serviceAdapter.ts`; depends on T021; complete when SDK internal adapter references canonical Frontend 001 assistant service shape without creating a second assistant API client, backend proxy, transport, request builder, `fetchAssistant`, `sendAssistantMessage`, or `createAssistantClient`; validate with runtime services reuse tests and no-second-runtime tests.
 - [x] T028 [US5] Add stable assistant type/helper adapter seam in `packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts`; depends on T021 and T027; complete when SDK internal adapter can reference canonical Frontend 001 assistant public types/helpers needed by runtime bridge without deep-importing private internals from public SDK entry, exposing adapter internals, or duplicating AnswerDecision, EvidenceRef, renderer, feedback, action, or approval types; validate with typecheck, runtime services reuse tests, and public boundary tests.
 
-**Checkpoint**: Frontend 002 consumes Frontend 001 runtime through stable boundaries with no forked runtime.
+**Checkpoint**: Phase 2 historical reuse seams and no-fork guardrails are established. Phase 11 will migrate these seams to the shared runtime boundary and must not retain active SDK `app/**` dependencies as the final package architecture.
 
 ## Phase 3: Provider / Configuration / Callbacks Boundary
 
@@ -181,6 +197,8 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 **Purpose**: default transport 與 injected low-level executor integration。  
 **Independent Test**: Default transport reuses Frontend 001 assistant service and injected executor cannot bypass package request builder or SSE stream contract.
 
+**Historical Ownership Note**: Phase 5 historical implementation established default / injected transport seams against the then-current Frontend 001 runtime. During Phase 11 extraction, final ownership supersedes that source arrangement: Shared Canonical Assistant Runtime owns canonical session, SSE, retry, error, timeout, interrupted, and safe outcome state; Frontend 001 AssistantService becomes a Nuxt transport adapter; Frontend 002 transport becomes a Shared Runtime port adapter returning safe transport results.
+
 ### Tests First
 
 - [x] T048 [P] [US5] Add default transport reuse tests in `tests/contract/assistant-sdk/default-transport.spec.ts`; depends on T027 and T042; complete when tests assert default transport wraps existing `app/services/api/assistant.ts` behavior; validate with `npm run test:contract -- default-transport`.
@@ -194,7 +212,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - [x] T053 [US5] Implement SSE stream bridge in `packages/assistant-sdk/src/transport/sseStreamBridge.ts`; depends on T050; complete when bridge uses existing stream runtime and parser behavior without second parser; validate with SSE ownership tests and existing SSE parser tests.
 - [x] T054 [US5] Implement transport error propagation in `packages/assistant-sdk/src/transport/transportErrors.ts`; depends on T051-T053; complete when transport exceptions return to existing Frontend 001 error / retry flow; validate with default transport and injected executor tests.
 
-**Checkpoint**: Transport ownership is package-controlled while HTTP authentication execution may be host-injected at low level only.
+**Checkpoint**: Phase 5 established the historical package transport seam and low-level host executor boundary. T054 records the Phase 5 baseline; during Phase 11 extraction, canonical error / retry / timeout / interrupted ownership moves to Shared Canonical Assistant Runtime, and Frontend 001 / Frontend 002 transports return safe transport results to that shared flow.
 
 ## Phase 6: Session Ownership, Fallback and Lifecycle
 
@@ -259,6 +277,8 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 **Checkpoint**: Independent Package Readiness can be validated without Backend 002.
 
+**Regression Gate Positioning**: Phase 8 Frontend 001 regression gates protect product behavior and Compatibility Mode readiness. They do not declare that `app/**` remains the permanent reusable canonical implementation owner. Compatibility Mode remains the Independent Package Readiness baseline, does not require Backend 002 completion, and does not send Frontend 002 Host Context body fields.
+
 ## Phase 9: Host Integration-dependent Smoke Gates
 
 **Purpose**: 建立 later / gated / optional Host Integration validation。  
@@ -296,29 +316,141 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - [x] T090 [US7] Add local package pack / install smoke validation in `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T088-T089; complete when reference consumer package smoke verifies a built / packed SDK can be resolved by a consuming app using only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`; validate with direct Vitest execution for the integration spec or the integration/smoke command added by package setup, using `/private/tmp` temporary consumer fixtures only and without repo config changes, real publish, external backend calls, or Host Integration environment requirements.
 - [x] T091 [US1] Close Phase 10 artifact readiness validation in `tests/fixtures/assistant-sdk/release-readiness-contract.ts`; depends on T088-T090; complete when build / pack / install / artifact contents checklist items validate the real SDK dist / package artifact directly with no temporary pass condition; validate with `npm run test:contract -- package-artifact-smoke`, `npm run test:contract -- dist-internal-path-scan`, `npm run test:contract -- package-release-exports`, direct Vitest execution for `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts` or the added integration command, and `npm run typecheck`.
 
-**Checkpoint**: SDK release boundary proves source-time Frontend 001 reuse does not leak into consuming app package installation only after tests-first guardrails and T088-T091 build / pack / install closeout tasks pass.
+**Checkpoint**: Phase 10 proves the package skeleton, build / pack / local install smoke, public export boundary, and artifact scan baseline. It does not complete library-safe canonical runtime extraction; Phase 11 resolves runtime completeness and source ownership rather than rebuilding the package skeleton.
 
 ## Phase 11: Productized SDK Runtime and Publish Readiness
 
 **Purpose**: 將已可 build / pack / local install 的 SDK artifact 產品化，讓 built `AssistantWidget` 成為完整聊天 widget，讓 `mountAssistantWidget` 可真正掛載完整 widget，並補齊 GitHub Packages publish readiness metadata、README、final release gates。  
 **Independent Test**: A temporary consuming app can install / resolve the packed SDK through `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css` only, render the complete `AssistantWidget` chat UI, run Compatibility Mode through mock transport / mock SSE, and validate publish readiness metadata without real npm publish or external backend calls.
 
-### Tests First
+### Existing Productized SDK Tests First
 
-- [ ] T092 [P] [US5] Add productized AssistantWidget runtime completeness tests in `tests/component/assistant-sdk/productized-widget-runtime.spec.ts`; depends on T088-T091 and existing runtime reuse guardrails; complete when tests fail if built `AssistantWidget` contains shell placeholder text, lacks complete chat UI structure, creates a second ChatWidget/runtime, or leaves unresolved Frontend 001 `app/**` imports in the package artifact; validate with `npm run test:component -- productized-widget-runtime`, `npm run test:unit -- no-second-runtime`, and `npm run test:contract -- dist-internal-path-scan`.
-- [ ] T093 [P] [US1] Add productized `mountAssistantWidget` smoke tests in `tests/integration/assistant-sdk/productized-mount-smoke.spec.ts`; depends on T088-T092; complete when tests prove `mountAssistantWidget` in a temporary consuming app mounts the complete widget DOM, supports open/close/unmount/destroy, cleans listeners and callbacks, and does not require Host Integration or external backend calls; validate with direct Vitest execution or an integration smoke command using `/private/tmp` temporary config only.
-- [ ] T094 [P] [US7] Add packaged Compatibility Mode chat flow smoke tests in `tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts`; depends on T088-T093 and Phase 8 compatibility fixtures; complete when a temporary consuming app installs or resolves the packed SDK, imports only root public entry and stylesheet, initializes provider/config/callbacks, sends a Compatibility Mode message through mock transport / mock SSE, and renders safe answer states through canonical runtime; validate with direct Vitest execution and no external backend calls.
-- [ ] T095 [P] [US5] Add packaged runtime source boundary tests in `tests/contract/assistant-sdk/packaged-runtime-source-boundary.spec.ts`; depends on T088-T094 and T086; complete when tests assert the packed SDK may contain compiled canonical runtime code but never exposes internal exports, never requires consuming app to resolve `app/features`, `app/services`, `app/stores`, `app/utils`, `packages/assistant-sdk/src/**`, specs, tests, or fixtures, and does not include sourcemaps; validate with `npm run test:contract -- packaged-runtime-source-boundary` and `npm run test:contract -- dist-internal-path-scan`.
-- [ ] T096 [P] [US1] Add GitHub Packages publish metadata and README readiness tests in `tests/contract/assistant-sdk/publish-readiness.spec.ts`; depends on T088-T091 and confirmed Phase 11 publish decisions; complete when tests assert package name remains `@internal-ai-assistant/assistant-sdk`, version remains `0.1.0`, license is `UNLICENSED`, GitHub Packages `publishConfig.registry` and restricted access are present only after runtime completeness gate, Nuxt is optional peer, README is included in package files, and no real publish is required; validate with `npm run test:contract -- publish-readiness`.
+- [x] T092 [P] [US5] Add productized AssistantWidget runtime completeness tests in `tests/component/assistant-sdk/productized-widget-runtime.spec.ts`; depends on T088-T091 and existing runtime reuse guardrails; complete when tests fail if built `AssistantWidget` contains shell placeholder text, lacks complete chat UI structure, creates a second ChatWidget/runtime, or leaves unresolved Frontend 001 `app/**` imports in the package artifact; validate with `npm run test:component -- productized-widget-runtime`, `npm run test:unit -- no-second-runtime`, and `npm run test:contract -- dist-internal-path-scan`.
+- [x] T093 [P] [US1] Add productized `mountAssistantWidget` smoke tests in `tests/integration/assistant-sdk/productized-mount-smoke.spec.ts`; depends on T088-T092; complete when tests prove `mountAssistantWidget` in a temporary consuming app mounts the complete widget DOM, supports open/close/unmount/destroy, cleans listeners and callbacks, and does not require Host Integration or external backend calls; validate with direct Vitest execution or an integration smoke command using `/private/tmp` temporary config only.
+- [x] T094 [P] [US7] Add packaged Compatibility Mode chat flow smoke tests in `tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts`; depends on T088-T093 and Phase 8 compatibility fixtures; complete when a temporary consuming app installs or resolves the packed SDK, imports only root public entry and stylesheet, initializes provider/config/callbacks, sends a Compatibility Mode message through mock transport / mock SSE, and renders safe answer states through canonical runtime; validate with direct Vitest execution and no external backend calls.
+- [x] T095 [P] [US5] Add packaged runtime source boundary tests in `tests/contract/assistant-sdk/packaged-runtime-source-boundary.spec.ts`; depends on T088-T094 and T086; complete when tests assert the packed SDK may contain compiled canonical runtime code but never exposes internal exports, never requires consuming app to resolve `app/features`, `app/services`, `app/stores`, `app/utils`, `packages/assistant-sdk/src/**`, specs, tests, or fixtures, and does not include sourcemaps; validate with `npm run test:contract -- packaged-runtime-source-boundary` and `npm run test:contract -- dist-internal-path-scan`.
+- [x] T096 [P] [US1] Add GitHub Packages publish metadata and README readiness tests in `tests/contract/assistant-sdk/publish-readiness.spec.ts`; depends on T088-T091 and confirmed Phase 11 publish decisions; complete when tests assert package name remains `@internal-ai-assistant/assistant-sdk`, version remains `0.1.0`, license is `UNLICENSED`, GitHub Packages `publishConfig.registry` and restricted access are present only after runtime completeness gate, Nuxt is optional peer, README is included in package files, and no real publish is required; validate with `npm run test:contract -- publish-readiness`.
 
-### Implementation
+**Canonical Runtime Extraction Note**: Phase 0-Phase 10 remain completed historical implementation, contract, security, lifecycle, transport, and package artifact baselines. T092-T096 remain checked as existing final productized SDK readiness tests. Phase 11 does not re-implement product behavior as a second runtime; it moves the reusable canonical implementation into `packages/assistant-runtime/**`, migrates Frontend 001 into the Nuxt Adapter role, and migrates Frontend 002 into the SDK Adapter role. Phase 2 / Phase 5 legacy `app/**` bridges are historical baselines that Phase 11 tasks must replace or remove. Frontend 002 Phase 11 new tasks must not add or retain active SDK `app/**` imports.
 
-- [ ] T097 [US5] Replace AssistantWidget shell with productized canonical runtime wrapper in `packages/assistant-sdk/src/components/AssistantWidget.vue`; depends on T092-T096; complete when the built SDK no longer contains shell placeholder text, `AssistantWidget` renders the complete canonical assistant chat UI, SDK props wire provider/configuration/callbacks into existing package boundaries, and no second ChatWidget/runtime is created; validate with `npm run test:component -- productized-widget-runtime`, `npm run test:component -- runtime-reuse`, `npm run test:unit -- no-second-runtime`, `npm run test:contract -- dist-internal-path-scan`, and `npm run typecheck`.
-- [ ] T098 [US1] Implement productized mount helper in `packages/assistant-sdk/src/mountAssistantWidget.ts`; depends on T093 and T097; complete when `mountAssistantWidget` creates an isolated Vue app instance, mounts the complete `AssistantWidget`, passes provider/configuration/callbacks, supports open/close/unmount/destroy, diagnoses duplicate mount, and preserves Nuxt component usage without bundling a second Vue runtime; validate with productized mount smoke tests, widget lifecycle tests, session isolation tests, and typecheck.
-- [ ] T099 [US5] Stabilize packaged runtime bundling in `packages/assistant-sdk/vite.config.ts`, `packages/assistant-sdk/tsconfig.build.json`, and `packages/assistant-sdk/package.json`; depends on T095 and T097-T098; complete when required compiled canonical runtime is included in `dist/index.mjs`, public declarations remain stable in `dist/index.d.ts`, Vue remains external, Nuxt is optional peer, no sourcemaps are emitted, package exports remain only `"."` and `"./styles.css"`, and dist has no unresolved `app/**` imports; validate with clean SDK build, package artifact smoke, dist internal path scan, packaged runtime source boundary tests, npm pack dry-run, and typecheck.
-- [ ] T100 [US1] Add GitHub Packages publish-readiness metadata in `packages/assistant-sdk/package.json`; depends on T096-T099 runtime completeness gates; complete when package remains named `@internal-ai-assistant/assistant-sdk`, version is `0.1.0`, `private: true` is removed or set to false only after runtime completeness passes, `publishConfig.registry` targets GitHub Packages, `publishConfig.access` is `restricted`, license is `UNLICENSED`, package files include `dist`, `styles.css`, and `README.md`, Nuxt is optional peer, and no real publish is executed; validate with publish-readiness tests, package-release-exports tests, npm pack dry-run, and typecheck.
-- [ ] T101 [US7] Add productized SDK usage documentation in `packages/assistant-sdk/README.md`; depends on T096 and T100; complete when README covers installation, stylesheet import, `AssistantWidget`, `mountAssistantWidget`, provider contract, configuration, callbacks/events, Compatibility Mode, Host Integration Mode, session lifecycle, security boundary, forbidden frontend-owned fields, backend responsibilities, troubleshooting, version compatibility, GitHub Packages install notes, and a release notes placeholder without creating a full changelog; validate with publish-readiness tests and npm pack dry-run.
-- [ ] T102 [US8] Close productized SDK release readiness in `tests/fixtures/assistant-sdk/release-readiness-contract.ts`; depends on T092-T101; complete when final release gates require clean SDK build, packed SDK install/resolve, complete widget runtime, productized mount smoke, packaged Compatibility Mode smoke, package artifact checks, source boundary scan, GitHub Packages publish metadata, README inclusion, no sourcemaps, no temporary markers, no private runtime exports, no external backend calls, and no real publish; validate with all Phase 11 tests, Phase 10 artifact tests, Phase 8 compatibility tests, Phase 9 gated disabled/enabled checks, Phase 4-7 regressions, runtime regression gate, typecheck, and npm pack dry-run.
+### A. Baseline and Extraction Inventory
+
+- [ ] T097 [US5] Record Phase 11 baseline validation in `specs/002-internal-assistant-embedded-sdk-package/runtime-extraction-inventory.md`; depends on T092-T096; complete when the inventory records pass/fail/skip plus reason for focused Frontend 001 unit/component/contract regressions, Frontend 002 unit/component/contract regressions, T092-T096 target tests, `npm run typecheck`, SDK clean build, package artifact/dist internal path tests, and `npm pack --dry-run` or repository equivalent without reopening Phase 0-Phase 10 implementation; validate by diff review of the baseline command/result matrix.
+- [ ] T098 [US5] Add Canonical Runtime dependency and ownership inventory in `specs/002-internal-assistant-embedded-sdk-package/runtime-extraction-inventory.md`; depends on T097; complete when the single inventory artifact records ChatWidget transitive dependency graph, shared-safe capability classification, Nuxt-specific dependency classification, Frontend 001 app-specific dependency classification, Frontend 002 SDK-specific dependency classification, Nuxt UI / auto-import inventory, legacy SDK `app/**` bridge inventory, legacy reuse/transport/SSE test inventory, and old owner -> shared owner -> adapter -> cleanup mapping; validate by diff review of the inventory artifact only.
+
+### B. Extraction Architecture Guards
+
+- [ ] T099 [P] [US5] Add Canonical Runtime owner guard tests in `tests/contract/assistant-sdk/canonical-runtime-owner.spec.ts`; depends on T097-T098; complete when tests assert `packages/assistant-runtime/**` is the only reusable canonical owner, no second ChatWidget/runtime exists, shared runtime cannot import `app/**`, Nuxt globals, `useRuntimeConfig`, or Frontend 001 active Pinia, and Frontend 002 SDK cannot import `app/features/**`, `app/services/**`, `app/stores/**`, or `app/utils/**`; validate with `npm run test:contract -- canonical-runtime-owner`.
+- [ ] T100 [P] [US1] Add SDK declaration and public package boundary guard tests in `tests/contract/assistant-sdk/sdk-declaration-boundary.spec.ts`; depends on T097-T098; complete when tests fail if SDK declarations reference `app/**`, expose `packages/assistant-runtime/**` internal paths, publish exports beyond root and `./styles.css`, make Pinia a public peer/API, or require a consumer to initialize Pinia before mounting; validate with `npm run test:contract -- sdk-declaration-boundary`.
+- [ ] T101 [P] [US8] Add runtime state isolation guard tests in `tests/unit/assistant-sdk/runtime-state-isolation.spec.ts`; depends on T097-T098; complete when tests require multiple SDK widgets to avoid sharing active Pinia, streams, timers, listeners, abort controllers, pending callbacks, or local runtime state while still allowing an explicit shared backend `sessionId`; validate with `npm run test:unit -- runtime-state-isolation`.
+- [ ] T102 [P] [US5] Add legacy SDK bridge source graph guard tests in `tests/contract/assistant-sdk/legacy-bridge-source-graph.spec.ts`; depends on T097-T098; complete when tests fail if legacy SDK runtime bridge files under `packages/assistant-sdk/src/runtime/` retain active `app/**` imports after migration instead of disappearing or becoming shared-runtime adapters; validate with `npm run test:contract -- legacy-bridge-source-graph`.
+- [ ] T103 [P] [US5] Add Shared Runtime transport port ownership tests in `tests/unit/assistant-runtime/transport-port.spec.ts`; depends on T097-T098; complete when tests cover `createSession`, `loadHistory`, `sendMessage`/`streamMessage`, `cancel`/`abort`, feedback, action/confirmation, approval operations, shared orchestration/SSE/retry/error ownership, Frontend 001 Nuxt transport capability, Frontend 002 request/security adapter capability, and failure on second API contract or SDK-owned parser; validate with direct Vitest execution or the shared runtime unit command once available.
+
+### C. Shared Runtime Workspace and Transport Port Foundation
+
+- [ ] T104 [US5] Create private internal shared runtime workspace boundary in `packages/assistant-runtime/package.json` and `packages/assistant-runtime/tsconfig.json`; depends on T099-T103; complete when the boundary has private package identity, library-safe typecheck entry, no direct publish path, no public npm product contract, and no dependency on `app/**`; validate with canonical runtime owner guards and the new library typecheck entry.
+- [ ] T105 [US1] Align dependency ownership metadata in `packages/assistant-sdk/package.json`, `packages/assistant-runtime/package.json`, and root `package.json`; depends on T104; complete when Vue remains SDK peer/external, Pinia is an SDK regular runtime dependency rather than public peer/API, Nuxt remains optional/non-required, and consumers do not initialize Pinia; validate with peer dependency boundary, publish-readiness, and SDK declaration boundary tests.
+- [ ] T106 [US5] Define Shared Runtime transport port foundation in `packages/assistant-runtime/src/transport/ports.ts`; depends on T103-T105; complete when the port covers session creation, history loading, message send/stream, cancel/abort, feedback, action confirmation, and approval operations while adapters own only request/HTTP capability and shared runtime owns orchestration/SSE/retry/error state; validate with transport port ownership tests.
+
+### D. Types and Pure Helpers
+
+- [ ] T107 [US5] Add shared assistant domain types and pure helper extraction tests in `tests/unit/assistant-runtime/types-and-helpers.spec.ts`; depends on T106; complete when tests require typecheck without `app/**` or Nuxt-generated types and prove SDK public types remain facade-owned; validate with direct Vitest execution or the shared runtime unit command once available.
+- [ ] T108 [US5] Extract assistant domain types and pure helpers into `packages/assistant-runtime/src/types/index.ts` and `packages/assistant-runtime/src/helpers/index.ts`; depends on T107; complete when shared implementation owns reusable types/helpers without claiming Frontend 001 switch, SDK wiring, or old-owner cleanup; validate with T107 and shared runtime typecheck.
+- [ ] T109 [US5] Migrate Frontend 001 type/helper adapters in `app/types/assistant/index.ts` and `app/utils/assistant/requestIdGenerator.ts`; depends on T108; complete when Frontend 001 uses shared type/helper owners through re-export, thinning, or removal of old app owners and affected Frontend 001 regressions pass; validate with T107, affected Frontend 001 type/helper regressions, and canonical owner guards.
+
+### E. SSE Parser and Stream Event Model
+
+- [ ] T110 [US5] Add shared SSE parser and stream event model extraction tests in `tests/unit/assistant-runtime/sse-stream-model.spec.ts`; depends on T109; complete when tests cover canonical SSE events, timeout as inactivity-based, interrupted as EOF-before-final, and failure on duplicate parsers across Frontend 001, shared runtime, or SDK transport; validate with direct Vitest execution plus `npm run test:unit -- sse-ownership`.
+- [ ] T111 [US5] Extract canonical SSE parser and stream event model into `packages/assistant-runtime/src/sse/index.ts`; depends on T110; complete when shared implementation owns parser/event model without changing production transport contracts; validate with T110 and shared runtime typecheck.
+- [ ] T112 [US5] Migrate Frontend 001 SSE adapters in `app/utils/assistant/assistantSseParser.ts` and `app/features/assistant/composables/useAssistantSseStream.ts`; depends on T111; complete when Frontend 001 uses shared SSE owner, app parser/composable are thinned, re-exported, or removed, Frontend 001 SSE regressions pass, and Frontend 002 transport remains parser-free; validate with T110, Frontend 001 SSE parser/stream regressions, and `npm run test:unit -- sse-ownership`.
+
+### F. Session and History
+
+- [ ] T113 [US4] Add shared session and history orchestration tests in `tests/unit/assistant-runtime/session-history.spec.ts`; depends on T112; complete when tests cover create/resume, history cursor, delta accumulation, retry/cancel lifecycle, cleanup, and adapter-only transport ports; validate with direct Vitest execution plus session fallback/isolation tests.
+- [ ] T114 [US4] Extract session and history orchestration into `packages/assistant-runtime/src/session/index.ts`; depends on T113; complete when shared implementation owns orchestration without claiming SDK namespace/lifecycle wiring or Frontend 001 switch; validate with T113 and shared runtime typecheck.
+- [ ] T115 [US4] Migrate session/history adapters in `app/features/assistant/composables/useAssistantSession.ts` and `app/stores/assistant/useSessionStore.ts`; depends on T114; complete when Frontend 001 session/history uses shared runtime, SDK session namespace/lifecycle can connect through adapters later, old app session/history owner is thinned, and session regressions pass; validate with T113, Frontend 001 session/history regressions, and session isolation tests.
+
+### G. Outcomes and Evidence
+
+- [ ] T116 [US5] Add shared AnswerDecision, EvidenceRef, and safe outcome tests in `tests/unit/assistant-runtime/safe-outcomes.spec.ts`; depends on T115; complete when tests cover final, no_answer, clarification, permission_denied, tool_failure, timeout, interrupted, AnswerDecision mapping, EvidenceRef normalization/display model, and safe metadata without frontend-owned backend authority; validate with direct Vitest execution plus existing answer/evidence regressions.
+- [ ] T117 [US5] Extract safe outcomes and evidence handling into `packages/assistant-runtime/src/outcomes/index.ts` and `packages/assistant-runtime/src/evidence/index.ts`; depends on T116; complete when shared implementation owns outcome/evidence model without moving backend identity/authorization/source/evidence authority into frontend; validate with T116 and shared runtime typecheck.
+- [ ] T118 [US5] Migrate outcome/evidence adapters in `app/utils/assistant/answerDecisionStateMapper.ts`, `app/utils/assistant/assistantMessageRendererResolver.ts`, and `app/utils/assistant/evidenceNormalizationAdapter.ts`; depends on T117; complete when Frontend 001 renderer/mapping uses shared owners, SDK only projects safe callbacks/events later, old owner is thinned, and affected regressions pass; validate with T116, Frontend 001 answer/evidence regressions, and forbidden outgoing field guards.
+
+### H. Feedback, Action and Approval
+
+- [ ] T119 [US6] Add shared feedback, action, and approval extraction tests in `tests/unit/assistant-runtime/feedback-action-approval.spec.ts`; depends on T118; complete when tests cover feedback, ActionDraft, confirmation, ApprovalRequest display, approval IDs-only callback/event inputs, and no Host App navigation URL generation; validate with direct Vitest execution plus existing feedback/action/approval regressions.
+- [ ] T120 [US6] Extract feedback, action, and approval runtime into `packages/assistant-runtime/src/feedback/index.ts`, `packages/assistant-runtime/src/actions/index.ts`, and `packages/assistant-runtime/src/approvals/index.ts`; depends on T119; complete when shared implementation owns these runtime capabilities without exposing raw approval payloads or navigation URLs to SDK callbacks; validate with T119 and shared runtime typecheck.
+- [ ] T121 [US6] Migrate feedback/action/approval adapters in `app/services/api/assistant.ts`, `app/stores/assistant/useSessionStore.ts`, and `app/features/assistant/components/ApprovalRequestDisplayMessage.vue`; depends on T120; complete when Frontend 001 uses shared owners, SDK/public callbacks expose only safe IDs and payloads later, old app owners are thinned, and regressions pass; validate with T119, Frontend 001 feedback/action/approval regressions, and host callback/event guards.
+
+### I. Pinia Stores and Runtime Controller
+
+- [ ] T122 [US4] Add shared Pinia store and runtime controller tests in `tests/unit/assistant-runtime/runtime-controller.spec.ts`; depends on T121; complete when tests require explicit imports, no Nuxt auto-registration, injectable runtime scope, no active global app state, per-runtime isolation primitives, and optional shared backend `sessionId` without shared local runtime instance; validate with direct Vitest execution plus runtime state isolation guards.
+- [ ] T123 [US4] Extract shared stores and runtime controller into `packages/assistant-runtime/src/stores/index.ts` and `packages/assistant-runtime/src/runtime/index.ts`; depends on T122; complete when shared implementation defines store/runtime factories without requiring productized AssistantWidget, imperative mount, or `createPinia()` per SDK mount; validate with T122 and shared runtime typecheck.
+- [ ] T124 [US4] Migrate Frontend 001 Pinia adapter in `app/stores/assistant/useChatWidgetStore.ts` and `app/stores/assistant/useSessionStore.ts`; depends on T123; complete when Frontend 001 uses existing app Pinia with shared stores/adapters and does not create a second app-level Pinia; validate with T122 and Frontend 001 store regressions.
+- [ ] T125 [US4] Close Pinia/runtime controller regressions and old store cleanup in `tests/unit/assistant/session-restore.spec.ts` and `tests/component/assistant/session-history.spec.ts`; depends on T124; complete when old app store owners are removed, re-exported, or thinned, no parallel stores remain, and widget/session regressions pass; validate with focused Frontend 001 store regressions, runtime state isolation guards, and widget lifecycle tests.
+
+### J. Canonical UI
+
+- [ ] T126 [US5] Add canonical UI extraction tests in `tests/component/assistant-runtime/canonical-ui.spec.ts`; depends on T125; complete when tests cover conversation/message list, composer, loading/streaming, safe outcomes, EvidenceRef, feedback, action confirmation, approval display, explicit imports, no Nuxt auto-registration, and no required Nuxt UI plugin; validate with direct Vitest execution plus productized widget runtime tests.
+- [ ] T127 [US5] Extract library-safe canonical assistant UI into `packages/assistant-runtime/src/components/AssistantRuntimeRoot.vue`; depends on T126; complete when shared UI uses explicit imports, library-safe Vue components, native semantic HTML or renderless adapter slots, and no SDK-only second chat UI; validate with T126 and shared runtime component tests.
+- [ ] T128 [US5] Migrate Frontend 001 ChatWidget/UI adapter in `app/features/assistant/components/ChatWidget.vue`; depends on T127; complete when ChatWidget becomes a shared-runtime thin wrapper or direct shared component usage while route/page/layout/theme remain in Frontend 001 adapter space; validate with ChatWidget open/close and component regressions.
+- [ ] T129 [US5] Close canonical UI regressions and old UI owner cleanup in `tests/component/assistant/ChatWidget.shell.spec.ts` and `tests/component/assistant/send-message-streaming.spec.ts`; depends on T128; complete when old UI owner is removed, re-exported, or thinned, no parallel business logic remains, and Frontend 001 component regressions pass; validate with focused Frontend 001 component tests and no-second-runtime guards.
+
+### K. Frontend 001 Nuxt Adapter Migration
+
+- [ ] T130 [US5] Close Frontend 001 Nuxt transport adapter in `app/services/api/assistant.ts`; depends on T129; complete when the service provides Nuxt/app HTTP, `useRuntimeConfig`, auth/headers, app persistence, and safe transport results without owning canonical SSE/session/retry/outcome state; validate with Frontend 001 assistant service contract regressions and transport port ownership tests.
+- [ ] T131 [US5] Close Frontend 001 runtime integration adapter in `app/features/assistant/composables/useChat.ts` and `app/features/assistant/composables/useAssistantHostContext.ts`; depends on T130; complete when composables connect Nuxt/app context to shared runtime ports without retaining parallel business logic; validate with Frontend 001 composable/component regressions and canonical owner guards.
+- [ ] T132 [US5] Audit Frontend 001 regression coverage in `tests/fixtures/assistant-sdk/runtime-regression-gate.ts`; depends on T130-T131; complete when regression gate covers ChatWidget open/close, session/history, SSE, safe outcomes, retry/cancel, EvidenceRef, feedback, ActionDraft, ApprovalRequest, route/entity/organization/session changes, and cleanup before old owner removal; validate with `npm run test:contract -- runtime-regression-gate`.
+
+### L. Legacy Test Migration
+
+- [ ] T133 [US5] Migrate legacy SDK reuse and transport tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`, `tests/contract/assistant-sdk/default-transport.spec.ts`, `tests/contract/assistant-sdk/injected-executor.spec.ts`, and `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T132; complete when tests assert Frontend 001 Nuxt Adapter and Frontend 002 SDK Adapter consume Shared Canonical Assistant Runtime, SDK does not import `app/**`, SDK transport does not parse SSE, and error/retry ownership is Shared Runtime before SDK adapter implementation starts; validate with the listed focused tests.
+
+### M. Frontend 002 SDK Adapter Migration
+
+- [ ] T134 [US8] Migrate SDK transport adapter to Shared Runtime ports in `packages/assistant-sdk/src/transport/defaultTransport.ts` and `packages/assistant-sdk/src/request/requestBuilder.ts`; depends on T133; complete when SDK transport implements shared runtime ports, reuses existing request builder/provider/security gates, preserves Compatibility Mode omission, and does not own SSE parser/session/outcome state; validate with default transport, injected executor, outgoing gate, and transport port ownership tests.
+- [ ] T135 [US4] Migrate SDK session and lifecycle adapter in `packages/assistant-sdk/src/session/sessionLifecycle.ts` and `packages/assistant-sdk/src/lifecycle/mountHandle.ts`; depends on T134; complete when SDK namespace/fallback/lifecycle cleanup connects shared runtime instances without creating a second session/history state machine; validate with session fallback/isolation, widget lifecycle, and runtime state isolation tests.
+- [ ] T136 [US6] Migrate SDK runtime/context/event adapter in `packages/assistant-sdk/src/runtime/sdkRuntimeAdapter.ts`, `packages/assistant-sdk/src/context/contextResolution.ts`, and `packages/assistant-sdk/src/events/hostEventEmitter.ts`; depends on T135; complete when provider/config/callback wiring creates shared runtime instances through the new SDK runtime adapter, safe event projection remains intact, no active `app/**` imports remain, and legacy runtime bridge resolution remains scoped to T137; validate with host context, host events, public boundary, canonical owner, and legacy bridge source graph guards.
+
+### N. Legacy Bridge Replacement and Cleanup
+
+- [ ] T137 [US5] Remove legacy SDK app-source runtime bridge `packages/assistant-sdk/src/runtime/frontend001Runtime.ts` and remove or replace other legacy bridge files in `packages/assistant-sdk/src/runtime/chatWidgetAdapter.ts`, `packages/assistant-sdk/src/runtime/composableAdapter.ts`, `packages/assistant-sdk/src/runtime/sessionAdapter.ts`, `packages/assistant-sdk/src/runtime/sseStreamAdapter.ts`, `packages/assistant-sdk/src/runtime/serviceAdapter.ts`, and `packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts`; depends on T136; complete when `packages/assistant-sdk/src/runtime/frontend001Runtime.ts` is deleted, all active SDK runtime imports redirect to `packages/assistant-sdk/src/runtime/sdkRuntimeAdapter.ts`, no active SDK source retains a `frontend001Runtime` path, symbol, export, or import, other legacy bridge files are deleted or replaced with non-`app/**` shared-runtime adapters, `sseStreamAdapter.ts` no longer references the app SSE owner, and no-second-runtime plus source graph guards pass; validate with legacy bridge source graph, public boundary, and no-second-runtime tests.
+
+### O. Regression and Old-owner Cleanup Closure
+
+- [ ] T138 [US5] Close aggregate Frontend 001 and Frontend 002 regression gate in `tests/fixtures/assistant-sdk/runtime-regression-gate.ts`; depends on T137; complete when required regressions cover ChatWidget open/close, session create/resume, history cursor, SSE streaming, completed answer, no_answer, clarification, permission_denied, tool_failure, timeout, interrupted, retry, cancel, EvidenceRef, feedback, ActionDraft, ApprovalRequest, route/entity/organization/session changes, and destroy/unmount cleanup; validate with runtime regression gate plus focused Frontend 001 and SDK regression commands.
+- [ ] T139 [US5] Complete aggregate old app owner cleanup in `app/features/assistant/components/ChatWidget.vue`, `app/stores/assistant/useSessionStore.ts`, and `app/utils/assistant/assistantMessageRendererResolver.ts`; depends on T138; complete when old app owners are removed, re-exported, or thinned, import graph points to shared owner, and no parallel app business logic remains; validate with canonical owner, runtime regression gate, and no-second-runtime guards.
+
+### P. Declaration, Build and Package Artifact Closure
+
+- [ ] T140 [US5] Close shared runtime typecheck gate in `packages/assistant-runtime/tsconfig.json`; depends on T139; complete when shared runtime typechecks with explicit imports, no Nuxt globals, no `app/**`, no SDK public type dependency, and no active app state; validate with shared runtime typecheck and canonical owner guards.
+- [ ] T141 [US5] Close SDK declaration and build gate in `packages/assistant-sdk/tsconfig.build.json` and `packages/assistant-sdk/vite.config.ts`; depends on T140; complete when `dist/index.d.ts` does not reference `app/**` or expose `packages/assistant-runtime/**`, compiled shared runtime may enter `dist/index.mjs`, Vue remains external, Pinia resolves as a regular dependency, Nuxt is optional/non-required, and sourcemaps are absent; validate with `npm run build:assistant-sdk`, dist internal path scan, and SDK declaration boundary tests.
+- [ ] T142 [US1] Close package artifact and temporary consumer gate in `packages/assistant-sdk/package.json` and `tests/integration/assistant-sdk/reference-consumer-package-smoke.spec.ts`; depends on T141; complete when the package can build, pack, and resolve, exports only root and `./styles.css`, exposes no deep/private runtime imports, allows a consumer artifact to load compiled Shared Runtime and public component/runtime primitives without consumer Pinia initialization, and does not claim complete Productized AssistantWidget behavior or imperative `createPinia()` mount lifecycle before T144-T145; validate with package artifact smoke, package-release-exports, packaged-runtime source boundary, reference consumer package smoke, and npm pack dry-run.
+
+### Q. T094 Fixture Correction
+
+- [ ] T143 [US7] Correct existing T094 packaged Compatibility Mode fixture in `tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts`; depends on T142; complete when the test adapter routes `POST /assistant/sessions` to JSON session creation, `GET /assistant/sessions/:sessionId/messages` to JSON history, and `POST /assistant/sessions/:sessionId/messages` to `text/event-stream`, keeps timeout inactivity-based and interrupted EOF-before-final, preserves all seven T094 outcome contracts, and does not modify production transport; validate with direct Vitest execution for packaged Compatibility Mode chat flow and no production diff outside tests/fixtures.
+
+### R. Productized SDK Runtime
+
+- [ ] T144 [US5] Replace AssistantWidget shell with productized canonical runtime wrapper in `packages/assistant-sdk/src/components/AssistantWidget.vue`; depends on T143; complete when built `AssistantWidget` renders complete canonical chat UI, uses the same shared runtime, creates widget-local runtime scope for component usage, wires provider/configuration/callbacks through SDK boundaries, imports no `app/**`, and creates no second runtime; validate with productized widget runtime, runtime-reuse, no-second-runtime, dist scan, and typecheck.
+- [ ] T145 [US1] Implement productized mount helper in `packages/assistant-sdk/src/mountAssistantWidget.ts`; depends on T144; complete when every mount creates an isolated Vue app and `createPinia()` instance, mounts the full canonical AssistantWidget, controls open/close through canonical component state, cleans up unmount/destroy, diagnoses duplicate mounts through WeakMap registry, and clears registry after destroy; validate with productized mount smoke, widget lifecycle, session isolation, and typecheck.
+- [ ] T146 [US5] Stabilize packaged runtime bundling in `packages/assistant-sdk/vite.config.ts`, `packages/assistant-sdk/tsconfig.build.json`, and `packages/assistant-sdk/package.json`; depends on T145; complete when compiled shared runtime is included in dist, declarations stay stable, Vue is external, Pinia is regular dependency, Nuxt is optional, sourcemaps are absent, exports remain root plus styles only, and no `app/**` remains; validate with clean SDK build, artifact smoke, dist scan, packaged runtime source boundary, npm pack dry-run, and typecheck.
+
+### S. Publish Readiness
+
+- [ ] T147 [US1] Add GitHub Packages publish-readiness metadata in `packages/assistant-sdk/package.json`; depends on T146; complete when package remains `@internal-ai-assistant/assistant-sdk`, version is `0.1.0`, private flag is removed or disabled only after runtime completeness gates, GitHub Packages `publishConfig` uses restricted access, license is `UNLICENSED`, README is included in package files, Nuxt is optional peer, and no real publish is executed; validate with publish-readiness, package-release-exports, npm pack dry-run, and typecheck.
+- [ ] T148 [US7] Add productized SDK usage documentation in `packages/assistant-sdk/README.md`; depends on T147; complete when README covers installation, stylesheet import, `AssistantWidget`, `mountAssistantWidget`, provider contract, configuration, callbacks/events, Compatibility Mode, Host Integration Mode, session lifecycle, security boundary, forbidden frontend-owned fields, backend responsibilities, troubleshooting, version compatibility, GitHub Packages install notes, and release notes placeholder; validate with publish-readiness tests and npm pack dry-run.
+- [ ] T149 [US8] Close productized SDK release readiness in `tests/fixtures/assistant-sdk/release-readiness-contract.ts`; depends on T148; complete when final release gates require clean SDK build, packed SDK install/resolve, complete widget runtime, productized mount smoke, packaged Compatibility Mode smoke, package artifact checks, source boundary scan, GitHub Packages metadata, README inclusion, no sourcemaps, no temporary markers, no private runtime exports, no external backend calls, and no real publish; validate with all Phase 11 tests, Phase 10 artifact tests, Phase 8 compatibility tests, Phase 9 gated disabled/enabled checks, Phase 4-7 regressions, runtime regression gate, typecheck, and npm pack dry-run.
+
+### Renumbering Map
+
+- Old T097 -> New T144: Productized `AssistantWidget`.
+- Old T098 -> New T145: Productized `mountAssistantWidget`.
+- Old T099 -> New T146: Packaged runtime bundling stabilization.
+- Old T100 -> New T147: GitHub Packages publish-readiness metadata.
+- Old T101 -> New T148: Productized SDK README.
+- Old T102 -> New T149: Final productized SDK release readiness gate.
 
 **Checkpoint**: Productized SDK reaches formal publish readiness review without executing real publish or calling external backend services.
 
@@ -336,8 +468,10 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **Phase 7**: Depends on Phase 3, Phase 5, and Phase 6.
 - **Phase 8**: Depends on Phase 7 reference consumer integration.
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Host Integration environment; does not block package readiness.
-- **Phase 10**: Depends on Phase 7 reference consumer integration, Phase 8 package readiness smoke, and Phase 2 runtime reuse boundaries; includes tests first plus build / pack / install artifact closeout tasks, with T088 package build support required before final artifact validation.
-- **Phase 11**: Depends on Phase 10 real build / pack / install artifact closeout, Phase 8 Compatibility Mode smoke, and Phase 0 architecture guardrails; validates productized runtime completeness and publish readiness without real publish.
+- **Phase 10**: Depends on Phase 7 reference consumer integration, Phase 8 package readiness smoke, and historical Phase 2 runtime reuse boundaries; includes tests first plus build / pack / install artifact closeout tasks, with T088 package build support required before final artifact validation. Phase 10 does not prove library-safe canonical runtime extraction.
+- **Phase 11**: Depends on Phase 10 real build / pack / install artifact closeout, Phase 8 Compatibility Mode smoke, and Phase 0 architecture guardrails; preserves T092-T096 as existing productized Tests First guardrails, then executes Canonical Runtime Library-Safe Extraction T097-T143, productized SDK runtime T144-T146, and publish readiness T147-T149 without real publish.
+
+**Architecture Dependency Clarification**: Phase 2 and Phase 5 remain historical prerequisites, but their app-source ownership does not represent the final Phase 11 architecture. Phase 11 implementation graph must converge to Frontend 001 Nuxt Adapter -> Shared Canonical Assistant Runtime <- Frontend 002 SDK Adapter.
 
 ### User Story Dependencies
 
@@ -357,7 +491,7 @@ MVP for package readiness should complete Phase 0, Phase 1, Phase 2 minimum runt
 
 Package release readiness additionally requires Phase 10 tests-first guardrails plus real build / pack / install artifact closeout validation before the SDK package is declared installable outside the monorepo source tree.
 
-Formal Productized SDK Release Readiness additionally requires Phase 11.
+Formal Productized SDK Release Readiness additionally requires Phase 11 extraction, adapter migration, legacy cleanup, declaration/build, package artifact, and T094 fixture closure T097-T143, productized SDK runtime T144-T146, and publish readiness T147-T149. It is not satisfied by package artifact existence alone: `packages/assistant-runtime/**` must be the reusable canonical implementation owner, Frontend 001 must retain only Nuxt adapter / product integration responsibilities, Frontend 002 must retain only SDK adapter / public package responsibilities, and SDK source plus dist must have no active `app/**` dependency.
 
 ## Parallel Opportunities
 
@@ -372,13 +506,23 @@ Formal Productized SDK Release Readiness additionally requires Phase 11.
 - Phase 8 smoke tests T074-T077 can run in parallel after reference consumer setup.
 - Phase 9 gated tests T079-T081 can run in parallel when Host Integration environment is available.
 - Phase 10 package artifact tests T084-T087 can run in parallel as guardrails; T088 must run before T089-T091 final validation, and T089-T091 depend on the built artifact from T088.
-- Phase 11 tests T092-T096 can run in parallel after Phase 10 closeout.
-- T097 depends on T092-T096.
-- T098 depends on T093 and T097.
-- T099 depends on T095 and T097-T098.
-- T100 depends on T096-T099.
-- T101 depends on T096 and T100.
-- T102 depends on T092-T101.
+- Phase 11 tests T092-T096 can run in parallel after Phase 10 closeout and remain completed final readiness guardrails.
+- T097-T098 run sequentially to create the single extraction inventory and classification artifact.
+- T099-T103 can run in parallel after T097-T098 because they add distinct extraction guard test files.
+- T104 depends on T099-T103.
+- T105-T106 depend on T104 and establish dependency ownership plus transport ports before capability extraction.
+- Capability slices run in order: types/helpers T107-T109, SSE T110-T112, session/history T113-T115, outcomes/evidence T116-T118, feedback/action/approval T119-T121.
+- T107, T110, T113, T116, T119, T122, and T126 are each Tests First entries for sequential capability slices; because each slice depends on the previous slice completing, these tasks are not marked [P].
+- Pinia/runtime controller T122-T125 depends on T121; canonical UI T126-T129 depends on T125.
+- Frontend 001 adapter closure T130-T132 depends on canonical UI T129.
+- Legacy test migration T133 depends on T132 and must precede SDK adapter migration.
+- Frontend 002 SDK adapter migration T134-T136 depends on T133.
+- Legacy bridge replacement/removal T137 depends on T136.
+- Aggregate regression and old-owner cleanup T138-T139 depend on T137.
+- Shared typecheck, SDK declaration/build, and package artifact closure T140-T142 depend on old-owner cleanup T139.
+- T143 depends on package artifact/temporary consumer closure T142 and must run before productized SDK runtime tasks.
+- T144-T146 run sequentially after T143 for productized `AssistantWidget`, `mountAssistantWidget`, and bundling stabilization.
+- T147-T149 run sequentially after T146 for metadata, README, and final readiness.
 
 ## Parallel Examples
 
@@ -461,12 +605,12 @@ These tests are later / gated / optional integration-dependent validation:
 
 ## Final Validation Checklist
 
-- [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the only long-term task artifact for Frontend 002 implementation planning.
-- [ ] No extra Spec Kit documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, and `tasks.md`; `packages/assistant-sdk/README.md` is allowed only as a Phase 11 package artifact / product documentation task.
+- [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the primary long-term task artifact for Frontend 002 implementation planning.
+- [ ] No extra Spec Kit documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, `tasks.md`, and the Phase 11 `runtime-extraction-inventory.md`; `packages/assistant-sdk/README.md` is allowed only as a Phase 11 package artifact / product documentation task.
 - [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T102.
+- [ ] Task IDs are sequential from T001 to T149.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
-- [ ] No implementation task creates auxiliary Spec Kit documentation artifacts outside the Spec Kit four-file set.
+- [ ] No implementation task creates auxiliary Spec Kit documentation artifacts outside the Spec Kit four-file set except the single Phase 11 runtime extraction inventory.
 - [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
 - [ ] Every functional phase lists tests before implementation tasks.
 - [ ] Host Integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
@@ -475,4 +619,20 @@ These tests are later / gated / optional integration-dependent validation:
 - [ ] Phase 11 does not require external backend calls.
 - [ ] Phase 11 does not add `./nuxt` or runtime/internal public exports.
 - [ ] Phase 11 keeps GitHub Packages publish readiness separate from actual publish execution.
+- [ ] Product Positioning uses the three-layer ownership model: Frontend 001 Nuxt Adapter, Shared Canonical Assistant Runtime, and Frontend 002 SDK Adapter.
+- [ ] Shared Canonical Assistant Runtime is the only reusable canonical implementation owner after Phase 11 extraction.
+- [ ] Frontend 001 is the product behavior / regression baseline owner and Nuxt integration adapter, not the permanent reusable runtime source owner.
+- [ ] Frontend 002 is the SDK / public integration / package artifact owner and must not become a second runtime owner.
+- [ ] Phase 2 and Phase 5 app-source bridges are treated only as historical baselines to migrate or remove during Phase 11.
+- [ ] Phase 11 new SDK tasks must not import active `app/**` paths.
+- [ ] `tasks.md` no longer treats Frontend 001 as the only chat runtime owner as a final architecture rule.
+- [ ] `tasks.md` no longer treats monorepo source-time `app/**` imports as an effective Phase 11 SDK rule.
+- [ ] Legacy reuse / transport / SSE tests are migrated by T133 before Frontend 002 SDK Adapter implementation T134-T136.
+- [ ] Sequential capability Tests First tasks T107, T110, T113, T116, T119, T122, and T126 are not marked [P].
+- [ ] `packages/assistant-sdk/src/runtime/sdkRuntimeAdapter.ts` is the final SDK runtime adapter.
+- [ ] `packages/assistant-sdk/src/runtime/frontend001Runtime.ts` is deleted during T137 and no active path, symbol, export, or import remains.
+- [ ] T137 owns SDK legacy bridge removal, while T139 owns only Frontend 001 old app owner cleanup.
+- [ ] T142 validates package build / pack / resolve, compiled runtime loading, and no consumer Pinia initialization, but does not claim complete Productized AssistantWidget or imperative mount lifecycle completion.
+- [ ] Complete component behavior is validated by T144, and complete imperative `createPinia()` mount lifecycle is validated by T145.
+- [ ] The T097-T149 dependency graph contains no missing dependency, forward/self dependency, or cycle.
 - [ ] No task plans a second ChatWidget, assistant API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, frontend-owned permission/source/connector/evidence authority, DataAdapter runtime, HostApp Registry copy, backend request mode, nested `hostContext`, backend `sessionScope`, iframe, Shadow DOM, framework-agnostic SDK, package backend proxy, production connector implementation, approval navigation URL generation, hidden prompt context injection, or message text context injection.
