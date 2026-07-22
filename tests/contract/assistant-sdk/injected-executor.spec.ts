@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  canonicalSharedRuntimeBoundary,
+  frontend002SdkAdapterBoundary,
+} from "../../fixtures/assistant-sdk/architecture-guardrails";
+import {
   forbiddenOutgoingFields,
   localOnlyFields,
   secretLikeFields,
 } from "../../fixtures/assistant-sdk/forbidden-fields";
+import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
 type AuthenticatedExecutorModule = {
   readonly createAuthenticatedExecutorTransport: (
@@ -39,7 +44,10 @@ type AuthenticatedExecutorTransport = {
   readonly createSseParser?: unknown;
   readonly retry?: unknown;
   readonly cancel?: unknown;
+  readonly timeout?: unknown;
+  readonly interrupted?: unknown;
   readonly errorFlow?: unknown;
+  readonly outcomeState?: unknown;
 };
 
 async function loadAuthenticatedExecutorContract() {
@@ -89,6 +97,9 @@ describe("Frontend 002 injected authenticated executor boundary", () => {
     const contract = await loadAuthenticatedExecutorContract();
 
     expect(contract.createAuthenticatedExecutorTransport).toBeTypeOf("function");
+    expect(canonicalSharedRuntimeBoundary.role).toBe("reusable canonical runtime owner");
+    expect(frontend002SdkAdapterBoundary.allowedResponsibilities).toContain("default/injected transport execution");
+    expect(assistantRuntimeTransportOwnership.sharedRuntimeOwns).toContain("retry/cancel/timeout/interrupted state");
   });
 
   it("accepts only SDK-built sanitized request execution inputs", async () => {
@@ -145,7 +156,7 @@ describe("Frontend 002 injected authenticated executor boundary", () => {
     expect(executor, "Injected executor must not be called for bypass attempts.").not.toHaveBeenCalled();
   });
 
-  it("does not own endpoint selection, SSE parsing, retry, cancel, or error flow", async () => {
+  it("does not own endpoint selection, SSE parsing, retry, cancel, timeout, interrupted, outcome, or error flow", async () => {
     const { createAuthenticatedExecutorTransport } = await loadAuthenticatedExecutorContract();
     const transport = createAuthenticatedExecutorTransport(async () => ({ ok: true })) as AuthenticatedExecutorTransport;
     const serializedTransport = JSON.stringify(transport);
@@ -158,8 +169,13 @@ describe("Frontend 002 injected authenticated executor boundary", () => {
     expect(transport.createSseParser, "Injected executor must not create a second SSE parser.").toBeUndefined();
     expect(transport.retry, "Injected executor must not own retry flow.").toBeUndefined();
     expect(transport.cancel, "Injected executor must not own cancel flow.").toBeUndefined();
+    expect(transport.timeout, "Injected executor must not own timeout lifecycle.").toBeUndefined();
+    expect(transport.interrupted, "Injected executor must not own interrupted lifecycle.").toBeUndefined();
     expect(transport.errorFlow, "Injected executor must not own error flow.").toBeUndefined();
+    expect(transport.outcomeState, "Injected executor must not own safe outcome state.").toBeUndefined();
     expect(serializedTransport).not.toMatch(/endpoint|route|requestEnvelope|parseSse|parseAssistantSse|createSseParser/);
-    expect(serializedTransport).not.toMatch(/retry|cancel|errorFlow|modeSpecificSseParser/);
+    expect(serializedTransport).not.toMatch(/retry|cancel|timeout|interrupted|errorFlow|outcomeState|modeSpecificSseParser/);
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("SSE parser");
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("retry state machine");
   });
 });

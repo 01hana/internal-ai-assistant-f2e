@@ -4,8 +4,12 @@ import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
+  canonicalSharedRuntimeBoundary,
   forbiddenPackageExports,
+  legacyRuntimeBridgeClassification,
+  legacyRuntimeBridgeFilePaths,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
+import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
 const projectRoot = new URL("../../../", import.meta.url);
 const projectRootPath = fileURLToPath(projectRoot);
@@ -14,8 +18,9 @@ const sdkTransportPath = join(sdkRootPath, "src/transport");
 const sdkRuntimePath = join(sdkRootPath, "src/runtime");
 const sdkRootEntryPath = join(sdkRootPath, "src/index.ts");
 const sdkPackageJsonPath = join(sdkRootPath, "package.json");
+const sharedRuntimeSsePath = fileURLToPath(new URL("packages/assistant-runtime/src/sse/index.ts", projectRoot));
 
-const canonicalSseOwners = [
+const frontend001SseAdapterFiles = [
   "app/utils/assistant/assistantSseParser.ts",
   "app/features/assistant/composables/useAssistantSseStream.ts",
 ] as const;
@@ -54,6 +59,10 @@ type SseStreamBridge = {
   readonly parseSse?: unknown;
   readonly parseAssistantSse?: unknown;
   readonly createSseParser?: unknown;
+  readonly retry?: unknown;
+  readonly cancel?: unknown;
+  readonly timeout?: unknown;
+  readonly interrupted?: unknown;
 };
 
 async function pathExists(path: string): Promise<boolean> {
@@ -93,10 +102,14 @@ async function readFiles(paths: readonly string[]) {
   return Promise.all(
     files.map(async file => ({
       fileName: basename(file),
-      relativePath: relative(projectRootPath, file),
+      relativePath: relative(projectRootPath, file).replaceAll("\\", "/"),
       source: await readFile(file, "utf8"),
     })),
   );
+}
+
+function isLegacyBridgePath(relativePath: string): boolean {
+  return legacyRuntimeBridgeFilePaths.includes(relativePath as typeof legacyRuntimeBridgeFilePaths[number]);
 }
 
 async function loadSseStreamBridgeContract() {
@@ -104,53 +117,56 @@ async function loadSseStreamBridgeContract() {
 
   expect(
     typeof contract.createSseStreamBridge,
-    "sseStreamBridge.ts must export createSseStreamBridge.",
+    "sseStreamBridge.ts must export createSseStreamBridge while it remains a transitional bridge.",
   ).toBe("function");
 
   return contract as SseStreamBridgeModule;
 }
 
 describe("Frontend 002 SSE ownership boundary", () => {
-  it("requires an SDK-internal SSE stream bridge factory", async () => {
-    const contract = await loadSseStreamBridgeContract();
+  it("recognizes Shared Runtime as canonical SSE parser and stream lifecycle owner", async () => {
+    expect(canonicalSharedRuntimeBoundary.sourceRoot).toBe("packages/assistant-runtime/src");
+    expect(assistantRuntimeTransportOwnership.sharedRuntimeOwns).toContain("canonical SSE consumption");
+    expect(assistantRuntimeTransportOwnership.sharedRuntimeOwns).toContain("retry/cancel/timeout/interrupted state");
+    expect(await pathExists(sharedRuntimeSsePath), "Shared Runtime SSE module must exist as canonical parser/stream model owner.").toBe(true);
 
-    expect(contract.createSseStreamBridge).toBeTypeOf("function");
+    for (const adapterPath of frontend001SseAdapterFiles) {
+      expect(
+        await pathExists(fileURLToPath(new URL(adapterPath, projectRoot))),
+        `${adapterPath} remains FE001 adapter/product regression coverage, not SDK final SSE ownership.`,
+      ).toBe(true);
+    }
   });
 
-  it("delegates SSE streaming to canonical Frontend 001 stream ownership", async () => {
+  it("classifies the SDK SSE stream bridge as transitional T137 bridge, not final parser ownership", async () => {
     const { createSseStreamBridge } = await loadSseStreamBridgeContract();
-    const canonicalStreamStub = vi.fn(async (input: Readonly<Record<string, unknown>>) => ({
+    const transitionalStreamStub = vi.fn(async (input: Readonly<Record<string, unknown>>) => ({
       ok: true,
       input,
     }));
-    const canonicalParserStub = vi.fn();
     const bridge = createSseStreamBridge({
-      frontend001SseStream: canonicalStreamStub,
-      frontend001SseParser: canonicalParserStub,
+      frontend001SseStream: transitionalStreamStub,
     }) as SseStreamBridge;
     const stream = bridge.stream ?? bridge.createStream;
 
-    expect(stream, "SSE stream bridge must expose a low-level stream/createStream method.").toBeTypeOf("function");
+    expect(legacyRuntimeBridgeClassification.status).toBe("legacy bridge pending T137 removal");
+    expect(legacyRuntimeBridgeFilePaths).toContain("packages/assistant-sdk/src/runtime/sseStreamAdapter.ts");
+    expect(stream, "Transitional SSE stream bridge must expose only a low-level stream/createStream method.").toBeTypeOf("function");
 
     await stream?.({
       requestId: "request-001",
       sessionId: "session-001",
     });
 
-    expect(canonicalStreamStub).toHaveBeenCalledTimes(1);
-    expect(bridge.assistantSseParser, "SSE stream bridge must not expose parser internals.").toBeUndefined();
-    expect(bridge.parseSse, "SSE stream bridge must not own parseSse.").toBeUndefined();
-    expect(bridge.parseAssistantSse, "SSE stream bridge must not own parseAssistantSse.").toBeUndefined();
-    expect(bridge.createSseParser, "SSE stream bridge must not create a second parser.").toBeUndefined();
-  });
-
-  it("keeps Frontend 001 SSE parser and stream composable as canonical owners", async () => {
-    for (const ownerPath of canonicalSseOwners) {
-      expect(
-        await pathExists(fileURLToPath(new URL(ownerPath, projectRoot))),
-        ownerPath,
-      ).toBe(true);
-    }
+    expect(transitionalStreamStub).toHaveBeenCalledTimes(1);
+    expect(bridge.assistantSseParser, "SSE bridge must not expose parser internals.").toBeUndefined();
+    expect(bridge.parseSse, "SSE bridge must not own parseSse.").toBeUndefined();
+    expect(bridge.parseAssistantSse, "SSE bridge must not own parseAssistantSse.").toBeUndefined();
+    expect(bridge.createSseParser, "SSE bridge must not create a second parser.").toBeUndefined();
+    expect(bridge.retry, "SSE bridge must not own retry lifecycle.").toBeUndefined();
+    expect(bridge.cancel, "SSE bridge must not own cancel lifecycle.").toBeUndefined();
+    expect(bridge.timeout, "SSE bridge must not own timeout lifecycle.").toBeUndefined();
+    expect(bridge.interrupted, "SSE bridge must not own interrupted lifecycle.").toBeUndefined();
   });
 
   it("does not create a second SSE parser or mode-specific SSE schema in SDK transport/runtime source", async () => {
@@ -160,10 +176,15 @@ describe("Frontend 002 SSE ownership boundary", () => {
     ]);
 
     for (const { fileName, relativePath, source } of files) {
+      if (!isLegacyBridgePath(relativePath)) {
+        expect(source, `${relativePath} must not active-import FE001 SSE app sources as final SDK architecture.`)
+          .not.toMatch(/app\/(?:utils\/assistant\/assistantSseParser|features\/assistant\/composables\/useAssistantSseStream)/);
+      }
+
       expect(fileName, `${relativePath} must not duplicate canonical SSE parser file ownership.`).not.toMatch(/sse.*parser/i);
 
       for (const forbiddenPattern of forbiddenSseImplementationPatterns) {
-        expect(source, `${relativePath} must delegate SSE parsing instead of implementing ${forbiddenPattern}.`).not.toMatch(forbiddenPattern);
+        expect(source, `${relativePath} must leave SSE parsing and terminal lifecycle in Shared Runtime.`).not.toMatch(forbiddenPattern);
       }
     }
   });

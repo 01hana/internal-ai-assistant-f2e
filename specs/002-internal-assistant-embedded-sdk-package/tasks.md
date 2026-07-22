@@ -61,19 +61,19 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ## User Story / Phase Mapping
 
-| Phase   | Focus                                                     | Primary User Stories |
-| ------- | --------------------------------------------------------- | -------------------- |
-| Phase 0 | Contract and Architecture Guardrails                      | US5, US8             |
-| Phase 1 | Workspace Package Skeleton and Public Exports             | US1                  |
-| Phase 2 | Historical Runtime Reuse Seams and Guardrails             | US5                  |
-| Phase 3 | Provider / Configuration / Callbacks Boundary             | US2, US6, US8        |
-| Phase 4 | Request Builder Modes and Sanitization                    | US2, US3, US8        |
-| Phase 5 | Historical Transport Seam and SSE Integration Baseline     | US5, US8             |
-| Phase 6 | Session Ownership, Fallback and Lifecycle                 | US4, US8             |
-| Phase 7 | Host Events, Styling and Reference Consumer               | US1, US6, US7        |
-| Phase 8 | Backend 001 Compatibility Mode Smoke and Regression Gates | US1, US5, US7        |
-| Phase 9 | Host Integration-dependent Smoke Gates                    | US9                  |
-| Phase 10 | Package Artifact Release Boundary Validation             | US1, US5, US7        |
+| Phase    | Focus                                                                                              | Primary User Stories |
+| -------- | -------------------------------------------------------------------------------------------------- | -------------------- |
+| Phase 0  | Contract and Architecture Guardrails                                                               | US5, US8             |
+| Phase 1  | Workspace Package Skeleton and Public Exports                                                      | US1                  |
+| Phase 2  | Historical Runtime Reuse Seams and Guardrails                                                      | US5                  |
+| Phase 3  | Provider / Configuration / Callbacks Boundary                                                      | US2, US6, US8        |
+| Phase 4  | Request Builder Modes and Sanitization                                                             | US2, US3, US8        |
+| Phase 5  | Historical Transport Seam and SSE Integration Baseline                                             | US5, US8             |
+| Phase 6  | Session Ownership, Fallback and Lifecycle                                                          | US4, US8             |
+| Phase 7  | Host Events, Styling and Reference Consumer                                                        | US1, US6, US7        |
+| Phase 8  | Backend 001 Compatibility Mode Smoke and Regression Gates                                          | US1, US5, US7        |
+| Phase 9  | Host Integration-dependent Smoke Gates                                                             | US9                  |
+| Phase 10 | Package Artifact Release Boundary Validation                                                       | US1, US5, US7        |
 | Phase 11 | Canonical Runtime Library-Safe Extraction, Adapter Migration and Productized SDK Publish Readiness | US1, US5, US7, US8   |
 
 ## Phase 0: Contract and Architecture Guardrails
@@ -391,20 +391,20 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 ### J. Canonical UI
 
-- [ ] T126 [US5] Add canonical UI extraction tests in `tests/component/assistant-runtime/canonical-ui.spec.ts`; depends on T125; complete when tests cover conversation/message list, composer, loading/streaming, safe outcomes, EvidenceRef, feedback, action confirmation, approval display, explicit imports, no Nuxt auto-registration, and no required Nuxt UI plugin; validate with direct Vitest execution plus productized widget runtime tests.
-- [ ] T127 [US5] Extract library-safe canonical assistant UI into `packages/assistant-runtime/src/components/AssistantRuntimeRoot.vue`; depends on T126; complete when shared UI uses explicit imports, library-safe Vue components, native semantic HTML or renderless adapter slots, and no SDK-only second chat UI; validate with T126 and shared runtime component tests.
-- [ ] T128 [US5] Migrate Frontend 001 ChatWidget/UI adapter in `app/features/assistant/components/ChatWidget.vue`; depends on T127; complete when ChatWidget becomes a shared-runtime thin wrapper or direct shared component usage while route/page/layout/theme remain in Frontend 001 adapter space; validate with ChatWidget open/close and component regressions.
-- [ ] T129 [US5] Close canonical UI regressions and old UI owner cleanup in `tests/component/assistant/ChatWidget.shell.spec.ts` and `tests/component/assistant/send-message-streaming.spec.ts`; depends on T128; complete when old UI owner is removed, re-exported, or thinned, no parallel business logic remains, and Frontend 001 component regressions pass; validate with focused Frontend 001 component tests and no-second-runtime guards.
+- [x] T126 [US5] Add canonical UI extraction tests in `tests/component/assistant-runtime/canonical-ui.spec.ts`; depends on T125; complete when tests cover conversation/message list, composer, loading/streaming, safe outcomes, EvidenceRef, feedback, action confirmation, approval display, explicit imports, no Nuxt auto-registration, and no required Nuxt UI plugin; validate with direct Vitest execution plus productized widget runtime tests.
+- [x] T127 [US5] Extract library-safe canonical assistant UI into `packages/assistant-runtime/src/components/AssistantRuntimeRoot.vue`; depends on T126; complete when shared UI uses explicit imports, library-safe Vue components, native semantic HTML or renderless adapter slots, and no SDK-only second chat UI; validate with T126 and shared runtime component tests.
+- [x] T128 [US5] Migrate Frontend 001 ChatWidget/UI adapter in `app/features/assistant/components/ChatWidget.vue`; depends on T127; complete when ChatWidget becomes a shared-runtime thin wrapper or direct shared component usage while route/page/layout/theme remain in Frontend 001 adapter space; validate with ChatWidget open/close and component regressions.
+- [x] T129 [US5] Close canonical UI regressions and old UI owner cleanup in `tests/component/assistant/ChatWidget.shell.spec.ts` and `tests/component/assistant/send-message-streaming.spec.ts`; depends on T128; complete when old UI owner is removed, re-exported, or thinned, no parallel business logic remains, and Frontend 001 component regressions pass; validate with focused Frontend 001 component tests and no-second-runtime guards.
 
 ### K. Frontend 001 Nuxt Adapter Migration
 
-- [ ] T130 [US5] Close Frontend 001 Nuxt transport adapter in `app/services/api/assistant.ts`; depends on T129; complete when the service provides Nuxt/app HTTP, `useRuntimeConfig`, auth/headers, app persistence, and safe transport results without owning canonical SSE/session/retry/outcome state; validate with Frontend 001 assistant service contract regressions and transport port ownership tests.
-- [ ] T131 [US5] Close Frontend 001 runtime integration adapter in `app/features/assistant/composables/useChat.ts` and `app/features/assistant/composables/useAssistantHostContext.ts`; depends on T130; complete when composables connect Nuxt/app context to shared runtime ports without retaining parallel business logic; validate with Frontend 001 composable/component regressions and canonical owner guards.
-- [ ] T132 [US5] Audit Frontend 001 regression coverage in `tests/fixtures/assistant-sdk/runtime-regression-gate.ts`; depends on T130-T131; complete when regression gate covers ChatWidget open/close, session/history, SSE, safe outcomes, retry/cancel, EvidenceRef, feedback, ActionDraft, ApprovalRequest, route/entity/organization/session changes, and cleanup before old owner removal; validate with `npm run test:contract -- runtime-regression-gate`.
+- [x] T130 [US5] Close Frontend 001 Nuxt transport adapter in `app/services/api/assistant.ts`; depends on T129; complete when the service provides Nuxt/app HTTP, `useRuntimeConfig`, auth/headers, app persistence, and safe transport results without owning canonical SSE/session/retry/outcome state; validate with Frontend 001 assistant service contract regressions and transport port ownership tests.
+- [x] T131 [US5] Close Frontend 001 runtime integration adapter in `app/features/assistant/composables/useChat.ts` and `app/features/assistant/composables/useAssistantHostContext.ts`; depends on T130; complete when composables connect Nuxt/app context to shared runtime ports without retaining parallel business logic; validate with Frontend 001 composable/component regressions and canonical owner guards.
+- [x] T132 [US5] Audit Frontend 001 regression coverage in `tests/fixtures/assistant-sdk/runtime-regression-gate.ts`; depends on T130-T131; complete when regression gate covers ChatWidget open/close, session/history, SSE, safe outcomes, retry/cancel, EvidenceRef, feedback, ActionDraft, ApprovalRequest, route/entity/organization/session changes, and cleanup before old owner removal; validate with `npm run test:contract -- runtime-regression-gate`.
 
 ### L. Legacy Test Migration
 
-- [ ] T133 [US5] Migrate legacy SDK reuse and transport tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`, `tests/contract/assistant-sdk/default-transport.spec.ts`, `tests/contract/assistant-sdk/injected-executor.spec.ts`, and `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T132; complete when tests assert Frontend 001 Nuxt Adapter and Frontend 002 SDK Adapter consume Shared Canonical Assistant Runtime, SDK does not import `app/**`, SDK transport does not parse SSE, and error/retry ownership is Shared Runtime before SDK adapter implementation starts; validate with the listed focused tests.
+- [x] T133 [US5] Migrate legacy SDK reuse and transport tests in `tests/component/assistant-sdk/runtime-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-composables-reuse.spec.ts`, `tests/unit/assistant-sdk/runtime-services-reuse.spec.ts`, `tests/contract/assistant-sdk/default-transport.spec.ts`, `tests/contract/assistant-sdk/injected-executor.spec.ts`, and `tests/unit/assistant-sdk/sse-ownership.spec.ts`; depends on T132; complete when tests assert Frontend 001 Nuxt Adapter and Frontend 002 SDK Adapter consume Shared Canonical Assistant Runtime, SDK does not import `app/**`, SDK transport does not parse SSE, and error/retry ownership is Shared Runtime before SDK adapter implementation starts; validate with the listed focused tests.
 
 ### M. Frontend 002 SDK Adapter Migration
 

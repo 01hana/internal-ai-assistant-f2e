@@ -917,6 +917,7 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   return {
+    runtimeController,
     isBootstrapping,
     sessionReady,
     isSending,

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { frontendIntegrationModes } from "../../fixtures/assistant-sdk/architecture-guardrails";
+import {
+  canonicalSharedRuntimeBoundary,
+  frontend002SdkAdapterBoundary,
+  frontendIntegrationModes,
+} from "../../fixtures/assistant-sdk/architecture-guardrails";
+import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
 type DefaultTransportModule = {
   readonly createDefaultTransport: (options?: Readonly<Record<string, unknown>>) => unknown;
@@ -20,6 +25,15 @@ type DefaultTransport = {
   readonly endpoint?: unknown;
   readonly route?: unknown;
   readonly requestEnvelope?: unknown;
+  readonly parseSse?: unknown;
+  readonly parseAssistantSse?: unknown;
+  readonly createSseParser?: unknown;
+  readonly retry?: unknown;
+  readonly cancel?: unknown;
+  readonly timeout?: unknown;
+  readonly interrupted?: unknown;
+  readonly errorFlow?: unknown;
+  readonly outcomeState?: unknown;
 };
 
 async function loadDefaultTransportContract() {
@@ -52,11 +66,14 @@ function createPackageBuiltRequest(): PackageBuiltRequest {
   };
 }
 
-describe("Frontend 002 default transport reuse boundary", () => {
+describe("Frontend 002 default transport adapter boundary", () => {
   it("requires an SDK-internal default transport factory", async () => {
     const contract = await loadDefaultTransportContract();
 
     expect(contract.createDefaultTransport).toBeTypeOf("function");
+    expect(canonicalSharedRuntimeBoundary.role).toBe("reusable canonical runtime owner");
+    expect(frontend002SdkAdapterBoundary.allowedResponsibilities).toContain("default/injected transport execution");
+    expect(assistantRuntimeTransportOwnership.sharedRuntimeOwns).toContain("canonical SSE consumption");
   });
 
   it("accepts package-built requests instead of rebuilding request envelopes", async () => {
@@ -89,7 +106,7 @@ describe("Frontend 002 default transport reuse boundary", () => {
     }));
   });
 
-  it("delegates through Frontend 001 assistant service ownership without creating a second API client", async () => {
+  it("stays a low-level SDK adapter without creating a second API client or runtime owner", async () => {
     const { createDefaultTransport } = await loadDefaultTransportContract();
     const frontend001Service = {
       sendAssistantMessage: vi.fn(async (request: PackageBuiltRequest) => ({
@@ -106,7 +123,7 @@ describe("Frontend 002 default transport reuse boundary", () => {
 
     const delegatedRequest = frontend001Service.sendAssistantMessage.mock.calls[0]?.[0] as Readonly<Record<string, unknown>>;
 
-    expect(JSON.stringify(transport)).not.toMatch(/createAssistantClient|new AssistantService|packageBackendProxy/);
+    expect(JSON.stringify(transport)).not.toMatch(/createAssistantClient|new AssistantService|AssistantService|packageBackendProxy/);
     expect(JSON.stringify(transport)).not.toMatch(/\/api\/v1\/assistant\/host-integration|modeSpecificEndpoint/);
     expect(delegatedRequest).toEqual(expect.objectContaining({
       request: packageBuiltRequest.request,
@@ -126,6 +143,34 @@ describe("Frontend 002 default transport reuse boundary", () => {
       expect(delegatedRequest, `Default transport must not add ${forbiddenField}.`).not.toHaveProperty(forbiddenField);
       expect(packageBuiltRequest.request, `Default transport must not rewrite request with ${forbiddenField}.`).not.toHaveProperty(forbiddenField);
     }
+  });
+
+  it("does not own SSE parsing, session lifecycle, retry/cancel/timeout/interrupted, or safe outcome state", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const transport = createDefaultTransport({
+      frontend001Service: {
+        sendAssistantMessage: vi.fn(async () => ({ ok: true })),
+      },
+    }) as DefaultTransport;
+    const serializedTransport = JSON.stringify(transport);
+
+    for (const forbiddenProperty of [
+      "parseSse",
+      "parseAssistantSse",
+      "createSseParser",
+      "retry",
+      "cancel",
+      "timeout",
+      "interrupted",
+      "errorFlow",
+      "outcomeState",
+    ] as const) {
+      expect(transport[forbiddenProperty], `Default transport must not expose ${forbiddenProperty}; Shared Runtime owns runtime lifecycle.`).toBeUndefined();
+    }
+
+    expect(serializedTransport).not.toMatch(/parseSse|parseAssistantSse|createSseParser|retry|cancel|timeout|interrupted|errorFlow|outcomeState/);
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("SSE parser");
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("session state machine");
   });
 
   it("preserves frontend mode values as request-builder inputs, not backend routes or transport-owned modes", () => {

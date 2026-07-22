@@ -1,4 +1,4 @@
-import { getActivePinia } from "pinia";
+import { defineStore, getActivePinia } from "pinia";
 import type { AssistantPanelAvailability } from "../../types/assistant";
 import {
   createAssistantRuntimeStores,

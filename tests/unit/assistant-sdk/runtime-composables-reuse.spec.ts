@@ -4,12 +4,24 @@ import { fileURLToPath } from "node:url";
 import { basename, join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  canonicalFrontend001ComposableFiles,
+  canonicalSharedRuntimeBoundary,
+  forbiddenActiveSdkAppImportPatterns,
+  frontend001NuxtAdapterBoundary,
+  frontend002SdkAdapterBoundary,
+  legacyRuntimeBridgeClassification,
+  legacyRuntimeBridgeFilePaths,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
+import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
 const projectRoot = new URL("../../../", import.meta.url);
 const projectRootPath = fileURLToPath(projectRoot);
 const sdkSourcePath = fileURLToPath(new URL("packages/assistant-sdk/src", projectRoot));
+
+const frontend001AdapterComposableFiles = [
+  "app/features/assistant/composables/useChat.ts",
+  "app/features/assistant/composables/useAssistantSession.ts",
+  "app/features/assistant/composables/useAssistantSseStream.ts",
+] as const;
 
 const forbiddenDuplicateComposableFileNames = [
   "useChat.ts",
@@ -68,24 +80,37 @@ async function collectFiles(directory: string): Promise<string[]> {
   return files.flat();
 }
 
+function normalizeRelativePath(path: string): string {
+  return path.replaceAll("\\", "/");
+}
+
+function isLegacyBridgePath(relativePath: string): boolean {
+  return legacyRuntimeBridgeFilePaths.includes(normalizeRelativePath(relativePath) as typeof legacyRuntimeBridgeFilePaths[number]);
+}
+
 async function readSdkSources() {
   const files = (await collectFiles(sdkSourcePath))
     .filter(file => /\.(ts|vue)$/.test(file));
 
   return Promise.all(
     files.map(async file => ({
-      relativePath: relative(projectRootPath, file),
+      relativePath: normalizeRelativePath(relative(projectRootPath, file)),
       source: await readFile(file, "utf8"),
     })),
   );
 }
 
-describe("Frontend 002 composable runtime reuse boundary", () => {
-  it("keeps Frontend 001 composables as canonical runtime owners", async () => {
-    for (const composableFile of canonicalFrontend001ComposableFiles) {
+describe("Frontend 002 composable runtime adapter boundary", () => {
+  it("classifies Frontend 001 composables as Nuxt adapter glue over Shared Runtime", async () => {
+    expect(canonicalSharedRuntimeBoundary.sourceRoot).toBe("packages/assistant-runtime/src");
+    expect(frontend001NuxtAdapterBoundary.allowedResponsibilities).toContain("Nuxt runtime config");
+    expect(frontend002SdkAdapterBoundary.allowedResponsibilities).toContain("provider/context resolution");
+    expect(assistantRuntimeTransportOwnership.sharedRuntimeOwns).toContain("retry/cancel/timeout/interrupted state");
+
+    for (const composableFile of frontend001AdapterComposableFiles) {
       expect(
         await pathExists(fileURLToPath(new URL(composableFile, projectRoot))),
-        composableFile,
+        `${composableFile} remains FE001 adapter/product coverage, not reusable SDK runtime ownership.`,
       ).toBe(true);
     }
   });
@@ -94,10 +119,10 @@ describe("Frontend 002 composable runtime reuse boundary", () => {
     const sourceFiles = await collectFiles(sdkSourcePath);
 
     for (const file of sourceFiles) {
-      const relativePath = relative(projectRootPath, file);
+      const relativePath = normalizeRelativePath(relative(projectRootPath, file));
       const fileName = basename(file);
 
-      expect(forbiddenDuplicateComposableFileNames, `${relativePath} must not duplicate canonical Frontend 001 composables.`).not.toContain(fileName);
+      expect(forbiddenDuplicateComposableFileNames, `${relativePath} must not duplicate Frontend 001 adapter composables.`).not.toContain(fileName);
 
       for (const forbiddenPattern of forbiddenComposableFilePatterns) {
         expect(relativePath, relativePath).not.toMatch(forbiddenPattern);
@@ -110,8 +135,24 @@ describe("Frontend 002 composable runtime reuse boundary", () => {
 
     for (const { relativePath, source } of sourceFiles) {
       for (const forbiddenPattern of forbiddenLocalRuntimeImplementationPatterns) {
-        expect(source, `${relativePath} must reuse Frontend 001 composable behavior instead of implementing ${forbiddenPattern}.`).not.toMatch(forbiddenPattern);
+        expect(source, `${relativePath} must remain SDK adapter code and leave lifecycle ownership in Shared Runtime.`).not.toMatch(forbiddenPattern);
       }
+    }
+  });
+
+  it("does not active-import Frontend 001 composables outside documented legacy bridges", async () => {
+    const sourceFiles = await readSdkSources();
+
+    for (const { relativePath, source } of sourceFiles) {
+      const hasFrontend001ComposableImport = /app\/features\/assistant\/composables\//.test(source)
+        || forbiddenActiveSdkAppImportPatterns.some(pattern => pattern.test(source));
+
+      if (isLegacyBridgePath(relativePath)) {
+        expect(legacyRuntimeBridgeClassification.status).toBe("legacy bridge pending T137 removal");
+        continue;
+      }
+
+      expect(hasFrontend001ComposableImport, `${relativePath} must not active-import Frontend 001 composables as final SDK architecture.`).toBe(false);
     }
   });
 });

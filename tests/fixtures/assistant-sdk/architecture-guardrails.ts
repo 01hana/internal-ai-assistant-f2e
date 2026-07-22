@@ -17,7 +17,27 @@ export const canonicalSharedRuntimeBoundary = {
   packageName: "@internal-ai-assistant/assistant-runtime",
   root: "packages/assistant-runtime",
   sourceRoot: "packages/assistant-runtime/src",
-  role: "future reusable canonical runtime owner",
+  role: "reusable canonical runtime owner",
+} as const;
+
+export const frontend001NuxtAdapterBoundary = {
+  role: "Frontend 001 Nuxt Adapter / product behavior baseline",
+  allowedResponsibilities: [
+    "Nuxt runtime config",
+    "Nuxt HTTP/auth/headers",
+    "route/page wiring",
+    "product shell regression coverage",
+  ],
+} as const;
+
+export const frontend002SdkAdapterBoundary = {
+  role: "Frontend 002 SDK Adapter / public package boundary",
+  allowedResponsibilities: [
+    "provider/context resolution",
+    "request builder",
+    "forbidden outgoing field gate",
+    "default/injected transport execution",
+  ],
 } as const;
 
 export const canonicalFrontend001ComposableFiles = [
@@ -43,6 +63,33 @@ export const approvedRuntimeBridgeFilePatterns = [
   /(^|\/)packages\/assistant-sdk\/src\/runtime\/sessionAdapter\.ts$/,
   /(^|\/)packages\/assistant-sdk\/src\/runtime\/sseStreamAdapter\.ts$/,
   /(^|\/)packages\/assistant-sdk\/src\/runtime\/serviceAdapter\.ts$/,
+] as const;
+
+export const legacyRuntimeBridgeFilePaths = [
+  "packages/assistant-sdk/src/runtime/frontend001Runtime.ts",
+  "packages/assistant-sdk/src/runtime/chatWidgetAdapter.ts",
+  "packages/assistant-sdk/src/runtime/composableAdapter.ts",
+  "packages/assistant-sdk/src/runtime/sessionAdapter.ts",
+  "packages/assistant-sdk/src/runtime/sseStreamAdapter.ts",
+  "packages/assistant-sdk/src/runtime/serviceAdapter.ts",
+  "packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts",
+] as const;
+
+export const legacyRuntimeBridgeClassification = {
+  status: "legacy bridge pending T137 removal",
+  terminalTask: "T137",
+  terminalState: "removed or replaced by SDK adapters over Shared Canonical Assistant Runtime",
+} as const;
+
+export const forbiddenActiveSdkAppImportPatterns = [
+  /\bfrom\s+["'][^"']*app\/features\//,
+  /\bfrom\s+["'][^"']*app\/services\//,
+  /\bfrom\s+["'][^"']*app\/stores\//,
+  /\bfrom\s+["'][^"']*app\/utils\//,
+  /\bimport\s*\([^)]*["'][^"']*app\/features\//,
+  /\bimport\s*\([^)]*["'][^"']*app\/services\//,
+  /\bimport\s*\([^)]*["'][^"']*app\/stores\//,
+  /\bimport\s*\([^)]*["'][^"']*app\/utils\//,
 ] as const;
 
 export const forbiddenDuplicateRuntimeFilePatterns = [
