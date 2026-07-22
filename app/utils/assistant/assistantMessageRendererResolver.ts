@@ -4,8 +4,13 @@ import type {
   AssistantStreamingUiMessage,
   AnswerDecisionUiState,
   HistoryMessageSummary,
+  NoAnswerReason,
   ResolvedAssistantMessageRenderer,
 } from '../../types/assistant'
+import {
+  isToolFailureDecision as isToolFailureDecisionState,
+  resolveAnswerDecisionKind,
+} from '../../../packages/assistant-runtime/src/outcomes'
 
 function isUiMessage(
   message: AssistantRenderableMessage,
@@ -40,30 +45,23 @@ function getDecisionKind(
   message: AssistantRenderableMessage,
 ): AnswerDecisionUiState['kind'] | null {
   if (isCompletedStreamingMessage(message)) {
-    return message.finalDecisionState?.kind ?? message.finalAnswerDecision ?? null
+    return resolveAnswerDecisionKind({
+      finalAnswerDecision: message.finalAnswerDecision,
+      finalDecisionState: message.finalDecisionState,
+    })
   }
 
   if (isAssistantHistoryMessage(message)) {
-    return message.answerDecision ?? null
+    return resolveAnswerDecisionKind({
+      answerDecision: message.answerDecision,
+    })
   }
 
   if (!isUiMessage(message)) {
     return null
   }
 
-  switch (message.kind) {
-    case 'clarification':
-      return 'clarification_required'
-    case 'no_answer':
-    case 'tool_failure':
-      return 'no_answer'
-    case 'permission_denied':
-      return 'permission_denied'
-    case 'escalation':
-      return 'escalation_required'
-    default:
-      return null
-  }
+  return resolveAnswerDecisionKind({ kind: message.kind })
 }
 
 function getUnsupportedFallbackKind(
@@ -114,7 +112,9 @@ function isToolFailureDecision(
     isCompletedStreamingMessage(message) &&
     message.finalDecisionState?.kind === 'no_answer'
   ) {
-    return message.finalDecisionState.noAnswerReason === 'tool_failure'
+    return isToolFailureDecisionState({
+      finalDecisionState: message.finalDecisionState,
+    })
   }
 
   if (
@@ -122,10 +122,19 @@ function isToolFailureDecision(
     message.answerDecision === 'no_answer' &&
     'noAnswerReason' in message
   ) {
-    return message.noAnswerReason === 'tool_failure'
+    const noAnswerReason = typeof message.noAnswerReason === 'string'
+      ? message.noAnswerReason as NoAnswerReason
+      : undefined
+
+    return isToolFailureDecisionState({
+      answerDecision: message.answerDecision,
+      noAnswerReason,
+    })
   }
 
-  return isUiMessage(message) && message.kind === 'tool_failure'
+  return isUiMessage(message) && isToolFailureDecisionState({
+    kind: message.kind,
+  })
 }
 
 function createResolvedMessage(

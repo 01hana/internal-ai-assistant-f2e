@@ -20,5 +20,13 @@
   "peerDependencies": {
     "vue": "^3.5.39",
     "nuxt": "^4.4.8"
+  },
+  "peerDependenciesMeta": {
+    "nuxt": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "pinia": "^3.0.4"
   }
 }

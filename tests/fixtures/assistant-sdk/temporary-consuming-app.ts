@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { constants as fsConstants } from "node:fs";
 import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { basename, isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -60,6 +59,17 @@ async function symlinkProjectDependency(consumerRoot: string, dependencyName: st
   await symlink(projectDependencyPath, consumerDependencyPath, "dir");
 }
 
+async function stagePackedSdkIntoConsumer(consumerRoot: string, tarballPath: string) {
+  const installedPackageRoot = join(consumerRoot, "node_modules/@internal-ai-assistant/assistant-sdk");
+
+  await mkdir(installedPackageRoot, { recursive: true });
+  await execFileAsync("tar", ["-xzf", tarballPath, "-C", installedPackageRoot, "--strip-components=1"], {
+    timeout: 20_000,
+  });
+
+  return installedPackageRoot;
+}
+
 export async function createTemporaryConsumingApp(
   options: {
     readonly source?: string;
@@ -87,23 +97,10 @@ export async function createTemporaryConsumingApp(
   await writeFile(sourceFile, options.source ?? createPublicOnlyConsumerSource(), "utf8");
   await writeFile(runtimeBridgeFile, `export * from ${JSON.stringify(sdkPackageName)};\n`, "utf8");
 
-  await execFileAsync("npm", [
-    "install",
-    "--ignore-scripts",
-    "--no-audit",
-    "--no-fund",
-    "--package-lock=false",
-    "--legacy-peer-deps",
-  ], {
-    cwd: root,
-    env: {
-      ...process.env,
-      npm_config_cache: join(temporaryRootPath, "assistant-sdk-productized-pack-cache"),
-    },
-  });
+  const installedPackageRoot = await stagePackedSdkIntoConsumer(root, tarballPath);
   await symlinkProjectDependency(root, "vue");
+  await symlinkProjectDependency(root, "pinia");
 
-  const installedPackageRoot = join(root, "node_modules/@internal-ai-assistant/assistant-sdk");
   const installedManifest = JSON.parse(await readFile(join(installedPackageRoot, "package.json"), "utf8")) as {
     readonly exports?: {
       readonly "."?: {
@@ -114,9 +111,6 @@ export async function createTemporaryConsumingApp(
   };
   const resolvedEntryPath = join(installedPackageRoot, installedManifest.exports?.["."]?.import ?? "dist/index.mjs");
   const resolvedStylesPath = join(installedPackageRoot, installedManifest.exports?.["./styles.css"] ?? "styles.css");
-  const requireFromConsumer = createRequire(runtimeBridgeFile);
-
-  requireFromConsumer.resolve(sdkStylesSpecifier);
 
   return {
     cleanup: () => rm(root, { recursive: true, force: true }),

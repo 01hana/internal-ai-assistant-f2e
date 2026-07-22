@@ -4,18 +4,19 @@ import type {
   AssistantStreamingUiMessage,
   AssistantSystemStateMessage,
   HistoryMessageSummary,
+  OpenApprovalDetailPayload,
 } from "../../../types/assistant";
+import {
+  createOpenApprovalDetailPayload,
+  getApprovalRequestStatusLabel,
+  getApprovalRiskLabel,
+  normalizeApprovalSummaryRows,
+} from "../../../../packages/assistant-runtime/src";
 
 type ApprovalRenderableMessage =
   | AssistantStreamingUiMessage
   | AssistantSystemStateMessage
   | (HistoryMessageSummary & { role: "assistant" });
-
-interface SummaryRow {
-  key: string;
-  label: string;
-  value: string;
-}
 
 const props = withDefaults(
   defineProps<{
@@ -30,7 +31,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  openDetail: [payload: { approvalRequestId: string }];
+  openDetail: [payload: OpenApprovalDetailPayload];
 }>();
 
 const expiresAtFormatter = new Intl.DateTimeFormat("zh-TW", {
@@ -39,27 +40,6 @@ const expiresAtFormatter = new Intl.DateTimeFormat("zh-TW", {
   hour12: false,
   timeZone: "Asia/Taipei",
 });
-
-function normalizeSummaryRows(
-  summary: Record<string, unknown> | undefined,
-): SummaryRow[] {
-  if (!summary) {
-    return [];
-  }
-
-  return Object.entries(summary)
-    .filter(([, value]) =>
-      typeof value === "string"
-      || typeof value === "number"
-      || typeof value === "boolean"
-      || value === null,
-    )
-    .map(([key, value]) => ({
-      key,
-      label: key,
-      value: value === null ? "null" : String(value),
-    }));
-}
 
 const approvalRequestId = computed(() => {
   if (props.approvalRequestState?.approvalRequestId) {
@@ -104,39 +84,19 @@ const openDetailFailedMessage = computed(
     ?? "目前無法開啟審核詳情，請稍後再試。",
 );
 
-const statusLabel = computed(() => {
-  switch (props.approvalRequestState?.status) {
-    case "pending":
-      return "待處理";
-    case "approved":
-      return "已處理";
-    case "rejected":
-      return "未通過";
-    case "cancelled":
-      return "已停止";
-    case "expired":
-      return "已過期";
-    default:
-      return null;
-  }
-});
+const statusLabel = computed(() =>
+  getApprovalRequestStatusLabel(props.approvalRequestState?.status),
+);
 
-const riskLabel = computed(() => {
-  switch (props.approvalRequestState?.riskLevel) {
-    case "high":
-      return "高";
-    case "critical":
-      return "重大";
-    default:
-      return null;
-  }
-});
+const riskLabel = computed(() =>
+  getApprovalRiskLabel(props.approvalRequestState?.riskLevel),
+);
 
 const actionSummaryRows = computed(() =>
-  normalizeSummaryRows(props.approvalRequestState?.actionSummary),
+  normalizeApprovalSummaryRows(props.approvalRequestState?.actionSummary),
 );
 const payloadSummaryRows = computed(() =>
-  normalizeSummaryRows(props.approvalRequestState?.payloadSummary),
+  normalizeApprovalSummaryRows(props.approvalRequestState?.payloadSummary),
 );
 const evidenceRefIds = computed(
   () => props.approvalRequestState?.evidenceRefIds ?? [],
@@ -162,9 +122,15 @@ function emitOpenDetail() {
     return;
   }
 
-  emit("openDetail", {
-    approvalRequestId: approvalRequestId.value,
-  });
+  emit(
+    "openDetail",
+    createOpenApprovalDetailPayload({
+      approvalRequestId: approvalRequestId.value,
+      requestId: props.approvalRequestState?.requestId,
+      messageId: props.approvalRequestState?.messageId,
+      sessionId: props.approvalRequestState?.sessionId,
+    }),
+  );
 }
 </script>
 

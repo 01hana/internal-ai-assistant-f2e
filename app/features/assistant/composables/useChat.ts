@@ -12,13 +12,20 @@ import type {
   AssistantSessionScope,
   AssistantStreamingUiMessage,
   OpenApprovalDetailPayload,
-  FeedbackRequest,
   ResolvedAssistantIdentityHeaders,
   UserUiMessage,
 } from "../../../types/assistant";
 import { resolveDefaultSessionScope } from "../../../utils/assistant/defaultSessionScopeResolver";
 import { generateAssistantRequestId } from "../../../utils/assistant/requestIdGenerator";
 import type { AssistantSessionRecoveryReason } from "../../../utils/assistant/sessionRecovery";
+import {
+  mapFeedbackValueToRequest,
+  createUserRuntimeMessage,
+  createAssistantStreamingRuntimeMessage,
+  resolveRetrySourceText as resolveRuntimeRetrySourceText,
+} from "../../../../packages/assistant-runtime/src";
+import type { AssistantRuntimeController } from "../../../../packages/assistant-runtime/src";
+import { getCurrentScope, onScopeDispose } from "vue";
 
 export interface UseChatOptions {
   hostContextProvider?: AssistantHostContextProvider;
@@ -88,6 +95,40 @@ const UNAVAILABLE_MESSAGE = {
   content: "目前無法完成這次回覆，請稍後再試。",
 } as const;
 
+const runtimeControllerConsumers = new WeakMap<
+  AssistantRuntimeController<unknown>,
+  number
+>();
+
+function registerRuntimeControllerConsumer(
+  runtimeController: AssistantRuntimeController<unknown>,
+  onLastConsumerDispose?: () => Promise<void> | void,
+) {
+  if (!getCurrentScope()) {
+    return;
+  }
+
+  const currentConsumers = runtimeControllerConsumers.get(runtimeController) ?? 0;
+  if (currentConsumers === 0) {
+    runtimeController.reset();
+  }
+
+  runtimeControllerConsumers.set(runtimeController, currentConsumers + 1);
+
+  onScopeDispose(() => {
+    const nextConsumers = (runtimeControllerConsumers.get(runtimeController) ?? 1) - 1;
+
+    if (nextConsumers > 0) {
+      runtimeControllerConsumers.set(runtimeController, nextConsumers);
+      return;
+    }
+
+    runtimeControllerConsumers.delete(runtimeController);
+    void Promise.resolve(onLastConsumerDispose?.())
+      .finally(() => runtimeController.cleanup());
+  });
+}
+
 function syncLatestAvailabilityState(
   snapshot: AssistantHostContextSnapshot,
   sessionStore: ReturnType<typeof useAssistantSessionStore>,
@@ -138,22 +179,6 @@ function syncLatestAvailabilityState(
   };
 }
 
-function mapFeedbackValueToRequest(
-  value: AssistantFeedbackValue,
-): FeedbackRequest {
-  if (value === "helpful") {
-    return {
-      rating: "positive",
-      intent: "other",
-    };
-  }
-
-  return {
-    rating: "negative",
-    intent: "not_helpful",
-  };
-}
-
 export function useChat(options: UseChatOptions = {}) {
   const widgetStore = useChatWidgetStore();
   const hostContextProvider =
@@ -171,6 +196,12 @@ export function useChat(options: UseChatOptions = {}) {
     terminalRecoveryMode: "manual_restart",
   });
   const sessionStore = assistantSession.store;
+  const runtimeController = sessionStore.runtimeController;
+  let resetStreamOnDispose: (() => Promise<void> | void) | null = null;
+  registerRuntimeControllerConsumer(
+    runtimeController as unknown as AssistantRuntimeController<unknown>,
+    () => resetStreamOnDispose?.(),
+  );
   const {
     messages,
     nextCursor,
@@ -192,18 +223,18 @@ export function useChat(options: UseChatOptions = {}) {
     callbacks: {
       onEvent: (event) => {
         if (event.eventType !== "final") {
-          sessionStore.applyStreamingEvent(event);
+          runtimeController.applyStreamingEvent(event);
         }
       },
       onUnknownEvent: ({ event }) => {
-        sessionStore.recordUnknownStreamingEvent(
+        runtimeController.recordUnknownStreamingEvent(
           event.requestId,
           event.messageId,
           event.sequence,
         );
       },
       onFinal: (event) => {
-        sessionStore.finalizeActiveStreamingMessage(event);
+        runtimeController.finalizeActiveStreamingMessage(event);
         if (
           event.data.answerDecision === "confirmation_required"
           && event.data.actionDraftId
@@ -225,26 +256,27 @@ export function useChat(options: UseChatOptions = {}) {
         }
       },
       onComplete: () => {
-        sessionStore.clearStreamingState();
+        runtimeController.clearStreamingState();
       },
       onAbort: () => {
-        sessionStore.markStreamingCancelled();
-        sessionStore.clearStreamingState();
+        runtimeController.markStreamingCancelled();
+        runtimeController.clearStreamingState();
       },
       onInterrupted: () => {
-        sessionStore.markStreamingInterrupted();
-        sessionStore.clearStreamingState();
+        runtimeController.markStreamingInterrupted();
+        runtimeController.clearStreamingState();
       },
       onTimeout: () => {
-        sessionStore.markStreamingFailed();
-        sessionStore.clearStreamingState();
+        runtimeController.markStreamingFailed();
+        runtimeController.clearStreamingState();
       },
       onTransportError: () => {
-        sessionStore.markStreamingFailed();
-        sessionStore.clearStreamingState();
+        runtimeController.markStreamingFailed();
+        runtimeController.clearStreamingState();
       },
     },
   });
+  resetStreamOnDispose = () => stream.reset();
 
   let bootstrapTask: Promise<void> | null = null;
 
@@ -478,37 +510,24 @@ export function useChat(options: UseChatOptions = {}) {
         ...latestSnapshot.identityHeaders,
         "x-request-id": requestId,
       } satisfies ResolvedAssistantIdentityHeaders;
-      const createdAt = new Date().toISOString();
-      const userMessageKey = `local-user:${requestId}`;
       const assistantMessageKey = `stream:${requestId}`;
-      const userMessage = {
-        key: userMessageKey,
-        messageId: userMessageKey,
+      const createdAt = new Date().toISOString();
+      const userMessage = createUserRuntimeMessage({
         requestId,
-        kind: "user",
-        role: "user",
         content: normalizedText,
         createdAt,
-      } satisfies UserUiMessage;
-      const assistantPlaceholder = {
+      }) satisfies UserUiMessage;
+      const assistantPlaceholder = createAssistantStreamingRuntimeMessage({
         key: assistantMessageKey,
         requestId,
-        kind: "assistant_streaming",
-        role: "assistant",
-        content: "",
         createdAt,
-        status: "sending",
-        lastSequence: null,
         typingVisibleUntil: Date.now() + 600,
-        pendingContent: "",
-        evidence: [],
-        activities: [],
-      } satisfies AssistantStreamingUiMessage;
+      }) as AssistantStreamingUiMessage;
 
-      sessionStore.appendUserMessage(userMessage);
-      sessionStore.appendAssistantStreamingPlaceholder(assistantPlaceholder);
-      sessionStore.setStreamingRequest(requestId, assistantMessageKey);
-      sessionStore.markStreamingStarted();
+      runtimeController.appendUserMessage(userMessage);
+      runtimeController.appendAssistantStreamingPlaceholder(assistantPlaceholder);
+      runtimeController.setStreamingRequest(requestId, assistantMessageKey);
+      runtimeController.markStreamingStarted();
 
       await stream.start({
         sessionId,
@@ -553,44 +572,7 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   function resolveRetrySourceText(messageKey: string): string | null {
-    const currentMessages = messages.value;
-    const targetIndex = currentMessages.findIndex(
-      (message) => "key" in message && message.key === messageKey,
-    );
-
-    if (targetIndex === -1) {
-      return null;
-    }
-
-    const targetMessage = currentMessages[targetIndex];
-    if (!targetMessage || !("kind" in targetMessage)) {
-      return null;
-    }
-
-    if (
-      targetMessage.kind === "assistant_streaming" &&
-      ["interrupted", "failed", "cancelled"].includes(targetMessage.status)
-    ) {
-      for (let index = targetIndex - 1; index >= 0; index -= 1) {
-        const candidate = currentMessages[index];
-        if (candidate && candidate.role === "user" && candidate.content.trim()) {
-          return candidate.content;
-        }
-      }
-
-      return null;
-    }
-
-    if (targetMessage.kind === "degraded") {
-      for (let index = currentMessages.length - 1; index >= 0; index -= 1) {
-        const candidate = currentMessages[index];
-        if (candidate && candidate.role === "user" && candidate.content.trim()) {
-          return candidate.content;
-        }
-      }
-    }
-
-    return null;
+    return resolveRuntimeRetrySourceText(messages.value, messageKey);
   }
 
   async function retryMessage(messageKey: string): Promise<boolean> {
@@ -651,22 +633,20 @@ export function useChat(options: UseChatOptions = {}) {
       requestId?: string;
     } = {},
   ): Promise<boolean> {
-    const currentState = sessionStore.getActionDraftState(actionDraftId);
-    if (
-      currentState.detailStatus === "loading"
-      || currentState.detailStatus === "available"
-    ) {
-      return currentState.detailStatus === "available";
+    const eligibility = runtimeController.prepareActionDraftDetailLoad(actionDraftId);
+    if (!eligibility.allowed) {
+      return eligibility.reason === "available";
     }
 
-    sessionStore.startActionDraftDetailLoad(actionDraftId, options);
+    runtimeController.startActionDraftDetailLoad(actionDraftId, options);
 
     try {
       const identityHeaders = await getActionDraftIdentityHeaders();
       if (!identityHeaders) {
-        sessionStore.failActionDraftDetailLoad(
+        runtimeController.failActionDraftDetailLoad(
           actionDraftId,
           ACTION_DRAFT_DETAIL_ERROR_MESSAGE,
+          { requestId: options.requestId },
         );
         return false;
       }
@@ -674,13 +654,16 @@ export function useChat(options: UseChatOptions = {}) {
       const response = await assistantService.getActionDraft(actionDraftId, {
         identityHeaders,
       });
-      sessionStore.completeActionDraftDetailLoad(response.data);
+      runtimeController.completeActionDraftDetailLoad(response.data, {
+        requestId: options.requestId,
+      });
       return true;
     }
     catch {
-      sessionStore.failActionDraftDetailLoad(
+      runtimeController.failActionDraftDetailLoad(
         actionDraftId,
         ACTION_DRAFT_DETAIL_ERROR_MESSAGE,
+        { requestId: options.requestId },
       );
       return false;
     }
@@ -694,20 +677,17 @@ export function useChat(options: UseChatOptions = {}) {
       sessionId?: string | null;
     } = {},
   ): Promise<boolean> {
-    const currentState = sessionStore.getApprovalRequestState(approvalRequestId);
-    if (
-      currentState.detailStatus === "loading"
-      || currentState.detailStatus === "available"
-    ) {
-      return currentState.detailStatus === "available";
+    const eligibility = runtimeController.prepareApprovalRequestDetailLoad(approvalRequestId);
+    if (!eligibility.allowed) {
+      return eligibility.reason === "available";
     }
 
-    sessionStore.startApprovalRequestDetailLoad(approvalRequestId, options);
+    runtimeController.startApprovalRequestDetailLoad(approvalRequestId, options);
 
     try {
       const identityHeaders = await getApprovalRequestIdentityHeaders();
       if (!identityHeaders) {
-        sessionStore.failApprovalRequestDetailLoad(
+        runtimeController.failApprovalRequestDetailLoad(
           approvalRequestId,
           APPROVAL_REQUEST_DETAIL_ERROR_MESSAGE,
         );
@@ -720,11 +700,11 @@ export function useChat(options: UseChatOptions = {}) {
           identityHeaders,
         },
       );
-      sessionStore.completeApprovalRequestDetailLoad(response.data);
+      runtimeController.completeApprovalRequestDetailLoad(response.data);
       return true;
     }
     catch {
-      sessionStore.failApprovalRequestDetailLoad(
+      runtimeController.failApprovalRequestDetailLoad(
         approvalRequestId,
         APPROVAL_REQUEST_DETAIL_ERROR_MESSAGE,
       );
@@ -733,27 +713,13 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   async function confirmActionDraft(actionDraftId: ActionDraftId): Promise<boolean> {
-    const currentState = sessionStore.getActionDraftState(actionDraftId);
-
-    if (
-      currentState.detailStatus !== "available"
-      || currentState.operationStatus === "confirming"
-      || currentState.operationStatus === "cancelling"
-      || currentState.operationStatus === "pending_execution_guard"
-      || currentState.operationStatus === "submitted"
-      || currentState.operationStatus === "executed"
-      || currentState.operationStatus === "cancelled"
-      || currentState.operationStatus === "expired"
-      || currentState.actionDraftStatus === "cancelled"
-      || currentState.actionDraftStatus === "expired"
-      || currentState.actionDraftStatus === "executed"
-      || currentState.actionDraftStatus === "failed"
-    ) {
+    const eligibility = runtimeController.prepareActionDraftConfirmation(actionDraftId);
+    if (!eligibility.allowed || !eligibility.idempotencyKey) {
       return false;
     }
 
-    const idempotencyKey = generateAssistantRequestId({ prefix: "confirm" });
-    sessionStore.setActionDraftOperationStatus(actionDraftId, "confirming", {
+    const idempotencyKey = eligibility.idempotencyKey;
+    runtimeController.setActionDraftOperationStatus(actionDraftId, "confirming", {
       idempotencyKey,
       safeMessage: undefined,
     });
@@ -761,9 +727,11 @@ export function useChat(options: UseChatOptions = {}) {
     try {
       const identityHeaders = await getActionDraftIdentityHeaders();
       if (!identityHeaders) {
-        sessionStore.failActionDraftOperation(
+        runtimeController.failActionDraftOperation(
           actionDraftId,
           ACTION_DRAFT_CONFIRM_ERROR_MESSAGE,
+          "failed",
+          { idempotencyKey },
         );
         return false;
       }
@@ -777,7 +745,7 @@ export function useChat(options: UseChatOptions = {}) {
           identityHeaders,
         },
       );
-      sessionStore.completeActionDraftOperation(
+      runtimeController.completeActionDraftOperation(
         actionDraftId,
         response.data.status,
         {
@@ -788,45 +756,36 @@ export function useChat(options: UseChatOptions = {}) {
       return true;
     }
     catch {
-      sessionStore.failActionDraftOperation(
+      runtimeController.failActionDraftOperation(
         actionDraftId,
         ACTION_DRAFT_CONFIRM_ERROR_MESSAGE,
+        "failed",
+        { idempotencyKey },
       );
       return false;
     }
   }
 
   async function cancelActionDraft(actionDraftId: ActionDraftId): Promise<boolean> {
-    const currentState = sessionStore.getActionDraftState(actionDraftId);
-
-    if (
-      currentState.detailStatus !== "available"
-      || currentState.operationStatus === "confirming"
-      || currentState.operationStatus === "cancelling"
-      || currentState.operationStatus === "pending_execution_guard"
-      || currentState.operationStatus === "submitted"
-      || currentState.operationStatus === "executed"
-      || currentState.operationStatus === "cancelled"
-      || currentState.operationStatus === "expired"
-      || currentState.actionDraftStatus === "cancelled"
-      || currentState.actionDraftStatus === "expired"
-      || currentState.actionDraftStatus === "executed"
-      || currentState.actionDraftStatus === "failed"
-    ) {
+    const eligibility = runtimeController.prepareActionDraftCancellation(actionDraftId);
+    if (!eligibility.allowed) {
       return false;
     }
 
-    sessionStore.setActionDraftOperationStatus(actionDraftId, "cancelling", {
-      idempotencyKey: currentState.idempotencyKey ?? null,
+    const idempotencyKey = eligibility.idempotencyKey;
+    runtimeController.setActionDraftOperationStatus(actionDraftId, "cancelling", {
+      idempotencyKey,
       safeMessage: undefined,
     });
 
     try {
       const identityHeaders = await getActionDraftIdentityHeaders();
       if (!identityHeaders) {
-        sessionStore.failActionDraftOperation(
+        runtimeController.failActionDraftOperation(
           actionDraftId,
           ACTION_DRAFT_CANCEL_ERROR_MESSAGE,
+          "failed",
+          { idempotencyKey },
         );
         return false;
       }
@@ -837,19 +796,21 @@ export function useChat(options: UseChatOptions = {}) {
           identityHeaders,
         },
       );
-      sessionStore.completeActionDraftOperation(
+      runtimeController.completeActionDraftOperation(
         actionDraftId,
         response.data.status,
         {
-          idempotencyKey: currentState.idempotencyKey ?? null,
+          idempotencyKey,
         },
       );
       return true;
     }
     catch {
-      sessionStore.failActionDraftOperation(
+      runtimeController.failActionDraftOperation(
         actionDraftId,
         ACTION_DRAFT_CANCEL_ERROR_MESSAGE,
+        "failed",
+        { idempotencyKey },
       );
       return false;
     }
@@ -860,20 +821,15 @@ export function useChat(options: UseChatOptions = {}) {
     value: AssistantFeedbackValue;
     requestId?: AssistantRequestId | null;
   }): Promise<boolean> {
-    const currentState = sessionStore.getFeedbackState(input.messageId);
-
-    if (currentState.pending) {
+    const eligibility = runtimeController.prepareFeedbackSubmission(input);
+    if (!eligibility.allowed) {
       return false;
     }
 
-    if (currentState.value === input.value && currentState.error === null) {
-      return false;
-    }
+    const previousValue = eligibility.previousValue;
+    const linkedRequestId = eligibility.linkedRequestId;
 
-    const previousValue = currentState.value;
-    const linkedRequestId = input.requestId ?? currentState.requestId ?? null;
-
-    sessionStore.startFeedbackSubmission(
+    runtimeController.startFeedbackSubmission(
       input.messageId,
       input.value,
       linkedRequestId,
@@ -902,11 +858,13 @@ export function useChat(options: UseChatOptions = {}) {
         },
       );
 
-      sessionStore.completeFeedbackSubmission(input.messageId);
+      runtimeController.completeFeedbackSubmission(input.messageId, {
+        requestId: linkedRequestId,
+      });
       return true;
     }
     catch {
-      sessionStore.failFeedbackSubmission(
+      runtimeController.failFeedbackSubmission(
         input.messageId,
         previousValue,
         linkedRequestId,
@@ -919,37 +877,43 @@ export function useChat(options: UseChatOptions = {}) {
   async function openApprovalDetail(
     payload: OpenApprovalDetailPayload,
   ): Promise<void> {
-    sessionStore.ensureApprovalRequestState(payload.approvalRequestId, {
+    runtimeController.ensureApprovalRequestState(payload.approvalRequestId, {
       messageId: payload.messageId,
       requestId: payload.requestId,
       sessionId: payload.sessionId,
     });
 
+    const eligibility = runtimeController.prepareApprovalRequestOpenDetail(
+      payload.approvalRequestId,
+    );
+    if (!eligibility.allowed) {
+      return;
+    }
+
+    const previousError = hostContext.lastError.value;
+    runtimeController.startApprovalRequestOpenDetail(payload.approvalRequestId);
     const latest = await hostContext.getLatestSnapshot("approval_detail");
 
     if (!latest.onOpenApprovalDetail) {
-      sessionStore.failApprovalRequestOpenDetail(
+      runtimeController.failApprovalRequestOpenDetail(
         payload.approvalRequestId,
         APPROVAL_REQUEST_OPEN_DETAIL_UNAVAILABLE_MESSAGE,
       );
       return;
     }
 
-    const previousError = hostContext.lastError.value;
-    sessionStore.startApprovalRequestOpenDetail(payload.approvalRequestId);
-
     await hostContext.openApprovalDetail(payload);
 
     const nextError = hostContext.lastError.value;
     if (nextError !== null && nextError !== previousError) {
-      sessionStore.failApprovalRequestOpenDetail(
+      runtimeController.failApprovalRequestOpenDetail(
         payload.approvalRequestId,
         APPROVAL_REQUEST_OPEN_DETAIL_ERROR_MESSAGE,
       );
       return;
     }
 
-    sessionStore.completeApprovalRequestOpenDetail(payload.approvalRequestId);
+    runtimeController.completeApprovalRequestOpenDetail(payload.approvalRequestId);
   }
 
   return {

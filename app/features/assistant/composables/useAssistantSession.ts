@@ -11,6 +11,18 @@ import type {
   SessionMessagesResponse,
 } from '../../../types/assistant'
 import { AssistantService } from '../../../services/api/assistant'
+import { getCurrentScope, onScopeDispose } from 'vue'
+import {
+  createAssistantSessionHistoryOrchestrator,
+} from '../../../../packages/assistant-runtime/src/session'
+import type {
+  AssistantRuntimeCancelMessageInput,
+  AssistantRuntimeSafeError,
+  AssistantRuntimePageContext,
+  AssistantRuntimeRequestOptions,
+  AssistantRuntimeTransportPort,
+  AssistantRuntimeTransportResult,
+} from '../../../../packages/assistant-runtime/src/transport/ports'
 import {
   useAssistantSessionStore,
   type AssistantSessionSafeError,
@@ -41,6 +53,14 @@ export interface AssistantSessionService {
     query: AssistantHistoryQuery,
     options: AssistantApiRequestOptions,
   ): Promise<AssistantSuccessEnvelope<SessionMessagesResponse>>
+  cancelMessage?(
+    input: AssistantRuntimeCancelMessageInput,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<{ cancelled: true }>>
+  abortMessage?(
+    input: AssistantRuntimeCancelMessageInput,
+    options: AssistantApiRequestOptions,
+  ): Promise<AssistantSuccessEnvelope<{ aborted: true }>>
 }
 
 export interface AssistantSessionHostContext {
@@ -91,13 +111,155 @@ function createRecoveryError(
   )
 }
 
+function toRuntimeTransportError(error: unknown): AssistantRuntimeSafeError {
+  const record = typeof error === 'object' && error !== null
+    ? error as Record<string, unknown>
+    : {}
+
+  return {
+    code: typeof record.code === 'string' ? record.code : 'transport_error',
+    message: 'The assistant session operation could not be completed.',
+    retryable: record.statusCode === 503 || record.code === 'network_error',
+    ...(typeof record.statusCode === 'number'
+      ? { statusCode: record.statusCode }
+      : {}),
+    ...(typeof record.status === 'string' ? { status: record.status } : {}),
+  }
+}
+
+async function toRuntimeResult<T>(
+  operation: () => Promise<T>,
+): Promise<AssistantRuntimeTransportResult<T>> {
+  try {
+    return { ok: true, value: await operation() }
+  }
+  catch (error) {
+    return { ok: false, error: toRuntimeTransportError(error) }
+  }
+}
+
+function unsupportedTransportResult<T>(
+  operation: 'cancelMessage' | 'abortMessage',
+): AssistantRuntimeTransportResult<T> {
+  return {
+    ok: false,
+    error: {
+      code: 'transport_operation_unsupported',
+      message: `The assistant transport does not support ${operation}.`,
+      retryable: false,
+    },
+  }
+}
+
 export function useAssistantSession(options: UseAssistantSessionOptions) {
-  const assistantService = options.assistantService ?? new AssistantService()
+  const assistantService: AssistantSessionService
+    = options.assistantService ?? new AssistantService()
   const sessionMap = options.sessionMap ?? createSessionStorageSessionMap()
   const historyLimit = options.historyLimit ?? DEFAULT_HISTORY_LIMIT
   const terminalRecoveryMode
     = options.terminalRecoveryMode ?? 'automatic_create'
   const store = useAssistantSessionStore()
+
+  const runtimeTransport: Pick<
+    AssistantRuntimeTransportPort,
+    'createSession' | 'loadHistory' | 'cancelMessage' | 'abortMessage'
+  > = {
+    async createSession(input, runtimeOptions) {
+      return toRuntimeResult(async () => {
+        const identityHeaders = await getLatestIdentityHeaders()
+
+        if (!identityHeaders) {
+          throw { code: 'identity_context_unavailable' }
+        }
+
+        const response = await assistantService.createSession(
+          input.pageContext ? { pageContext: input.pageContext as PageContext } : {},
+          {
+            identityHeaders,
+            signal: runtimeOptions?.signal,
+          },
+        )
+
+        return response.data
+      })
+    },
+    async loadHistory(input, runtimeOptions) {
+      return toRuntimeResult(async () => {
+        const identityHeaders = await getLatestIdentityHeaders()
+
+        if (!identityHeaders) {
+          throw { code: 'identity_context_unavailable' }
+        }
+
+        const response = await assistantService.getSessionMessages(
+          input.sessionId,
+          {
+            limit: historyLimit,
+            ...(input.cursor ? { cursor: input.cursor } : {}),
+            order: 'asc',
+          },
+          {
+            identityHeaders,
+            signal: runtimeOptions?.signal,
+          },
+        )
+
+        return {
+          sessionId: response.data.sessionId,
+          messages: response.data.messages,
+          cursor: response.data.nextCursor ?? undefined,
+        }
+      })
+    },
+    async cancelMessage(input, runtimeOptions) {
+      const cancelMessage = assistantService.cancelMessage
+
+      if (!cancelMessage) {
+        return unsupportedTransportResult('cancelMessage')
+      }
+
+      return toRuntimeResult(async () => {
+        const identityHeaders = await getLatestIdentityHeaders()
+
+        if (!identityHeaders) {
+          throw { code: 'identity_context_unavailable' }
+        }
+
+        const response = await cancelMessage(
+          input,
+          createAssistantRequestOptions(identityHeaders, runtimeOptions),
+        )
+
+        return response.data
+      })
+    },
+    async abortMessage(input, runtimeOptions) {
+      const abortMessage = assistantService.abortMessage
+
+      if (!abortMessage) {
+        return unsupportedTransportResult('abortMessage')
+      }
+
+      return toRuntimeResult(async () => {
+        const identityHeaders = await getLatestIdentityHeaders()
+
+        if (!identityHeaders) {
+          throw { code: 'identity_context_unavailable' }
+        }
+
+        const response = await abortMessage(
+          input,
+          createAssistantRequestOptions(identityHeaders, runtimeOptions),
+        )
+
+        return response.data
+      })
+    },
+  }
+
+  const sessionOrchestrator = createAssistantSessionHistoryOrchestrator({
+    transport: runtimeTransport,
+  })
 
   async function getLatestIdentityHeaders():
   Promise<AssistantIdentityHeaders | null> {
@@ -106,6 +268,16 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     }
     catch {
       return null
+    }
+  }
+
+  function createAssistantRequestOptions(
+    identityHeaders: AssistantIdentityHeaders,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ): AssistantApiRequestOptions {
+    return {
+      identityHeaders,
+      signal: runtimeOptions?.signal,
     }
   }
 
@@ -140,16 +312,9 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     }
 
     try {
-      const response = await assistantService.getSessionMessages(
-        sessionId,
-        {
-          limit: historyLimit,
-          order: 'asc',
-        },
-        { identityHeaders },
-      )
+      const history = await sessionOrchestrator.loadHistory({ sessionId })
 
-      store.setMessages(response.data.messages, response.data.nextCursor)
+      store.setMessages([...history.messages], history.cursor ?? null)
       store.clearError()
     }
     catch (error) {
@@ -196,15 +361,16 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     }
 
     try {
-      const response = await assistantService.createSession(
-        pageContext ? { pageContext } : {},
-        { identityHeaders },
+      const session = await sessionOrchestrator.createSession(
+        pageContext
+          ? { pageContext: pageContext as unknown as AssistantRuntimePageContext }
+          : {},
       )
 
-      store.setSession(response.data)
+      store.setSession(session)
       store.setMessages([], null)
       store.clearError()
-      sessionMap.write(sessionScope.key, response.data.sessionId)
+      sessionMap.write(sessionScope.key, session.sessionId)
       store.setReady()
     }
     catch (error) {
@@ -259,7 +425,11 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
         )
 
         if (isReusableAssistantSession(response.data)) {
-          store.setSession(response.data)
+          const session = await sessionOrchestrator.resumeSession(
+            response.data.sessionId,
+          )
+
+          store.setSession({ ...response.data, ...session })
           sessionMap.write(sessionScope.key, response.data.sessionId)
           await loadInitialHistory(response.data.sessionId)
           return
@@ -349,17 +519,12 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     }
 
     try {
-      const response = await assistantService.getSessionMessages(
+      const history = await sessionOrchestrator.loadHistory({
         sessionId,
-        {
-          limit: historyLimit,
-          cursor,
-          order: 'asc',
-        },
-        { identityHeaders },
-      )
+        cursor,
+      })
 
-      store.appendMessages(response.data.messages, response.data.nextCursor)
+      store.appendMessages([...history.messages], history.cursor ?? null)
       store.clearError()
     }
     catch (error) {
@@ -406,11 +571,22 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
     sessionMap.clear(sessionScope.key)
   }
 
+  async function cleanup(): Promise<void> {
+    await sessionOrchestrator.cleanup()
+  }
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      void cleanup()
+    })
+  }
+
   return {
     store,
     restoreOrCreateSession,
     loadMoreHistory,
     restartSession,
     clearScopedFallback,
+    cleanup,
   }
 }

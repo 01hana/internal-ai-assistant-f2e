@@ -1,0 +1,17 @@
+{
+  "name": "@internal-ai-assistant/assistant-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Internal canonical assistant runtime source boundary for Frontend 001 and the Assistant SDK.",
+  "files": [],
+  "scripts": {
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "pinia": "^3.0.4"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.39"
+  }
+}

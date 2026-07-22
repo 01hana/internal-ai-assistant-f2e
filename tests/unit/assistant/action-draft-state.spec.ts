@@ -23,6 +23,17 @@ function createActionDraftDetail(
   }
 }
 
+function loadActionDraftDetail(
+  store: ReturnType<typeof useAssistantSessionStore>,
+  detail: ActionDraftDetail,
+) {
+  store.startActionDraftDetailLoad(detail.actionDraftId, {
+    messageId: detail.messageId,
+    requestId: detail.requestId,
+  })
+  store.completeActionDraftDetailLoad(detail)
+}
+
 describe('useAssistantSessionStore action draft state', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -46,7 +57,7 @@ describe('useAssistantSessionStore action draft state', () => {
       messageId: 'message-action-draft-001',
       requestId: 'req-action-draft-001',
     })
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
+    loadActionDraftDetail(store, createActionDraftDetail())
 
     expect(store.getActionDraftState('action-draft-001')).toMatchObject({
       detailStatus: 'available',
@@ -75,7 +86,7 @@ describe('useAssistantSessionStore action draft state', () => {
   it('tracks confirm start and pending_execution_guard completion safely', () => {
     const store = useAssistantSessionStore()
 
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
+    loadActionDraftDetail(store, createActionDraftDetail())
     store.setActionDraftOperationStatus('action-draft-001', 'confirming', {
       idempotencyKey: 'confirm-001',
     })
@@ -102,7 +113,10 @@ describe('useAssistantSessionStore action draft state', () => {
   it('maps executed and cancelled results into terminal-safe statuses', () => {
     const store = useAssistantSessionStore()
 
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
+    loadActionDraftDetail(store, createActionDraftDetail())
+    store.setActionDraftOperationStatus('action-draft-001', 'confirming', {
+      idempotencyKey: 'confirm-002',
+    })
     store.completeActionDraftOperation('action-draft-001', 'executed', {
       idempotencyKey: 'confirm-002',
     })
@@ -111,10 +125,16 @@ describe('useAssistantSessionStore action draft state', () => {
       actionDraftStatus: 'executed',
     })
 
-    store.completeActionDraftDetailLoad(
+    loadActionDraftDetail(
+      store,
       createActionDraftDetail({ actionDraftId: 'action-draft-002', messageId: 'message-action-draft-002' }),
     )
-    store.completeActionDraftOperation('action-draft-002', 'cancelled')
+    store.setActionDraftOperationStatus('action-draft-002', 'cancelling', {
+      idempotencyKey: 'cancel-002',
+    })
+    store.completeActionDraftOperation('action-draft-002', 'cancelled', {
+      idempotencyKey: 'cancel-002',
+    })
     expect(store.getActionDraftState('action-draft-002')).toMatchObject({
       operationStatus: 'cancelled',
       actionDraftStatus: 'cancelled',
@@ -124,13 +144,15 @@ describe('useAssistantSessionStore action draft state', () => {
   it('records retryable failures without clearing detail', () => {
     const store = useAssistantSessionStore()
 
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
+    loadActionDraftDetail(store, createActionDraftDetail())
     store.setActionDraftOperationStatus('action-draft-001', 'confirming', {
       idempotencyKey: 'confirm-003',
     })
     store.failActionDraftOperation(
       'action-draft-001',
       '目前無法送出確認，請稍後再試。',
+      'failed',
+      { idempotencyKey: 'confirm-003' },
     )
 
     expect(store.getActionDraftState('action-draft-001')).toMatchObject({
@@ -143,8 +165,9 @@ describe('useAssistantSessionStore action draft state', () => {
   it('keeps multiple action drafts independent', () => {
     const store = useAssistantSessionStore()
 
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
-    store.completeActionDraftDetailLoad(
+    loadActionDraftDetail(store, createActionDraftDetail())
+    loadActionDraftDetail(
+      store,
       createActionDraftDetail({
         actionDraftId: 'action-draft-002',
         messageId: 'message-action-draft-002',
@@ -166,7 +189,7 @@ describe('useAssistantSessionStore action draft state', () => {
   it('clears action draft state on reset', () => {
     const store = useAssistantSessionStore()
 
-    store.completeActionDraftDetailLoad(createActionDraftDetail())
+    loadActionDraftDetail(store, createActionDraftDetail())
     store.setActionDraftOperationStatus('action-draft-001', 'confirming', {
       idempotencyKey: 'confirm-005',
     })

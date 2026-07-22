@@ -442,7 +442,10 @@ describe('useAssistantSession', () => {
     expect(service.getSessionMessages).toHaveBeenCalledWith(
       'session-host',
       { limit: 25, order: 'asc' },
-      { identityHeaders },
+      expect.objectContaining({
+        identityHeaders,
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(service.createSession).not.toHaveBeenCalled()
     expect(assistantSession.store.messages).toEqual(historyMessages)
@@ -497,7 +500,10 @@ describe('useAssistantSession', () => {
     expect(service.getSession).not.toHaveBeenCalled()
     expect(service.createSession).toHaveBeenCalledWith(
       { pageContext: sessionScope.pageContext },
-      { identityHeaders },
+      expect.objectContaining({
+        identityHeaders,
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(assistantSession.store.session?.sessionId).toBe('session-created')
     expect(assistantSession.store.messages).toEqual([])
@@ -662,7 +668,10 @@ describe('useAssistantSession', () => {
     expect(service.getSessionMessages).toHaveBeenLastCalledWith(
       'session-stored',
       { limit: 30, cursor: 'message-002', order: 'asc' },
-      { identityHeaders },
+      expect.objectContaining({
+        identityHeaders,
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(
       assistantSession.store.messages.map(message => message.messageId),
@@ -700,7 +709,10 @@ describe('useAssistantSession', () => {
     expect(service.getSession).not.toHaveBeenCalled()
     expect(service.createSession).toHaveBeenCalledWith(
       { pageContext: latestScope.pageContext },
-      { identityHeaders },
+      expect.objectContaining({
+        identityHeaders,
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(assistantSession.store.messages).toEqual([])
     expect(assistantSession.store.nextCursor).toBeNull()

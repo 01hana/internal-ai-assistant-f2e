@@ -14,49 +14,17 @@ import type {
 } from './contracts'
 import type { EvidenceReferenceDisplay } from './evidence'
 
-export type AnswerDecisionUiState =
-  | {
-      kind: 'answered'
-      answerDecision: 'answered'
-    }
-  | {
-      kind: 'clarification_required'
-      answerDecision: 'clarification_required'
-      clarificationQuestionId?: ClarificationQuestionId
-    }
-  | {
-      kind: 'no_answer'
-      answerDecision: 'no_answer'
-      noAnswerReason?: NoAnswerReason
-    }
-  | {
-      kind: 'permission_denied'
-      answerDecision: 'permission_denied'
-    }
-  | {
-      kind: 'confirmation_required'
-      answerDecision: 'confirmation_required'
-      actionDraftId?: ActionDraftId
-    }
-  | {
-      kind: 'approval_required'
-      answerDecision: 'approval_required'
-      approvalRequestId?: ApprovalRequestId
-    }
-  | {
-      kind: 'escalation_required'
-      answerDecision: 'escalation_required'
-      escalationRequestId?: EscalationRequestId
-    }
+export type {
+  AnswerDecisionUiState,
+} from '../../../packages/assistant-runtime/src'
+export type {
+  AssistantFeedbackValue,
+  AssistantMessageFeedbackUiState,
+} from '../../../packages/assistant-runtime/src'
 
-export type AssistantFeedbackValue = 'helpful' | 'not_helpful'
-
-export interface AssistantMessageFeedbackUiState {
-  value: AssistantFeedbackValue | null
-  pending: boolean
-  error: string | null
-  requestId: AssistantRequestId | null
-}
+import type {
+  AnswerDecisionUiState,
+} from '../../../packages/assistant-runtime/src'
 
 export type AssistantMessageRendererKind =
   | 'user'

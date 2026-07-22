@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/assistant-sdk"
+    "packages/assistant-sdk",
+    "packages/assistant-runtime"
   ],
   "scripts": {
     "prepare": "nuxt prepare",

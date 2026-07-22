@@ -1,4 +1,10 @@
+import { getActivePinia } from "pinia";
 import type { AssistantPanelAvailability } from "../../types/assistant";
+import {
+  createAssistantRuntimeStores,
+  resetAssistantRuntimeWidgetState,
+} from "../../../packages/assistant-runtime/src";
+import { FRONTEND001_RUNTIME_SCOPE } from "./useSessionStore";
 
 export interface AssistantChatWidgetState {
   isOpen: boolean;
@@ -6,8 +12,19 @@ export interface AssistantChatWidgetState {
 }
 
 export const useChatWidgetStore = defineStore("assistant-chat-widget", () => {
-  const isOpen = ref(false);
-  const availability = ref<AssistantPanelAvailability>("normal");
+  const activePinia = getActivePinia();
+
+  if (!activePinia) {
+    throw new Error("assistant_frontend001_pinia_required");
+  }
+
+  const widgetState = createAssistantRuntimeStores({
+    pinia: activePinia,
+    runtimeScope: FRONTEND001_RUNTIME_SCOPE,
+  }).widget;
+  const isOpen = widgetState.isOpen;
+  const availability =
+    widgetState.availability as Ref<AssistantPanelAvailability>;
 
   function open() {
     isOpen.value = true;
@@ -26,8 +43,7 @@ export const useChatWidgetStore = defineStore("assistant-chat-widget", () => {
   }
 
   function reset() {
-    isOpen.value = false;
-    availability.value = "normal";
+    resetAssistantRuntimeWidgetState(widgetState);
   }
 
   return {

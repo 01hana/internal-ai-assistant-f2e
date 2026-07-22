@@ -1,4 +1,4 @@
-export const canonicalFrontend001RuntimeFiles = [
+export const frontend001BehaviorBaselineFiles = [
   "app/features/assistant/components/ChatWidget.vue",
   "app/features/assistant/components/ChatPanel.vue",
   "app/features/assistant/composables/useChat.ts",
@@ -12,6 +12,13 @@ export const canonicalFrontend001RuntimeFiles = [
   "app/utils/assistant/assistantMessageRendererResolver.ts",
   "app/utils/assistant/evidenceNormalizationAdapter.ts",
 ] as const;
+
+export const canonicalSharedRuntimeBoundary = {
+  packageName: "@internal-ai-assistant/assistant-runtime",
+  root: "packages/assistant-runtime",
+  sourceRoot: "packages/assistant-runtime/src",
+  role: "future reusable canonical runtime owner",
+} as const;
 
 export const canonicalFrontend001ComposableFiles = [
   "app/features/assistant/composables/useChat.ts",

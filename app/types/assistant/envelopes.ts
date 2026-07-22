@@ -3,11 +3,9 @@ import type {
   AssistantRequestId,
   AssistantSessionId,
 } from './contracts'
+import type { AssistantSuccessEnvelope as SharedAssistantSuccessEnvelope } from '../../../packages/assistant-runtime/src/types'
 
-export interface AssistantSuccessEnvelope<TData> {
-  requestId: AssistantRequestId
-  data: TData
-}
+export type AssistantSuccessEnvelope<TData> = SharedAssistantSuccessEnvelope<TData>
 
 export interface AssistantErrorEnvelope {
   requestId: AssistantRequestId

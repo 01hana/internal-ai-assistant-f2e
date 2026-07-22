@@ -622,6 +622,33 @@ beforeEach(() => {
     vi.useRealTimers();
   });
 
+  it("cleans shared runtime state when the production chat scope is disposed", async () => {
+    const onCancel = vi.fn();
+    installSendFetch(onCancel);
+    const wrapper = await mountWidget(createProvider());
+
+    await openReadyPanel(wrapper);
+    await wrapper
+      .get('[data-testid="assistant-chat-input"]')
+      .setValue("啟動後立即卸載");
+    await wrapper.get('[data-testid="assistant-chat-submit"]').trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(useAssistantSessionStore().messages).toHaveLength(2);
+    expect(useAssistantSessionStore().activeRequestId).toEqual(expect.any(String));
+
+    wrapper.unmount();
+    mountedWrappers.splice(mountedWrappers.indexOf(wrapper), 1);
+    await flushPromises();
+    await nextTick();
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(useAssistantSessionStore().messages).toEqual([]);
+    expect(useAssistantSessionStore().activeRequestId).toBeNull();
+    expect(useChatWidgetStore().isOpen).toBe(false);
+  });
+
   it("uses final payload evidence as the completed answer evidence source", async () => {
     vi.useFakeTimers();
     installEventStreamFetch((requestId) => [
@@ -1564,6 +1591,17 @@ beforeEach(() => {
 
   it("renders approval_required as ApprovalRequestDisplayMessage and loads detail safely", async () => {
     vi.useFakeTimers();
+    const onOpenApprovalDetail = vi.fn();
+    let approvalDetailCallbackAvailable = true;
+    const provider: AssistantHostContextProvider = {
+      getSnapshot: vi.fn(({ purpose }) => ({
+        ...latestPageSnapshot,
+        onOpenApprovalDetail:
+          purpose === "approval_detail" && !approvalDetailCallbackAvailable
+            ? undefined
+            : onOpenApprovalDetail,
+      })),
+    };
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, requestOptions?: RequestInit) => {
         const url = String(input);
@@ -1628,7 +1666,7 @@ beforeEach(() => {
       },
     );
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = await mountWidget(createProvider());
+    const wrapper = await mountWidget(provider);
 
     await openReadyPanel(wrapper);
     await wrapper
@@ -1667,6 +1705,27 @@ beforeEach(() => {
     expect(
       wrapper.find('[data-testid="assistant-feedback-controls"]').exists(),
     ).toBe(false);
+
+    approvalDetailCallbackAvailable = false;
+    await wrapper
+      .get('[data-testid="assistant-approval-request-open-detail"]')
+      .trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    const approvalState = useAssistantSessionStore()
+      .approvalRequestById["approval-request-001"];
+    expect(onOpenApprovalDetail).not.toHaveBeenCalled();
+    expect(approvalState).toMatchObject({
+      openDetailStatus: "failed",
+      openDetailSafeMessage: "這個環境尚未提供審核詳情入口。",
+    });
+    expect(
+      wrapper.get('[data-testid="assistant-approval-request-open-detail-unavailable"]').text(),
+    ).toContain("這個環境尚未提供審核詳情入口。");
+    expect(approvalState).not.toHaveProperty("navigationUrl");
+    expect(approvalState).not.toHaveProperty("rawPayload");
+    expect(wrapper.html()).not.toContain("http");
     vi.useRealTimers();
   });
 
