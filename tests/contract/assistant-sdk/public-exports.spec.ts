@@ -56,7 +56,7 @@ describe("Frontend 002 SDK public exports", () => {
     }
 
     for (const forbiddenPattern of forbiddenRuntimeBridgePublicExportPatterns) {
-      expect(source, "frontend001Runtime may be used internally but must not be public-exported.").not.toMatch(forbiddenPattern);
+      expect(source, "Removed legacy runtime bridges must not be public-exported.").not.toMatch(forbiddenPattern);
     }
   });
 });

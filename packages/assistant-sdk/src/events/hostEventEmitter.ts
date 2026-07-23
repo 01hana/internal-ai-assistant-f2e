@@ -15,6 +15,7 @@ type CallbackName =
   | "onSessionCreated"
   | "onSessionChanged"
   | "onAnswerCompleted"
+  | "onError"
   | "onErrorOccurred"
   | "onApprovalDetailRequested"
   | "onEscalationRequested"
@@ -33,10 +34,14 @@ const callbackByEvent: Readonly<Record<HostEventName, CallbackName>> = {
   "session-created": "onSessionCreated",
   "session-changed": "onSessionChanged",
   "answer-completed": "onAnswerCompleted",
-  error: "onErrorOccurred",
+  error: "onError",
   "approval-detail-requested": "onApprovalDetailRequested",
   "escalation-requested": "onEscalationRequested",
   "context-resolution-failed": "onContextResolutionFailed",
+};
+
+const legacyCallbackByEvent: Partial<Readonly<Record<HostEventName, CallbackName>>> = {
+  error: "onErrorOccurred",
 };
 
 const allowedFieldsByEvent: Readonly<Record<HostEventName, readonly string[]>> = {
@@ -129,7 +134,8 @@ export function createHostEventEmitter(input: {
       }
 
       const safePayload = pickAllowedPayload(eventName, payload);
-      const callback = input.callbacks?.[callbackByEvent[eventName]];
+      const callback = input.callbacks?.[callbackByEvent[eventName]]
+        ?? input.callbacks?.[legacyCallbackByEvent[eventName] ?? ""];
 
       return await invokeCallbackSafely(callback, safePayload);
     },

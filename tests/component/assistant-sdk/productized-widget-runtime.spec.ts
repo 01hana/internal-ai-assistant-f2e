@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import AssistantWidget from "../../../packages/assistant-sdk/src/components/AssistantWidget.vue";
 import {
-  approvedRuntimeBridgeFilePatterns,
   forbiddenDuplicateRuntimeFilePatterns,
   forbiddenRuntimeFactories,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
@@ -52,11 +51,6 @@ function queryAny(container: Element, selectors: readonly string[]) {
   return selectors.some(selector => container.matches(selector) || container.querySelector(selector));
 }
 
-function isApprovedRuntimeBridge(relativePath: string) {
-  const normalizedPath = relativePath.replaceAll("\\", "/");
-  return approvedRuntimeBridgeFilePatterns.some(pattern => pattern.test(normalizedPath));
-}
-
 describe("Frontend 002 productized AssistantWidget runtime completeness", () => {
   it("does not render or ship shell placeholder copy", async () => {
     const source = await readFile(sdkComponentPath, "utf8");
@@ -98,10 +92,6 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
 
       for (const forbiddenPattern of forbiddenDuplicateRuntimeFilePatterns) {
         expect(relativePath, `${relativePath} must not duplicate canonical runtime files.`).not.toMatch(forbiddenPattern);
-      }
-
-      if (isApprovedRuntimeBridge(relativePath)) {
-        continue;
       }
 
       for (const forbiddenFactory of forbiddenRuntimeFactories) {

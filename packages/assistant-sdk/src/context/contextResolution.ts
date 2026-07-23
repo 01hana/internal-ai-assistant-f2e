@@ -81,6 +81,7 @@ const forbiddenHostContextFields = new Set([
   "dataSource",
   "fieldPermissionResult",
   "finalEvidenceSource",
+  "hiddenPrompt",
   "navigationUrl",
   "permissionResult",
   "rawConnectorPayload",

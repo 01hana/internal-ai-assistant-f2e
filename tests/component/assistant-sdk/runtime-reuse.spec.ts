@@ -3,7 +3,6 @@ import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  approvedRuntimeBridgeFilePatterns,
   canonicalSharedRuntimeBoundary,
   forbiddenActiveSdkAppImportPatterns,
   forbiddenDuplicateRuntimeFilePatterns,
@@ -12,7 +11,7 @@ import {
   frontend001NuxtAdapterBoundary,
   frontend002SdkAdapterBoundary,
   legacyRuntimeBridgeClassification,
-  legacyRuntimeBridgeFilePaths,
+  removedLegacyRuntimeBridgeFilePaths,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
 
 const projectRootPath = process.cwd();
@@ -51,8 +50,8 @@ const forbiddenChatRuntimeImplementationPatterns = [
   /\b(?:const|let|var)\s+parseAssistantSse(?:Event)?\s*=/,
   /\bfunction\s+(?:renderChatMessage|createChatMessageRenderer)\b/,
   /\b(?:const|let|var)\s+(?:renderChatMessage|createChatMessageRenderer)\s*=/,
-  /\bfunction\s+(?:confirmActionDraft|getApprovalRequest|submitFeedback)\b/,
-  /\b(?:const|let|var)\s+(?:confirmActionDraft|getApprovalRequest|submitFeedback)\s*=/,
+  /\bfunction\s+(?:createFeedbackState|createActionDraftState|createApprovalRequestState)\b/,
+  /\b(?:const|let|var)\s+(?:createFeedbackState|createActionDraftState|createApprovalRequestState)\s*=/,
 ] as const;
 
 async function pathExists(path: string): Promise<boolean> {
@@ -88,12 +87,6 @@ async function collectFiles(directory: string): Promise<string[]> {
 
 function normalizeRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
-}
-
-function isLegacyRuntimeBridgeFile(relativePath: string): boolean {
-  const normalizedPath = normalizeRelativePath(relativePath);
-
-  return approvedRuntimeBridgeFilePatterns.some(pattern => pattern.test(normalizedPath));
 }
 
 async function readSdkSources() {
@@ -151,11 +144,6 @@ describe("Frontend 002 AssistantWidget runtime reuse boundary", () => {
         ).not.toMatch(forbiddenPattern);
       }
 
-      if (isLegacyRuntimeBridgeFile(relativePath)) {
-        expect(legacyRuntimeBridgeFilePaths).toContain(relativePath);
-        continue;
-      }
-
       expect(
         forbiddenActiveSdkAppImportPatterns.some(pattern => pattern.test(source)),
         `${relativePath} must not active-import Frontend 001 app runtime paths as final architecture.`,
@@ -167,17 +155,17 @@ describe("Frontend 002 AssistantWidget runtime reuse boundary", () => {
     }
   });
 
-  it("classifies legacy app-source bridges as pending T137 removal rather than final runtime reuse", async () => {
+  it("requires legacy app-source bridges to be removed after T137", async () => {
     expect(legacyRuntimeBridgeClassification).toEqual({
-      status: "legacy bridge pending T137 removal",
+      status: "removed",
       terminalTask: "T137",
-      terminalState: "removed or replaced by SDK adapters over Shared Canonical Assistant Runtime",
+      terminalState: "legacy SDK app-source bridges must be absent; active SDK runtime imports must use SDK adapters over Shared Canonical Assistant Runtime",
     });
 
-    const bridgeFiles = (await readSdkSources()).filter(({ relativePath }) => isLegacyRuntimeBridgeFile(relativePath));
+    const sdkSourcePaths = (await readSdkSources()).map(({ relativePath }) => relativePath);
 
-    for (const { relativePath } of bridgeFiles) {
-      expect(legacyRuntimeBridgeFilePaths, `${relativePath} must be documented as a temporary bridge before it may import app/**.`).toContain(relativePath);
+    for (const bridgePath of removedLegacyRuntimeBridgeFilePaths) {
+      expect(sdkSourcePaths, `${bridgePath} must be absent after T137 legacy bridge removal.`).not.toContain(bridgePath);
     }
   });
 

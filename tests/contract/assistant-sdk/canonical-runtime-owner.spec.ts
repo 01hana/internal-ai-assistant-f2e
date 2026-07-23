@@ -2,21 +2,14 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { forbiddenDuplicateRuntimeFilePatterns } from "../../fixtures/assistant-sdk/architecture-guardrails";
+import {
+  forbiddenDuplicateRuntimeFilePatterns,
+  removedLegacyRuntimeBridgeFilePaths,
+} from "../../fixtures/assistant-sdk/architecture-guardrails";
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const sharedRuntimeRoot = path.join(repoRoot, "packages/assistant-runtime");
 const sdkSourceRoot = path.join(repoRoot, "packages/assistant-sdk/src");
-
-const allowedHistoricalSdkBridgeFiles = new Set([
-  "packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts",
-  "packages/assistant-sdk/src/runtime/chatWidgetAdapter.ts",
-  "packages/assistant-sdk/src/runtime/composableAdapter.ts",
-  "packages/assistant-sdk/src/runtime/frontend001Runtime.ts",
-  "packages/assistant-sdk/src/runtime/serviceAdapter.ts",
-  "packages/assistant-sdk/src/runtime/sessionAdapter.ts",
-  "packages/assistant-sdk/src/runtime/sseStreamAdapter.ts"
-]);
 
 const forbiddenSharedRuntimePatterns = [
   /\bfrom\s+["'][^"']*app\//,
@@ -78,13 +71,21 @@ describe("canonical shared runtime owner boundary", () => {
     expect(violations).toEqual([]);
   });
 
-  it("allows only documented historical SDK runtime bridges to reference app source before T137", () => {
+  it("keeps removed legacy SDK runtime bridges absent after T137", () => {
+    const sourceFiles = new Set(listSourceFiles(sdkSourceRoot).map(relativeToRepo));
+
+    for (const bridgePath of removedLegacyRuntimeBridgeFilePaths) {
+      expect(sourceFiles, `${bridgePath} must be deleted after T137.`).not.toContain(bridgePath);
+    }
+  });
+
+  it("forbids SDK source from referencing Frontend 001 app source after T137", () => {
     const violations = listSourceFiles(sdkSourceRoot).flatMap((file) => {
       const source = readFileSync(file, "utf8");
       const hasAppImport = /\bfrom\s+["'][^"']*app\//.test(source) || /\bimport\s*\([^)]*["'][^"']*app\//.test(source);
       const relative = relativeToRepo(file);
 
-      return hasAppImport && !allowedHistoricalSdkBridgeFiles.has(relative) ? [relative] : [];
+      return hasAppImport ? [relative] : [];
     });
 
     expect(violations).toEqual([]);

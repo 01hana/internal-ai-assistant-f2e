@@ -8,8 +8,7 @@ import {
   forbiddenActiveSdkAppImportPatterns,
   frontend001NuxtAdapterBoundary,
   frontend002SdkAdapterBoundary,
-  legacyRuntimeBridgeClassification,
-  legacyRuntimeBridgeFilePaths,
+  removedLegacyRuntimeBridgeFilePaths,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
 import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
@@ -84,10 +83,6 @@ function normalizeRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function isLegacyBridgePath(relativePath: string): boolean {
-  return legacyRuntimeBridgeFilePaths.includes(normalizeRelativePath(relativePath) as typeof legacyRuntimeBridgeFilePaths[number]);
-}
-
 async function readSdkSources() {
   const files = (await collectFiles(sdkSourcePath))
     .filter(file => /\.(ts|vue)$/.test(file));
@@ -147,12 +142,15 @@ describe("Frontend 002 composable runtime adapter boundary", () => {
       const hasFrontend001ComposableImport = /app\/features\/assistant\/composables\//.test(source)
         || forbiddenActiveSdkAppImportPatterns.some(pattern => pattern.test(source));
 
-      if (isLegacyBridgePath(relativePath)) {
-        expect(legacyRuntimeBridgeClassification.status).toBe("legacy bridge pending T137 removal");
-        continue;
-      }
-
       expect(hasFrontend001ComposableImport, `${relativePath} must not active-import Frontend 001 composables as final SDK architecture.`).toBe(false);
+    }
+  });
+
+  it("keeps removed legacy composable bridge files absent after T137", async () => {
+    const sourcePaths = (await readSdkSources()).map(({ relativePath }) => relativePath);
+
+    for (const bridgePath of removedLegacyRuntimeBridgeFilePaths) {
+      expect(sourcePaths, `${bridgePath} must remain absent after T137.`).not.toContain(bridgePath);
     }
   });
 });

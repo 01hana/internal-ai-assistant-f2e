@@ -56,16 +56,7 @@ export const canonicalFrontend001ServiceStoreHelperFiles = [
   "app/utils/assistant/evidenceNormalizationAdapter.ts",
 ] as const;
 
-export const approvedRuntimeBridgeFilePatterns = [
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/frontend001Runtime\.ts$/,
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/chatWidgetAdapter\.ts$/,
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/composableAdapter\.ts$/,
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/sessionAdapter\.ts$/,
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/sseStreamAdapter\.ts$/,
-  /(^|\/)packages\/assistant-sdk\/src\/runtime\/serviceAdapter\.ts$/,
-] as const;
-
-export const legacyRuntimeBridgeFilePaths = [
+export const removedLegacyRuntimeBridgeFilePaths = [
   "packages/assistant-sdk/src/runtime/frontend001Runtime.ts",
   "packages/assistant-sdk/src/runtime/chatWidgetAdapter.ts",
   "packages/assistant-sdk/src/runtime/composableAdapter.ts",
@@ -75,10 +66,27 @@ export const legacyRuntimeBridgeFilePaths = [
   "packages/assistant-sdk/src/runtime/assistantTypeAdapter.ts",
 ] as const;
 
+export const forbiddenLegacyRuntimeBridgeSymbols = [
+  "frontend001Runtime",
+  "chatWidgetAdapter",
+  "composableAdapter",
+  "sessionAdapter",
+  "sseStreamAdapter",
+  "serviceAdapter",
+  "assistantTypeAdapter",
+  "createFrontend001Runtime",
+  "createChatWidgetAdapter",
+  "createComposableAdapter",
+  "createSessionAdapter",
+  "createSseStreamAdapter",
+  "createServiceAdapter",
+  "createAssistantTypeAdapter",
+] as const;
+
 export const legacyRuntimeBridgeClassification = {
-  status: "legacy bridge pending T137 removal",
+  status: "removed",
   terminalTask: "T137",
-  terminalState: "removed or replaced by SDK adapters over Shared Canonical Assistant Runtime",
+  terminalState: "legacy SDK app-source bridges must be absent; active SDK runtime imports must use SDK adapters over Shared Canonical Assistant Runtime",
 } as const;
 
 export const forbiddenActiveSdkAppImportPatterns = [
@@ -115,9 +123,9 @@ export const forbiddenRuntimeFactories = [
   "createSessionHistoryRuntime",
   "answerDecisionStateMapper",
   "evidenceNormalizationAdapter",
-  "submitFeedback(",
-  "confirmActionDraft(",
-  "getApprovalRequest(",
+  "createFeedbackState",
+  "createActionDraftState",
+  "createApprovalRequestState",
 ] as const;
 
 export const formalPublicExportNames = [
@@ -149,10 +157,10 @@ export const forbiddenRootEntryPatterns = [
 ] as const;
 
 export const forbiddenRuntimeBridgePublicExportPatterns = [
-  /export\s+\*\s+from\s+["']\.\/runtime\/frontend001Runtime["']/,
-  /export\s+\{[^}]*\}\s+from\s+["']\.\/runtime\/frontend001Runtime["']/,
-  /export\s+\{[^}]*\bfrontend001Runtime\b[^}]*\}/,
-  /export\s+\{[^}]*\bas\s+frontend001Runtime\b[^}]*\}/,
+  /export\s+\*\s+from\s+["']\.\/runtime\/(?:frontend001Runtime|chatWidgetAdapter|composableAdapter|sessionAdapter|sseStreamAdapter|serviceAdapter|assistantTypeAdapter)["']/,
+  /export\s+\{[^}]*\}\s+from\s+["']\.\/runtime\/(?:frontend001Runtime|chatWidgetAdapter|composableAdapter|sessionAdapter|sseStreamAdapter|serviceAdapter|assistantTypeAdapter)["']/,
+  /export\s+\{[^}]*\b(?:frontend001Runtime|chatWidgetAdapter|composableAdapter|sessionAdapter|sseStreamAdapter|serviceAdapter|assistantTypeAdapter)\b[^}]*\}/,
+  /export\s+\{[^}]*\bas\s+(?:frontend001Runtime|chatWidgetAdapter|composableAdapter|sessionAdapter|sseStreamAdapter|serviceAdapter|assistantTypeAdapter)\b[^}]*\}/,
 ] as const;
 
 export const forbiddenPackageExports = [

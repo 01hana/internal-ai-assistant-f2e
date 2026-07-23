@@ -8,8 +8,7 @@ import {
   forbiddenActiveSdkAppImportPatterns,
   frontend001NuxtAdapterBoundary,
   frontend002SdkAdapterBoundary,
-  legacyRuntimeBridgeClassification,
-  legacyRuntimeBridgeFilePaths,
+  removedLegacyRuntimeBridgeFilePaths,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
 import { assistantRuntimeTransportOwnership } from "../../../packages/assistant-runtime/src/transport/ports";
 
@@ -97,10 +96,6 @@ function normalizeRelativePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function isLegacyBridgePath(relativePath: string): boolean {
-  return legacyRuntimeBridgeFilePaths.includes(normalizeRelativePath(relativePath) as typeof legacyRuntimeBridgeFilePaths[number]);
-}
-
 async function readSdkSources() {
   const files = (await collectFiles(sdkSourcePath))
     .filter(file => /\.(ts|vue)$/.test(file));
@@ -156,15 +151,18 @@ describe("Frontend 002 service, store, and helper adapter boundary", () => {
       const hasFrontend001ServiceStoreOrUtilImport = /app\/(?:services|stores|utils)\//.test(source)
         || forbiddenActiveSdkAppImportPatterns.some(pattern => pattern.test(source));
 
-      if (isLegacyBridgePath(relativePath)) {
-        expect(legacyRuntimeBridgeClassification.terminalTask).toBe("T137");
-        continue;
-      }
-
       expect(
         hasFrontend001ServiceStoreOrUtilImport,
         `${relativePath} must not active-import FE001 services/stores/utils as final SDK architecture.`,
       ).toBe(false);
+    }
+  });
+
+  it("keeps removed legacy service/store/helper bridge files absent after T137", async () => {
+    const sourcePaths = (await readSdkSources()).map(({ relativePath }) => relativePath);
+
+    for (const bridgePath of removedLegacyRuntimeBridgeFilePaths) {
+      expect(sourcePaths, `${bridgePath} must remain absent after T137.`).not.toContain(bridgePath);
     }
   });
 });

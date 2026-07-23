@@ -9,7 +9,6 @@ import {
   runtimeRegressionGate,
 } from "../../fixtures/assistant-sdk/runtime-regression-gate";
 import {
-  approvedRuntimeBridgeFilePatterns,
   forbiddenDuplicateRuntimeFilePatterns,
 } from "../../fixtures/assistant-sdk/architecture-guardrails";
 
@@ -70,10 +69,6 @@ async function collectFiles(directory: string): Promise<string[]> {
   }));
 
   return files.flat();
-}
-
-function isApprovedRuntimeBridge(relativePath: string) {
-  return approvedRuntimeBridgeFilePatterns.some(pattern => pattern.test(relativePath));
 }
 
 describe("Frontend 002 runtime regression gate manifest", () => {
@@ -178,10 +173,6 @@ describe("Frontend 002 runtime regression gate manifest", () => {
 
     for (const file of files) {
       const relativePath = relative(projectRootPath, file);
-
-      if (isApprovedRuntimeBridge(relativePath)) {
-        continue;
-      }
 
       for (const forbiddenPattern of forbiddenDuplicateRuntimeFilePatterns) {
         expect(
