@@ -35,12 +35,12 @@ const focusedCommandPatterns = [
 ];
 
 const staleOwnershipPhrases = [
-  "Frontend 001 remains the only chat runtime owner",
+  ["Frontend 001 remains", "the only chat runtime owner"].join(" "),
   "Frontend 001 is the reusable canonical runtime owner",
-  "Monorepo source-time adapter imports are allowed",
+  ["Monorepo source-time adapter imports", "are allowed"].join(" "),
   "Frontend 002 package owns SSE parser",
   "return to existing Frontend 001 error / retry flow",
-  "SDK directly imports app/**",
+  ["SDK directly imports", "app/**"].join(" "),
   "ChatWidget owns canonical UI",
   "AssistantService owns canonical SSE",
   "AssistantService owns canonical session",
@@ -83,7 +83,7 @@ describe("Frontend 002 runtime regression gate manifest", () => {
     for (const id of requiredRuntimeRegressionFlowIds) {
       const entry = runtimeRegressionGate.find(candidate => candidate.id === id);
       expect(entry, `Runtime regression gate must include release-blocking flow ${id}.`).toBeTruthy();
-      expect(entry?.status, `${id} must be present before T133 can start.`).toBe("present");
+      expect(entry?.status, `${id} must be present before T140 can start.`).toBe("present");
       expect(entry?.required, `${id} must stay required.`).toBe(true);
       expect(entry?.releaseBlocking, `${id} must stay release-blocking.`).toBe(true);
     }
@@ -122,7 +122,7 @@ describe("Frontend 002 runtime regression gate manifest", () => {
 
       if (entry.status === "known-issue") {
         expect(entry.required, `${entry.id} known issues must not be marked required.`).toBe(false);
-        expect(entry.releaseBlocking, `${entry.id} known issues must not block T132 closeout.`).toBe(false);
+        expect(entry.releaseBlocking, `${entry.id} known issues must not block T138/T139 closeout.`).toBe(false);
         expect(entry.notes, `${entry.id} known issues need explicit notes.`).toBeTruthy();
         expect(entry.followUp, `${entry.id} known issues need an owning follow-up task.`).toBeTruthy();
       }
@@ -157,7 +157,30 @@ describe("Frontend 002 runtime regression gate manifest", () => {
     expect(legacyEntry?.releaseBlocking).toBe(false);
     expect(legacyEntry?.paths).toContain("tests/component/assistant/send-message-streaming.spec.ts");
     expect(legacyEntry?.notes).toMatch(/legacy assistant-chat-\*/);
-    expect(legacyEntry?.followUp).toMatch(/T133/);
+    expect(legacyEntry?.requiredFlow).toMatch(/T138\/T139/);
+    expect(legacyEntry?.notes).toMatch(/T138\/T139/);
+    expect(legacyEntry?.followUp).toMatch(/T139/);
+  });
+
+  it("separates the T143 packaged Compatibility Mode fixture contract from the T144/T145 productized widget gate", () => {
+    const fixtureEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-compatibility-fixture-router-contract");
+    const productizedEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-compatibility-productized-chat-flow-pending");
+
+    expect(fixtureEntry).toBeTruthy();
+    expect(fixtureEntry?.status).toBe("present");
+    expect(fixtureEntry?.required).toBe(true);
+    expect(fixtureEntry?.releaseBlocking).toBe(true);
+    expect(fixtureEntry?.requiredFlow).toMatch(/T143/);
+    expect(fixtureEntry?.requiredFlow).toMatch(/seven canonical SSE outcome fixtures/);
+    expect(fixtureEntry?.requiredFlow).toMatch(/forbidden host\/context\/authority fields/);
+
+    expect(productizedEntry).toBeTruthy();
+    expect(productizedEntry?.status).toBe("known-issue");
+    expect(productizedEntry?.required).toBe(false);
+    expect(productizedEntry?.releaseBlocking).toBe(false);
+    expect(productizedEntry?.notes).toMatch(/Pending T144\/T145/);
+    expect(productizedEntry?.notes).toMatch(/not block T143 fixture-router closure/);
+    expect(productizedEntry?.followUp).toMatch(/T144\/T145/);
   });
 
   it("does not preserve stale ownership wording from pre-extraction architecture", async () => {
