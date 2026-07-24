@@ -95,8 +95,8 @@ describe("Frontend 002 packaged Compatibility Mode T143 fixture/router contract"
     await expectPathExists(app.resolvedStylesPath, "Packaged Compatibility Mode smoke must resolve the SDK stylesheet public entry.");
     expect(source).toContain("AssistantWidget");
     expect(source).toContain("mountAssistantWidget");
-    expect(source).toContain("@internal-ai-assistant/assistant-sdk");
-    expect(source).toContain("@internal-ai-assistant/assistant-sdk/styles.css");
+    expect(source).toContain("@ideaxpress/assistant-sdk");
+    expect(source).toContain("@ideaxpress/assistant-sdk/styles.css");
 
     for (const forbiddenPattern of forbiddenProductizedConsumerImportPatterns) {
       expect(source, `Packaged compatibility smoke must not use ${forbiddenPattern}.`).not.toMatch(forbiddenPattern);

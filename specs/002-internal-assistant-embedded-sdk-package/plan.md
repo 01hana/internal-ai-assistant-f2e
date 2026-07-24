@@ -98,7 +98,7 @@ Existing Frontend 001 runtime:
 These gaps describe the initial state before Phase 0 execution and are retained only as historical planning context.
 
 - `packages/assistant-sdk/` does not exist.
-- `@internal-ai-assistant/assistant-sdk` workspace package does not exist.
+- `@ideaxpress/assistant-sdk` workspace package does not exist.
 - Library build config for the SDK package has not been selected or created.
 - Public package export boundary does not exist yet.
 - Reference consumer does not yet consume the assistant through package public entry.
@@ -106,7 +106,7 @@ These gaps describe the initial state before Phase 0 execution and are retained 
 ### Post-Phase-10 Baseline
 
 - `packages/assistant-sdk/` exists.
-- `@internal-ai-assistant/assistant-sdk` workspace package exists.
+- `@ideaxpress/assistant-sdk` workspace package exists.
 - Vite library build support exists.
 - Public package exports exist and remain limited to root entry plus `./styles.css`.
 - Phase 10 validates real build / pack / dist / package artifact boundary.
@@ -385,7 +385,7 @@ Package strategy:
 - Same-version track with Frontend 001 runtime is required.
 - Productized package contents include `dist`, `styles.css`, and `README.md`; sourcemaps are not included initially.
 - GitHub Packages is the selected publish-readiness target with registry `https://npm.pkg.github.com` and `publishConfig.access` set to `restricted`.
-- Package name remains `@internal-ai-assistant/assistant-sdk` for now; before actual publish, confirm `@internal-ai-assistant` maps to the correct GitHub Packages owner / org scope and authentication setup.
+- Package name remains `@ideaxpress/assistant-sdk` for now; before actual publish, confirm `@internal-ai-assistant` maps to the correct GitHub Packages owner / org scope and authentication setup.
 - `private: true` remains until runtime completeness passes, then Phase 11 may remove it for publish readiness.
 - Version remains `0.1.0`; license is `UNLICENSED`.
 
@@ -404,7 +404,7 @@ Public exports:
 - Mount handle
 - Safe error types
 - Sanitized context types
-- Public style entry: `@internal-ai-assistant/assistant-sdk/styles.css`
+- Public style entry: `@ideaxpress/assistant-sdk/styles.css`
 
 Forbidden exports:
 
@@ -614,7 +614,7 @@ Event rules:
 
 Stylesheet entry:
 
-- `@internal-ai-assistant/assistant-sdk/styles.css`
+- `@ideaxpress/assistant-sdk/styles.css`
 
 Supported styling:
 
@@ -677,13 +677,13 @@ Use the current Nuxt app as reference consumer / preview harness:
 
 ### Package Artifact Validation
 
-Packaging validation must verify that the built SDK package can be consumed through `@internal-ai-assistant/assistant-sdk` public entries without unresolved Frontend 001 app path imports.
+Packaging validation must verify that the built SDK package can be consumed through `@ideaxpress/assistant-sdk` public entries without unresolved Frontend 001 app path imports.
 
 Required later validation:
 
 - Run `npm pack` or an equivalent package artifact smoke after SDK build support exists.
 - Install or consume the local tarball / workspace dist in the reference consumer.
-- Reference consumer may import only `@internal-ai-assistant/assistant-sdk` and `@internal-ai-assistant/assistant-sdk/styles.css`.
+- Reference consumer may import only `@ideaxpress/assistant-sdk` and `@ideaxpress/assistant-sdk/styles.css`.
 - Reference consumer must not import `app/features`, `app/services`, `app/stores`, `app/utils`, or `packages/assistant-sdk/src/runtime`.
 - Scan SDK dist for unresolved `../../../../app/features`, `../../../../app/services`, `../../../../app/stores`, `../../../../app/utils`, and equivalent `app/**` internal imports.
 - Verify package exports still omit `./runtime` and `./runtime/*`.
@@ -754,7 +754,7 @@ Phase 0-Phase 10 are retained as completed historical implementation and validat
 
 ### Phase 1 - Workspace Package Skeleton and Public Exports
 
-- Purpose: create `@internal-ai-assistant/assistant-sdk` package skeleton.
+- Purpose: create `@ideaxpress/assistant-sdk` package skeleton.
 - Dependencies: Phase 0 guardrails.
 - Primary areas: `packages/assistant-sdk/`, workspace config, exports, styles entry.
 - Test-first entry criteria: public export tests fail until exports exist.
@@ -1112,7 +1112,7 @@ Plan decisions made:
 - Shared runtime boundary: `packages/assistant-runtime/**`, private/internal-only.
 - Public export strategy: root public entry plus stylesheet entry only.
 - GitHub Packages publish-readiness target.
-- Package name remains `@internal-ai-assistant/assistant-sdk` for now.
+- Package name remains `@ideaxpress/assistant-sdk` for now.
 - T097-T099 are downstream of Canonical Runtime Library-Safe Extraction.
 - Runtime completeness before private flag removal.
 - Short-term bundle compiled code from `packages/assistant-runtime` into SDK dist.

@@ -91,8 +91,8 @@ export const productizedRuntimeStateRequirements = [
 ] as const;
 
 export const publicSdkImportSpecifiers = [
-  "@internal-ai-assistant/assistant-sdk",
-  "@internal-ai-assistant/assistant-sdk/styles.css",
+  "@ideaxpress/assistant-sdk",
+  "@ideaxpress/assistant-sdk/styles.css",
 ] as const;
 
 export const forbiddenProductizedConsumerImportPatterns = [

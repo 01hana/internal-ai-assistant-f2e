@@ -83,4 +83,31 @@ describe("Frontend 002 SDK package artifact smoke", () => {
       }
     }
   });
+
+  it("ships a self-contained stylesheet for shell and shared runtime UI selectors", async () => {
+    const stylesheet = await readFile(join(projectRootPath, sdkStylesheet), "utf8");
+    const requiredRuntimeStyleMarkers = [
+      ".assistant-sdk-root",
+      ".assistant-sdk-panel",
+      "[data-testid=\"assistant-runtime-root\"]",
+      "[data-testid=\"assistant-message-list\"]",
+      "[data-testid=\"assistant-user-message\"]",
+      "[data-testid=\"assistant-ai-message\"]",
+      ".assistant-message--user",
+      ".assistant-message--assistant",
+      "[data-testid=\"assistant-composer-input\"]",
+      "[data-testid=\"assistant-send\"]",
+      "[data-testid=\"assistant-safe-outcome\"]",
+      "[data-testid=\"assistant-evidence-ref\"]",
+      "[data-testid=\"assistant-feedback-helpful\"]",
+      "[data-testid=\"assistant-action-draft-confirm\"]",
+      "[data-testid=\"assistant-approval-request-open-detail\"]",
+    ];
+
+    for (const marker of requiredRuntimeStyleMarkers) {
+      expect(stylesheet, `SDK styles.css must include runtime UI marker ${marker}.`).toContain(marker);
+    }
+
+    expect(stylesheet, "SDK package stylesheet must not delegate runtime UI styling to Tailwind imports.").not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
+  });
 });

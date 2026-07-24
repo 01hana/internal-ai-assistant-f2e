@@ -1,5 +1,5 @@
-export const sdkPackageName = "@internal-ai-assistant/assistant-sdk";
-export const sdkStylesheetEntry = "@internal-ai-assistant/assistant-sdk/styles.css";
+export const sdkPackageName = "@ideaxpress/assistant-sdk";
+export const sdkStylesheetEntry = "@ideaxpress/assistant-sdk/styles.css";
 
 export const sdkPackageRoot = "packages/assistant-sdk";
 export const sdkPackageManifest = `${sdkPackageRoot}/package.json`;

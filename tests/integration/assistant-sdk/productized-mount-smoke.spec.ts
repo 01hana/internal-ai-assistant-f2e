@@ -72,8 +72,8 @@ describe("Frontend 002 productized mountAssistantWidget smoke", () => {
     await expectPathExists(app.tarballPath, "Temporary consumer must use a local SDK tarball.");
     await expectPathExists(app.resolvedEntryPath, "Temporary consumer must resolve the SDK root public entry.");
     await expectPathExists(app.resolvedStylesPath, "Temporary consumer must resolve the SDK stylesheet public entry.");
-    expect(source).toContain("@internal-ai-assistant/assistant-sdk");
-    expect(source).toContain("@internal-ai-assistant/assistant-sdk/styles.css");
+    expect(source).toContain("@ideaxpress/assistant-sdk");
+    expect(source).toContain("@ideaxpress/assistant-sdk/styles.css");
 
     for (const forbiddenPattern of forbiddenProductizedConsumerImportPatterns) {
       expect(source, `Temporary consuming app must not use ${forbiddenPattern}.`).not.toMatch(forbiddenPattern);

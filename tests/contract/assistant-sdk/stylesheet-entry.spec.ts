@@ -64,7 +64,7 @@ describe("Frontend 002 SDK stylesheet public entry", () => {
     };
     const exportKeys = collectExportKeys(packageJson.exports);
 
-    expect(exportKeys, "Package exports must expose @internal-ai-assistant/assistant-sdk/styles.css via ./styles.css.").toContain("./styles.css");
+    expect(exportKeys, "Package exports must expose @ideaxpress/assistant-sdk/styles.css via ./styles.css.").toContain("./styles.css");
     expect(await pathExists(sdkStylesheetPath), "The public stylesheet entry packages/assistant-sdk/styles.css must exist.").toBe(true);
   });
 

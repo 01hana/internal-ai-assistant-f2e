@@ -52,11 +52,6 @@ const chatWidgetSourcePath = resolve(
   'app/features/assistant/components/ChatWidget.vue',
 )
 
-const assistantRuntimeRootSourcePath = resolve(
-  process.cwd(),
-  'packages/assistant-runtime/src/components/AssistantRuntimeRoot.vue',
-)
-
 function createApprovalHostProvider(
   onOpenApprovalDetail?: (payload: {
     approvalRequestId: string
@@ -201,10 +196,10 @@ describe('ChatWidget floating launcher shell', () => {
 
     await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="assistant-runtime-root"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="assistant-composer-disabled-reason"]').text()).toMatch(
-      /目前頁面內容尚未就緒|助理正在準備中/,
-    )
+    expect(wrapper.get('[data-testid="assistant-message-context-not-ready"]').text())
+      .toContain('目前頁面內容尚未就緒')
+    expect(wrapper.get('[data-testid="assistant-chat-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-chat-submit"]').exists()).toBe(true)
 
     const liveRegion = wrapper.get('[data-testid="assistant-panel-status"]')
     expect(liveRegion.text()).toContain('目前頁面內容尚未就緒')
@@ -226,10 +221,10 @@ describe('ChatWidget floating launcher shell', () => {
 
     expect(wrapper.get('[data-testid="assistant-panel-header"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="assistant-panel-main"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="assistant-runtime-root"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="assistant-message-list"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="assistant-composer-input"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="assistant-send"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-message-area"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-panel-footer"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-chat-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-chat-submit"]').exists()).toBe(true)
   })
 
   it('does not render external-service semantics', async () => {
@@ -254,27 +249,26 @@ describe('ChatWidget floating launcher shell', () => {
     }
   })
 
-  it('uses the shared runtime root as the active canonical UI renderer', () => {
+  it('uses the Frontend 001 product panel as the active UI renderer', () => {
     const source = readFileSync(chatWidgetSourcePath, 'utf8')
 
-    expect(source).toContain('AssistantRuntimeRoot')
-    expect(source).toContain('FRONTEND001_RUNTIME_SCOPE')
-    expect(source).not.toContain('<ChatPanel')
-    expect(source).not.toContain('<ChatMessageArea')
-    expect(source).not.toContain('<ChatInputBar')
+    expect(source).toContain('<ChatPanel')
+    expect(source).not.toContain('AssistantRuntimeRoot')
+    expect(source).not.toContain('FRONTEND001_RUNTIME_SCOPE')
     expect(source).not.toContain('AssistantService')
     expect(source).not.toMatch(/createAssistantSseStreamRunner|parseAssistantSse|ReadableStream|AbortController/)
   })
 
-  it('keeps shared runtime root free of Frontend 001 legacy test hooks', () => {
-    const source = readFileSync(assistantRuntimeRootSourcePath, 'utf8')
+  it('keeps Frontend 001 product selectors active in the ChatWidget path', async () => {
+    const wrapper = await mountWidget()
 
-    expect(source).not.toContain('assistant-chat-input')
-    expect(source).not.toContain('assistant-chat-submit')
-    expect(source).not.toContain('assistant-chat-cancel')
-    expect(source).not.toContain('assistant-chat-disabled-reason')
-    expect(source).not.toContain('legacyMessageTestId')
-    expect(source).not.toContain('legacyMessageClass')
+    await wrapper.get('[data-testid="assistant-launcher"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="assistant-message-area"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-panel-footer"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-chat-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-chat-submit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="assistant-runtime-root"]').exists()).toBe(false)
   })
 
   it('forwards open approval detail events to the host callback when available', async () => {
@@ -326,7 +320,7 @@ describe('ChatWidget floating launcher shell', () => {
     await nextTick()
 
     expect(
-      wrapper.get('[data-testid="assistant-approval-request-open-detail-error"]').text(),
+      wrapper.get('[data-testid="assistant-approval-request-open-detail-unavailable"]').text(),
     ).toContain('尚未提供審核詳情入口')
   })
 })

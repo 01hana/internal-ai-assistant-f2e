@@ -2,8 +2,8 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineNuxtConfig({
   alias: {
-    "@internal-ai-assistant/assistant-sdk/styles.css": fileURLToPath(new URL("./packages/assistant-sdk/styles.css", import.meta.url)),
-    "@internal-ai-assistant/assistant-sdk": fileURLToPath(new URL("./packages/assistant-sdk/src/index.ts", import.meta.url)),
+    "@ideaxpress/assistant-sdk/styles.css": fileURLToPath(new URL("./packages/assistant-sdk/styles.css", import.meta.url)),
+    "@ideaxpress/assistant-sdk": fileURLToPath(new URL("./packages/assistant-sdk/src/index.ts", import.meta.url)),
   },
   modules: [
     "@nuxt/ui",
@@ -25,7 +25,7 @@ export default defineNuxtConfig({
     storesDirs: ["./stores/**"],
   },
   build: {
-    transpile: ["@internal-ai-assistant/assistant-sdk"],
+    transpile: ["@ideaxpress/assistant-sdk"],
   },
   components: [
     {

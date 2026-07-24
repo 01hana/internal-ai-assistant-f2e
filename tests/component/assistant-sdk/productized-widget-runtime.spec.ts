@@ -21,6 +21,7 @@ const projectRootPath = process.cwd();
 const sdkSourcePath = join(projectRootPath, "packages/assistant-sdk/src");
 const sdkComponentPath = join(sdkSourcePath, "components/AssistantWidget.vue");
 const sdkDistPath = join(projectRootPath, "packages/assistant-sdk/dist");
+const sdkStylesheetPath = join(projectRootPath, "packages/assistant-sdk/styles.css");
 
 async function pathExists(path: string) {
   try {
@@ -51,6 +52,10 @@ async function collectFiles(directory: string): Promise<string[]> {
 
 function queryAny(container: Element, selectors: readonly string[]) {
   return selectors.some(selector => container.matches(selector) || container.querySelector(selector));
+}
+
+function expectStylesheetOwnsSelector(stylesheet: string, selector: string) {
+  expect(stylesheet, `SDK styles.css must contain package-owned styling for ${selector}.`).toContain(selector);
 }
 
 describe("Frontend 002 productized AssistantWidget runtime completeness", () => {
@@ -86,6 +91,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
   });
 
   it("opens a productized canonical runtime panel with conversation, composer, and send controls", async () => {
+    const stylesheet = await readFile(sdkStylesheetPath, "utf8");
     const wrapper = mount(AssistantWidget, {
       props: {
         provider: async () => ({
@@ -118,6 +124,13 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     expect(wrapper.find("[data-testid='assistant-message-list']").exists()).toBe(true);
     expect(wrapper.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
     expect(wrapper.find("[data-testid='assistant-send']").exists()).toBe(true);
+
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-sdk-panel");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-runtime-root\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-list\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-composer-input\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-send\"]");
+    expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
   });
 
   it("wires provider, configuration, and callbacks through safe SDK boundaries", async () => {

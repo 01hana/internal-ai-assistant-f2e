@@ -1,5 +1,5 @@
-export const publicSdkPackageName = "@internal-ai-assistant/assistant-sdk";
-export const publicSdkStylesheetEntry = "@internal-ai-assistant/assistant-sdk/styles.css";
+export const publicSdkPackageName = "@ideaxpress/assistant-sdk";
+export const publicSdkStylesheetEntry = "@ideaxpress/assistant-sdk/styles.css";
 export const nuxtConfigFile = "nuxt.config.ts";
 
 export const requiredReferenceConsumerImports = [

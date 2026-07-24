@@ -115,8 +115,8 @@ export function createCompatibilityReferenceConsumerReadinessFixture() {
   return {
     backend002Required: false,
     imports: [
-      "@internal-ai-assistant/assistant-sdk",
-      "@internal-ai-assistant/assistant-sdk/styles.css",
+      "@ideaxpress/assistant-sdk",
+      "@ideaxpress/assistant-sdk/styles.css",
     ],
     integrationMode: compatibilityMode,
     localOnlySurfaces: [

@@ -11,8 +11,8 @@ const execFileAsync = promisify(execFile);
 const projectRootPath = process.cwd();
 const temporaryRootPath = "/private/tmp";
 const sdkPackageRootPath = join(projectRootPath, "packages/assistant-sdk");
-const sdkPackageName = "@internal-ai-assistant/assistant-sdk";
-const sdkStylesSpecifier = "@internal-ai-assistant/assistant-sdk/styles.css";
+const sdkPackageName = "@ideaxpress/assistant-sdk";
+const sdkStylesSpecifier = "@ideaxpress/assistant-sdk/styles.css";
 
 type NpmPackResult = {
   readonly filename: string;
@@ -60,7 +60,7 @@ async function symlinkProjectDependency(consumerRoot: string, dependencyName: st
 }
 
 async function stagePackedSdkIntoConsumer(consumerRoot: string, tarballPath: string) {
-  const installedPackageRoot = join(consumerRoot, "node_modules/@internal-ai-assistant/assistant-sdk");
+  const installedPackageRoot = join(consumerRoot, "node_modules/@ideaxpress/assistant-sdk");
 
   await mkdir(installedPackageRoot, { recursive: true });
   await execFileAsync("tar", ["-xzf", tarballPath, "-C", installedPackageRoot, "--strip-components=1"], {

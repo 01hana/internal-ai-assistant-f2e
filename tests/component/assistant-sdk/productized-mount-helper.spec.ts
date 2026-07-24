@@ -16,6 +16,7 @@ const projectRootPath = process.cwd();
 const mountHelperPath = join(projectRootPath, "packages/assistant-sdk/src/mountAssistantWidget.ts");
 const publicEntryPath = join(projectRootPath, "packages/assistant-sdk/src/index.ts");
 const packageJsonPath = join(projectRootPath, "packages/assistant-sdk/package.json");
+const sdkStylesheetPath = join(projectRootPath, "packages/assistant-sdk/styles.css");
 
 function createTarget() {
   const target = document.createElement("div");
@@ -59,8 +60,13 @@ async function expectMountedOpenWidget(target: Element) {
   });
 }
 
+function expectStylesheetOwnsSelector(stylesheet: string, selector: string) {
+  expect(stylesheet, `Public SDK styles.css must style mounted widget selector ${selector}.`).toContain(selector);
+}
+
 describe("Frontend 002 productized mountAssistantWidget helper", () => {
   it("creates an isolated Vue app, mounts the full productized AssistantWidget, and opens/closes through the handle", async () => {
+    const stylesheet = await readFile(sdkStylesheetPath, "utf8");
     const target = createTarget();
     const callbacks = {
       onClosed: vi.fn(),
@@ -92,6 +98,12 @@ describe("Frontend 002 productized mountAssistantWidget helper", () => {
     expect(target.querySelector("[data-testid='assistant-message-list']")).toBeTruthy();
     expect(target.querySelector("[data-testid='assistant-composer-input']")).toBeTruthy();
     expect(target.querySelector("[data-testid='assistant-send']")).toBeTruthy();
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-sdk-panel");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-runtime-root\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-list\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-composer-input\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-send\"]");
+    expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
 
     handle.close();
     await flushWidgetMount();

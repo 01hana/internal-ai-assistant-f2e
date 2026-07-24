@@ -1,7 +1,7 @@
 export const expectedPublishReadinessMetadata = {
   access: "restricted",
   license: "UNLICENSED",
-  name: "@internal-ai-assistant/assistant-sdk",
+  name: "@ideaxpress/assistant-sdk",
   registry: "https://npm.pkg.github.com",
   version: "0.1.0",
 } as const;

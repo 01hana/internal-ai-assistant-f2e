@@ -18,8 +18,8 @@ export const requiredCompatibilityRenderingOutcomes = [
 ] as const;
 
 export const requiredReferenceConsumerReadinessSignals = [
-  "@internal-ai-assistant/assistant-sdk",
-  "@internal-ai-assistant/assistant-sdk/styles.css",
+  "@ideaxpress/assistant-sdk",
+  "@ideaxpress/assistant-sdk/styles.css",
   "AssistantWidget",
   "mountAssistantWidget",
   "provider",

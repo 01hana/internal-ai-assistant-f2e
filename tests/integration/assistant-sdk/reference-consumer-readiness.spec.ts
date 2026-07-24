@@ -39,8 +39,8 @@ describe("Frontend 002 reference consumer Compatibility Mode readiness smoke", (
     const { createCompatibilityReferenceConsumerReadinessFixture } = await loadCompatibilityModeFixture();
     const fixture = createCompatibilityReferenceConsumerReadinessFixture();
 
-    expect(fixture.imports).toContain("@internal-ai-assistant/assistant-sdk");
-    expect(fixture.imports).toContain("@internal-ai-assistant/assistant-sdk/styles.css");
+    expect(fixture.imports).toContain("@ideaxpress/assistant-sdk");
+    expect(fixture.imports).toContain("@ideaxpress/assistant-sdk/styles.css");
 
     for (const forbiddenImport of forbiddenReferenceConsumerReadinessImports) {
       expect(fixture.imports.some(importPath => importPath.startsWith(forbiddenImport))).toBe(false);

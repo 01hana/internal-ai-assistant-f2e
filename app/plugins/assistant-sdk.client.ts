@@ -2,9 +2,9 @@ import type {
   AssistantHostContextProvider,
   HostCallbacks,
   WidgetConfiguration,
-} from "@internal-ai-assistant/assistant-sdk";
+} from "@ideaxpress/assistant-sdk";
 
-import "@internal-ai-assistant/assistant-sdk/styles.css";
+import "@ideaxpress/assistant-sdk/styles.css";
 
 export default defineNuxtPlugin(() => {
   const route = useRoute();

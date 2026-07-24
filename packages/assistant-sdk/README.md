@@ -1,13 +1,13 @@
-# @internal-ai-assistant/assistant-sdk
+# @ideaxpress/assistant-sdk
 
-`@internal-ai-assistant/assistant-sdk` 是給公司管理的客戶後台／管理系統使用的 productized SDK。它的主要使用者是內部工程團隊，用來把內部 AI Assistant 嵌入客戶管理型產品；它不是公開第三方 SDK，也不是單一內部 app demo。
+`@ideaxpress/assistant-sdk` 是給公司管理的客戶後台／管理系統使用的 productized SDK。它的主要使用者是內部工程團隊，用來把內部 AI Assistant 嵌入客戶管理型產品；它不是公開第三方 SDK，也不是單一內部 app demo。
 
 ## Installation
 
 透過 GitHub Packages 安裝套件。請由專案的 npm 設定或 CI secret 提供 registry 存取權限，不要把 token、secret 或 credential 傳進 SDK provider、configuration 或 callbacks。
 
 ```bash
-npm install @internal-ai-assistant/assistant-sdk
+npm install @ideaxpress/assistant-sdk
 ```
 
 ## Stylesheet import
@@ -15,8 +15,8 @@ npm install @internal-ai-assistant/assistant-sdk
 只使用公開 root package 與 stylesheet entry：
 
 ```ts
-import { AssistantWidget, mountAssistantWidget } from "@internal-ai-assistant/assistant-sdk";
-import "@internal-ai-assistant/assistant-sdk/styles.css";
+import { AssistantWidget, mountAssistantWidget } from "@ideaxpress/assistant-sdk";
+import "@ideaxpress/assistant-sdk/styles.css";
 ```
 
 請不要 deep import runtime、transport、session、context、events、source files，或任何 monorepo 內部路徑。
@@ -26,8 +26,8 @@ import "@internal-ai-assistant/assistant-sdk/styles.css";
 `mountAssistantWidget` 會為每次 mount 建立隔離的 Vue app 與 Pinia runtime scope。呼叫 `destroy()` 或 `unmount()` 會釋放 SDK 建立的 DOM、事件與 runtime 資源。
 
 ```ts
-import { mountAssistantWidget } from "@internal-ai-assistant/assistant-sdk";
-import "@internal-ai-assistant/assistant-sdk/styles.css";
+import { mountAssistantWidget } from "@ideaxpress/assistant-sdk";
+import "@ideaxpress/assistant-sdk/styles.css";
 
 const handle = mountAssistantWidget({
   target: document.querySelector("#assistant-root")!,
@@ -66,8 +66,8 @@ Vue host 可以直接使用 component。Consumer 仍只需要安裝 Vue peer dep
 
 ```vue
 <script setup lang="ts">
-import { AssistantWidget } from "@internal-ai-assistant/assistant-sdk";
-import "@internal-ai-assistant/assistant-sdk/styles.css";
+import { AssistantWidget } from "@ideaxpress/assistant-sdk";
+import "@ideaxpress/assistant-sdk/styles.css";
 
 const provider = async () => ({
   hostApp: "customer-admin",

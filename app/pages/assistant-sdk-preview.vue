@@ -2,14 +2,14 @@
 import {
   AssistantWidget,
   mountAssistantWidget,
-} from "@internal-ai-assistant/assistant-sdk";
+} from "@ideaxpress/assistant-sdk";
 import type {
   AssistantHostContextProvider,
   HostCallbacks,
   WidgetConfiguration,
-} from "@internal-ai-assistant/assistant-sdk";
+} from "@ideaxpress/assistant-sdk";
 
-import "@internal-ai-assistant/assistant-sdk/styles.css";
+import "@ideaxpress/assistant-sdk/styles.css";
 
 const route = useRoute();
 const entity = ref(String(route.query.entityId ?? "order-001"));

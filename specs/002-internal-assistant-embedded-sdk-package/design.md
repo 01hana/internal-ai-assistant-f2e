@@ -59,10 +59,10 @@ Backend 002 fixed input:
 ### Fixed Decisions
 
 - Vue 3 / Nuxt 4 only.
-- Package name: `@internal-ai-assistant/assistant-sdk`.
+- Package name: `@ideaxpress/assistant-sdk`.
 - Component export: `AssistantWidget`.
 - Imperative helper: `mountAssistantWidget`.
-- Stylesheet entry: `@internal-ai-assistant/assistant-sdk/styles.css`.
+- Stylesheet entry: `@ideaxpress/assistant-sdk/styles.css`.
 - Locale v1 guarantee: `zh-TW`.
 - `selectedRows` max: 20 raw input rows.
 - `selectedRows` overflow behavior: reject entire context, do not truncate.
@@ -105,7 +105,7 @@ Backend 002 fixed input:
 ### Post-Phase-10 Baseline
 
 - `packages/assistant-sdk/` 已存在。
-- `@internal-ai-assistant/assistant-sdk` workspace package 已存在。
+- `@ideaxpress/assistant-sdk` workspace package 已存在。
 - Vite library build support 已存在。
 - Public package exports 已存在，且仍限制為 root entry 加 `./styles.css`。
 - Phase 10 已驗證 real build / pack / dist / package artifact boundary。
@@ -280,7 +280,7 @@ Public exports:
 - `AssistantWidget`
 - `mountAssistantWidget`
 - Public types for `AssistantHostContextProvider`, `WidgetConfiguration`, `HostCallbacks`, `HostEvents`, integration mode, mount options, mount handle, page context input, sanitized context result, and safe errors.
-- Public style entry: `@internal-ai-assistant/assistant-sdk/styles.css`
+- Public style entry: `@ideaxpress/assistant-sdk/styles.css`
 
 Forbidden public exports:
 
@@ -645,7 +645,7 @@ Package does not infer, hardcode, or assemble Host App navigation URL. Host App 
 
 Public stylesheet entry:
 
-- `@internal-ai-assistant/assistant-sdk/styles.css`
+- `@ideaxpress/assistant-sdk/styles.css`
 
 Supported v1 controls:
 
