@@ -1,11 +1,12 @@
 {
   "name": "@internal-ai-assistant/assistant-sdk",
   "version": "0.1.0",
-  "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "files": [
     "dist",
-    "styles.css"
+    "styles.css",
+    "README.md"
   ],
   "scripts": {
     "build": "vite build && vue-tsc -p tsconfig.build.json"
@@ -16,6 +17,10 @@
       "import": "./dist/index.mjs"
     },
     "./styles.css": "./styles.css"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "peerDependencies": {
     "vue": "^3.5.39",

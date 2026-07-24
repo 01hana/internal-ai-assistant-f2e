@@ -3,9 +3,18 @@ import {
   createAssistantRuntimeController,
 } from "../../../assistant-runtime/src/runtime";
 import {
+  createAssistantSseStreamRunner,
+  type AssistantFinalSseEvent,
+  type AssistantSseStreamSafeError,
+} from "../../../assistant-runtime/src/sse";
+import {
   createAssistantRuntimeStores,
 } from "../../../assistant-runtime/src/stores";
 import type {
+  AssistantSseEvent,
+} from "../../../assistant-runtime/src/types";
+import type {
+  AssistantRuntimeStreamMessageInput,
   AssistantRuntimeTransportPort,
 } from "../../../assistant-runtime/src/transport/ports";
 import { createHostContextResolver } from "../context/hostContextProvider";
@@ -48,11 +57,7 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     pinia: options.pinia,
     runtimeScope: options.runtimeScope,
   });
-  const controller = createAssistantRuntimeController({
-    runtimeScope: options.runtimeScope,
-    stores,
-    transport,
-  });
+  let controller!: ReturnType<typeof createAssistantRuntimeController>;
   const sessionLifecycle = createSdkSessionLifecycleAdapter({
     namespace: options.configuration?.sessionScope,
     transport,
@@ -70,6 +75,123 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
   });
   let destroyed = false;
   let lifecycleVersion = 0;
+
+  function toSafeStreamError(error: AssistantSseStreamSafeError) {
+    return {
+      code: error.code,
+      message: error.safeMessage,
+      userMessage: error.safeMessage,
+    };
+  }
+
+  async function emitStreamError(error: AssistantSseStreamSafeError): Promise<void> {
+    controller.markStreamingFailed();
+    controller.clearStreamingState();
+    controller.setLastError({
+      code: error.code,
+      safeMessage: error.safeMessage,
+    }, null);
+    await hostEvents.emit("error", {
+      error: toSafeStreamError(error),
+    });
+  }
+
+  function isFinalEvent(event: AssistantSseEvent): event is AssistantFinalSseEvent {
+    return event.eventType === "final";
+  }
+
+  function alignActiveStreamingRequest(event: AssistantSseEvent): void {
+    const session = controller.stores.session;
+    const activeMessageKey = session.activeAssistantMessageKey.value;
+
+    if (
+      activeMessageKey
+      && session.activeRequestId.value !== event.requestId
+    ) {
+      controller.setStreamingRequest(event.requestId, activeMessageKey);
+    }
+  }
+
+  function forceActiveStreamingTerminal(status: "failed" | "interrupted"): void {
+    const session = controller.stores.session;
+    const activeMessageKey = session.activeAssistantMessageKey.value;
+    const messages = session.messages.value as Array<Record<string, unknown>>;
+    const message = messages.find(candidate =>
+      candidate.kind === "assistant_streaming"
+      && candidate.key === activeMessageKey,
+    ) ?? [...messages].reverse().find(candidate =>
+      candidate.kind === "assistant_streaming"
+      && candidate.status !== "completed",
+    );
+
+    if (!message || message.status === "completed") {
+      return;
+    }
+
+    if (typeof message.pendingContent === "string" && message.pendingContent.length > 0) {
+      message.content = `${typeof message.content === "string" ? message.content : ""}${message.pendingContent}`;
+    }
+
+    message.pendingContent = "";
+    message.typingVisibleUntil = null;
+    message.status = status;
+  }
+
+  const sseRunner = createAssistantSseStreamRunner<AssistantRuntimeStreamMessageInput>({
+    callbacks: {
+      onAbort: () => {
+        controller.markStreamingCancelled();
+        controller.clearStreamingState();
+      },
+      onEvent: (event) => {
+        alignActiveStreamingRequest(event);
+        if (!isFinalEvent(event)) {
+          controller.applyStreamingEvent(event);
+        }
+      },
+      onFinal: (event) => {
+        alignActiveStreamingRequest(event);
+        controller.markStreamingFinalizing();
+        controller.finalizeActiveStreamingMessage(event);
+        void hostEvents.emit("answer-completed", {
+          messageId: event.messageId,
+          sessionId: event.sessionId,
+          status: event.data.answerDecision,
+        });
+      },
+      onComplete: () => {
+        controller.clearStreamingState();
+      },
+      onInterrupted: (error) => {
+        controller.markStreamingInterrupted();
+        forceActiveStreamingTerminal("interrupted");
+        controller.clearStreamingState();
+        void emitStreamError(error);
+      },
+      onTimeout: (error) => {
+        void emitStreamError(error);
+      },
+      onTransportError: (error) => {
+        void emitStreamError(error);
+      },
+    },
+    openStream: async (input, runtimeOptions) => {
+      const result = await transport.streamMessage(input, runtimeOptions);
+
+      if (!result.ok) {
+        throw new Error(result.error.code);
+      }
+
+      return result.value;
+    },
+  });
+
+  controller = createAssistantRuntimeController({
+    runtimeScope: options.runtimeScope,
+    sseRunner,
+    stores,
+    transport,
+  });
 
   function getLifecycleVersion(): number {
     return lifecycleVersion;
@@ -128,6 +250,17 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
       return callback();
     },
     sessionLifecycle,
+    sseRunner,
+    startMessageStream(input: AssistantRuntimeStreamMessageInput): Promise<void> {
+      if (destroyed) {
+        return Promise.resolve();
+      }
+
+      return sseRunner.start(input);
+    },
+    cancelMessageStream(): Promise<void> {
+      return sseRunner.cancel();
+    },
     transport,
   };
 }

@@ -162,9 +162,9 @@ describe("Frontend 002 runtime regression gate manifest", () => {
     expect(legacyEntry?.followUp).toMatch(/T139/);
   });
 
-  it("separates the T143 packaged Compatibility Mode fixture contract from the T144/T145 productized widget gate", () => {
+  it("keeps the T143 fixture contract and T146 packaged chat-flow gate release-blocking", () => {
     const fixtureEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-compatibility-fixture-router-contract");
-    const productizedEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-compatibility-productized-chat-flow-pending");
+    const productizedEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-compatibility-productized-chat-flow");
 
     expect(fixtureEntry).toBeTruthy();
     expect(fixtureEntry?.status).toBe("present");
@@ -175,12 +175,29 @@ describe("Frontend 002 runtime regression gate manifest", () => {
     expect(fixtureEntry?.requiredFlow).toMatch(/forbidden host\/context\/authority fields/);
 
     expect(productizedEntry).toBeTruthy();
-    expect(productizedEntry?.status).toBe("known-issue");
-    expect(productizedEntry?.required).toBe(false);
-    expect(productizedEntry?.releaseBlocking).toBe(false);
-    expect(productizedEntry?.notes).toMatch(/Pending T144\/T145/);
-    expect(productizedEntry?.notes).toMatch(/not block T143 fixture-router closure/);
-    expect(productizedEntry?.followUp).toMatch(/T144\/T145/);
+    expect(productizedEntry?.status).toBe("present");
+    expect(productizedEntry?.required).toBe(true);
+    expect(productizedEntry?.releaseBlocking).toBe(true);
+    expect(productizedEntry?.requiredFlow).toMatch(/T146/);
+    expect(productizedEntry?.requiredFlow).toMatch(/seven outcomes/);
+    expect(productizedEntry?.notes).toMatch(/bundled runtime\/SSE stabilization/);
+    expect(productizedEntry?.followUp).toBeUndefined();
+  });
+
+  it("keeps the T145 packaged mount helper gate release-blocking", () => {
+    const mountHelperEntry = runtimeRegressionGate.find(entry => entry.id === "packaged-assistant-widget-mount-helper");
+
+    expect(mountHelperEntry).toBeTruthy();
+    expect(mountHelperEntry?.status).toBe("present");
+    expect(mountHelperEntry?.required).toBe(true);
+    expect(mountHelperEntry?.releaseBlocking).toBe(true);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/T145/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/mountAssistantWidget/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/open/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/close/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/destroy/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/duplicate mount/);
+    expect(mountHelperEntry?.requiredFlow).toMatch(/registry/);
   });
 
   it("does not preserve stale ownership wording from pre-extraction architecture", async () => {

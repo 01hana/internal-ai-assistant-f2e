@@ -10,6 +10,7 @@ import {
   sdkDistTypes,
   sdkPackageManifest,
   sdkPackageName,
+  sdkPackageRoot,
   sdkStylesheet,
 } from "../../fixtures/assistant-sdk/release-readiness-contract";
 
@@ -64,6 +65,7 @@ describe("Frontend 002 SDK package artifact smoke", () => {
     });
     expect(manifest.exports?.["./styles.css"]).toBe("./styles.css");
     expect(await pathExists(sdkStylesheet)).toBe(true);
+    expect(await pathExists(`${sdkPackageRoot}/README.md`)).toBe(true);
   });
 
   it("requires a built SDK artifact before release readiness can close", async () => {

@@ -32,23 +32,73 @@ function toSseFrame(event: AssistantSseEventInput): string {
 // response; terminationMode remains test orchestration metadata.
 export function createCanonicalSseResponse(fixture: CanonicalSseOutcomeFixture): Response {
   const encoder = new TextEncoder();
+  const responseText = fixture.events.map(toSseFrame).join("");
 
-  return new Response(new ReadableStream<Uint8Array>({
-    start(controller) {
-      if (fixture.terminationMode === "inactivity") {
-        return;
-      }
+  function createBody(): ReadableStream<Uint8Array> {
+    return {
+      getReader() {
+        let sent = false;
+        let cancelled = false;
 
-      for (const event of fixture.events) {
-        controller.enqueue(encoder.encode(toSseFrame(event)));
-      }
-      controller.close();
-    },
-  }), {
+        return {
+          async cancel() {
+            cancelled = true;
+          },
+          async read() {
+            if (cancelled) {
+              return { done: true, value: undefined };
+            }
+
+            if (!sent) {
+              sent = true;
+
+              if (fixture.terminationMode !== "inactivity") {
+                return {
+                  done: false,
+                  value: encoder.encode(responseText),
+                };
+              }
+            }
+
+            if (fixture.terminationMode === "inactivity") {
+              return await new Promise<ReadableStreamReadResult<Uint8Array>>(() => {
+                // Keep the stream open so Shared Runtime timeout remains inactivity-based.
+              });
+            }
+
+            return { done: true, value: undefined };
+          },
+          releaseLock() {
+            // The shared runner does not require this, but real readers expose it.
+          },
+        };
+      },
+    } as unknown as ReadableStream<Uint8Array>;
+  }
+
+  const response = new Response(null, {
     headers: {
       "content-type": "text/event-stream",
     },
     status: 200,
+  });
+
+  return new Proxy(response, {
+    get(target, property, receiver) {
+      if (property === "body") {
+        return createBody();
+      }
+
+      if (property === "text") {
+        return async () => responseText;
+      }
+
+      const value = Reflect.get(target, property, receiver);
+
+      return typeof value === "function"
+        ? value.bind(target)
+        : value;
+    },
   });
 }
 
@@ -92,7 +142,7 @@ export function createCanonicalSseOutcomeFixture(name: CanonicalSseOutcomeName):
     case "timeout":
       return {
         events: [],
-        expectedText: /timed out|timeout|逾時/i,
+        expectedText: /回覆失敗|timed out|timeout|逾時/i,
         name,
         terminationMode: "inactivity",
       };

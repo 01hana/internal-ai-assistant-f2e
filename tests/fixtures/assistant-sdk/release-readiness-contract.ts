@@ -24,6 +24,14 @@ export const requiredReleaseReadinessChecks = [
   "package-artifact-contents",
   "usage-documentation",
   "security-boundary-documentation",
+  "github-packages-metadata",
+  "productized-widget-runtime",
+  "productized-mount-helper",
+  "packaged-compatibility-seven-outcomes",
+  "source-boundary-scan",
+  "no-sourcemaps",
+  "no-private-runtime-exports",
+  "no-external-backend-calls",
 ] as const;
 
 export const allowedPackageExportKeys = [
@@ -46,6 +54,10 @@ export const forbiddenPackageExportKeys = [
   "./context/*",
   "./request",
   "./request/*",
+  "./components",
+  "./components/*",
+  "./src",
+  "./src/*",
   "./fixtures",
   "./fixtures/*",
   "./tests",

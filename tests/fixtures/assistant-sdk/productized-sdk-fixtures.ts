@@ -29,6 +29,7 @@ export const productizedOpenWidgetRequirements = [
       "aside[aria-label*='assistant' i]",
       ".assistant-sdk-panel",
       "[data-assistant-panel]",
+      "[data-testid='assistant-runtime-root']",
     ],
   },
   {
@@ -37,6 +38,7 @@ export const productizedOpenWidgetRequirements = [
       "[role='log']",
       "[aria-label*='conversation' i]",
       "[data-assistant-message-list]",
+      "[data-testid='assistant-message-list']",
       ".assistant-message-list",
     ],
   },
@@ -47,6 +49,7 @@ export const productizedOpenWidgetRequirements = [
       "input[type='text']",
       "[contenteditable='true']",
       "[data-assistant-composer]",
+      "[data-testid='assistant-composer-input']",
     ],
   },
   {
@@ -55,6 +58,7 @@ export const productizedOpenWidgetRequirements = [
       "button[type='submit']",
       "button[aria-label*='send' i]",
       "[data-assistant-send]",
+      "[data-testid='assistant-send']",
     ],
   },
 ] as const;

@@ -1,8 +1,9 @@
 import { constants as fsConstants } from "node:fs";
 import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { nextTick } from "vue";
+import { describe, expect, it, vi } from "vitest";
 
 import AssistantWidget from "../../../packages/assistant-sdk/src/components/AssistantWidget.vue";
 import {
@@ -13,6 +14,7 @@ import {
   forbiddenPackagedRuntimeSourcePatterns,
   productizedClosedWidgetRequirements,
   productizedAssistantWidgetShellTexts,
+  productizedOpenWidgetRequirements,
 } from "../../fixtures/assistant-sdk/productized-sdk-fixtures";
 
 const projectRootPath = process.cwd();
@@ -83,6 +85,123 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     }
   });
 
+  it("opens a productized canonical runtime panel with conversation, composer, and send controls", async () => {
+    const wrapper = mount(AssistantWidget, {
+      props: {
+        provider: async () => ({
+          hostApp: "phase-11-productized-widget",
+          pageContext: {
+            route: "/orders/42",
+          },
+        }),
+      },
+    });
+
+    expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(false);
+
+    await wrapper.get("[data-assistant-launcher]").trigger("click");
+    await flushPromises();
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(wrapper.find("[data-assistant-panel]").exists()).toBe(true);
+      expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(true);
+    });
+
+    const root = wrapper.element;
+    for (const requirement of productizedOpenWidgetRequirements) {
+      expect(
+        queryAny(root, requirement.selectors),
+        `Open AssistantWidget must render ${requirement.name} from the shared canonical runtime UI.`,
+      ).toBe(true);
+    }
+    expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-message-list']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-send']").exists()).toBe(true);
+  });
+
+  it("wires provider, configuration, and callbacks through safe SDK boundaries", async () => {
+    const provider = vi.fn(async () => ({
+      hostApp: "phase-11-productized-widget",
+      pageContext: {
+        route: "/orders/42",
+      },
+      sessionScope: "local-only-session-scope",
+    }));
+    const onOpened = vi.fn();
+    const onError = vi.fn();
+    const wrapper = mount(AssistantWidget, {
+      props: {
+        callbacks: {
+          onError,
+          onOpened,
+        },
+        configuration: {
+          sessionScope: "orders-widget",
+          theme: "dark",
+        },
+        provider,
+      },
+    });
+
+    await wrapper.get("[data-assistant-launcher]").trigger("click");
+    await flushPromises();
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(wrapper.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
+    });
+
+    const input = wrapper.get("[data-testid='assistant-composer-input']");
+    await input.setValue("  Summarize the order  ");
+    await wrapper.get("[data-testid='assistant-send']").trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(provider).toHaveBeenCalled();
+    expect(onOpened).toHaveBeenCalledWith({});
+    expect(onError).toHaveBeenCalledWith({
+      error: expect.objectContaining({
+        code: expect.stringMatching(/^transport_/),
+      }),
+    });
+
+    const callbackPayload = JSON.stringify(onError.mock.calls);
+    expect(callbackPayload).not.toMatch(/pageContext|selectedRows|entityType|entityId|sessionScope|sourceSystem|authority|connector|permission|token|credential|secret/i);
+    expect(wrapper.attributes("data-theme")).toBe("dark");
+    expect(wrapper.attributes("data-runtime-scope")).toContain("orders-widget");
+    expect(wrapper.text()).toContain("Summarize the order");
+  });
+
+  it("keeps component usage isolated across two widget-local runtime scopes", async () => {
+    const first = mount(AssistantWidget, {
+      props: {
+        provider: async () => ({ hostApp: "first-widget" }),
+      },
+    });
+    const second = mount(AssistantWidget, {
+      props: {
+        provider: async () => ({ hostApp: "second-widget" }),
+      },
+    });
+
+    expect(first.attributes("data-runtime-scope")).not.toBe(second.attributes("data-runtime-scope"));
+
+    await first.get("[data-assistant-launcher]").trigger("click");
+    await flushPromises();
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(first.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
+    });
+    await first.get("[data-testid='assistant-composer-input']").setValue("first widget only");
+    await first.get("[data-testid='assistant-send']").trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(first.text()).toContain("first widget only");
+    expect(second.find("[data-testid='assistant-runtime-root']").exists()).toBe(false);
+    expect(second.text()).not.toContain("first widget only");
+  });
+
   it("keeps canonical runtime reuse guardrails while becoming productized", async () => {
     const sourceFiles = await collectFiles(sdkSourcePath);
 
@@ -98,6 +217,17 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
         expect(source, `${relativePath} must not implement a second runtime factory ${forbiddenFactory}.`).not.toContain(forbiddenFactory);
       }
     }
+  });
+
+  it("does not expose SDK runtime adapter internals through the public entry or package exports", async () => {
+    const rootEntry = await readFile(join(sdkSourcePath, "index.ts"), "utf8");
+    const packageJson = JSON.parse(await readFile(join(projectRootPath, "packages/assistant-sdk/package.json"), "utf8")) as {
+      exports?: Record<string, unknown>;
+    };
+
+    expect(rootEntry).not.toMatch(/createSdkRuntimeAdapter|createDefaultTransport|createSdkSessionLifecycleAdapter|createHostEventEmitter/);
+    expect(rootEntry).not.toMatch(/\.\/runtime|\.\/transport|\.\/session|\.\/lifecycle|\.\/context|\.\/events/);
+    expect(Object.keys(packageJson.exports ?? {})).toEqual([".", "./styles.css"]);
   });
 
   it("does not leave unresolved source-time runtime paths in built artifact output", async () => {

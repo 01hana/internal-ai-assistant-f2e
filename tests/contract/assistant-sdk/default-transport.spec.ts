@@ -163,13 +163,13 @@ describe("Frontend 002 default transport adapter boundary", () => {
     }));
     expect(executionInput.request).toMatchObject({
       message: " 請摘要目前頁面 ",
-      pageContext: {
-        pageType: "orders",
-        selectedRows: [{ id: "order-001" }],
-      },
       sessionId: "session-001",
     });
+    expect(executionInput.request).not.toHaveProperty("pageContext");
     expect(executionInput.request).not.toHaveProperty("hostContext");
+    expect(executionInput.request).not.toHaveProperty("selectedRows");
+    expect(executionInput.request).not.toHaveProperty("entityType");
+    expect(executionInput.request).not.toHaveProperty("entityId");
     expect(executionInput.request).not.toHaveProperty("sessionScope");
     expect(executionInput.request).not.toHaveProperty("sourceSystem");
     expect(executionInput.request).not.toHaveProperty("connector");
@@ -179,7 +179,9 @@ describe("Frontend 002 default transport adapter boundary", () => {
 
   it("fails safely when a port operation has no real SDK-side execution capability", async () => {
     const { createDefaultTransport } = await loadDefaultTransportContract();
-    const transport = createDefaultTransport() as DefaultTransport;
+    const transport = createDefaultTransport({
+      integrationMode: "backend002",
+    }) as DefaultTransport;
 
     await expect(transport.createSession({})).resolves.toMatchObject({
       error: {

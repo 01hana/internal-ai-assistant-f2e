@@ -51,6 +51,8 @@ export const requiredRuntimeRegressionCategories = [
   "SDK runtime context and event adapter",
   "legacy SDK bridge removal",
   "packaged Compatibility Mode fixture/router contract",
+  "packaged AssistantWidget mount helper",
+  "packaged Compatibility Mode productized chat flow",
 ] as const;
 
 export const requiredRuntimeRegressionFlowIds = [
@@ -77,6 +79,8 @@ export const requiredRuntimeRegressionFlowIds = [
   "sdk-runtime-context-event-adapter",
   "legacy-sdk-bridge-removal",
   "packaged-compatibility-fixture-router-contract",
+  "packaged-assistant-widget-mount-helper",
+  "packaged-compatibility-productized-chat-flow",
 ] as const;
 
 export const runtimeRegressionGate: readonly RuntimeRegressionGateEntry[] = [
@@ -448,17 +452,31 @@ export const runtimeRegressionGate: readonly RuntimeRegressionGateEntry[] = [
     status: "present",
   },
   {
-    id: "packaged-compatibility-productized-chat-flow-pending",
-    category: "packaged Compatibility Mode productized widget gate",
+    id: "packaged-assistant-widget-mount-helper",
+    category: "packaged AssistantWidget mount helper",
     area: "frontend002-sdk-boundary",
     owner: "frontend002-sdk-adapter",
-    requiredFlow: "Full packaged Compatibility Mode chat flow through productized widget DOM, semantic composer/send controls, and mountAssistantWidget lifecycle remains tracked outside the T143 fixture/router contract.",
+    requiredFlow: "T145 mountAssistantWidget creates an isolated Vue app and Pinia per mount, mounts the productized AssistantWidget, supports open, close, and destroy, reports duplicate mount diagnostics, cleans the registry, and allows remount after destroy.",
+    command: "npx vitest run tests/component/assistant-sdk/productized-mount-helper.spec.ts --reporter=dot",
+    paths: [
+      "tests/component/assistant-sdk/productized-mount-helper.spec.ts",
+      "packages/assistant-sdk/src/mountAssistantWidget.ts",
+    ],
+    required: true,
+    releaseBlocking: true,
+    status: "present",
+  },
+  {
+    id: "packaged-compatibility-productized-chat-flow",
+    category: "packaged Compatibility Mode productized chat flow",
+    area: "frontend002-sdk-boundary",
+    owner: "frontend002-sdk-adapter",
+    requiredFlow: "T146 full packaged Compatibility Mode chat flow through productized widget DOM, semantic composer/send controls, and canonical SSE/runtime consumption for all seven outcomes.",
     command: "npx vitest run tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts --reporter=dot",
     paths: ["tests/integration/assistant-sdk/packaged-compatibility-chat-flow.spec.ts"],
-    required: false,
-    releaseBlocking: false,
-    status: "known-issue",
-    notes: "Pending T144/T145: AssistantWidget and mountAssistantWidget are still shell-only / not productized. Productized widget DOM mount, semantic composer/send action, and full packaged chat UI interaction must not block T143 fixture-router closure.",
-    followUp: "T144/T145 productized AssistantWidget and mountAssistantWidget",
+    required: true,
+    releaseBlocking: true,
+    status: "present",
+    notes: "T146 closes bundled runtime/SSE stabilization: fixture/router, public mount DOM, semantic composer/send, and seven canonical Compatibility Mode outcomes are all release-blocking.",
   },
 ] as const;

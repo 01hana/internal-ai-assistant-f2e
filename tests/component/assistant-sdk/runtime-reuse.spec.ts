@@ -111,13 +111,16 @@ describe("Frontend 002 AssistantWidget runtime reuse boundary", () => {
     expect(await pathExists(frontend001ChatWidgetPath), "Frontend 001 ChatWidget.vue remains product shell regression baseline, not final SDK runtime source.").toBe(true);
   });
 
-  it("keeps the SDK AssistantWidget shell free of copied chat runtime behavior before T144 productization", async () => {
-    expect(await pathExists(sdkComponentPath), "SDK AssistantWidget shell must exist before runtime reuse guard can inspect it.").toBe(true);
+  it("keeps the SDK AssistantWidget wrapper free of copied chat runtime behavior after T144 productization", async () => {
+    expect(await pathExists(sdkComponentPath), "SDK AssistantWidget wrapper must exist so the runtime reuse guard can inspect it.").toBe(true);
 
     const source = await readFile(sdkComponentPath, "utf8");
 
+    expect(source, "T144 AssistantWidget must render the Shared Runtime canonical UI.").toContain("AssistantRuntimeRoot");
+    expect(source, "T144 AssistantWidget must compose the SDK runtime adapter instead of app runtime owners.").toContain("createSdkRuntimeAdapter");
+
     for (const forbiddenSignal of forbiddenCopiedRuntimeSignals) {
-      expect(source, `AssistantWidget must not copy runtime signal ${forbiddenSignal}; T144 will wire the SDK adapter to shared runtime.`).not.toContain(forbiddenSignal);
+      expect(source, `AssistantWidget must not copy runtime signal ${forbiddenSignal}; it must remain a wrapper over Shared Runtime.`).not.toContain(forbiddenSignal);
     }
   });
 

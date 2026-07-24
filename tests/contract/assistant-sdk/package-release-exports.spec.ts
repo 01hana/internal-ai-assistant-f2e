@@ -29,7 +29,7 @@ describe("Frontend 002 SDK package release exports", () => {
       expect(exportKeys, `Package must not expose ${forbiddenExport}.`).not.toContain(forbiddenExport);
     }
 
-    expect(manifest.files?.sort()).toEqual(["dist", "styles.css"].sort());
+    expect(manifest.files?.sort()).toEqual(["dist", "README.md", "styles.css"].sort());
   });
 
   it("does not point public exports at private SDK source, fixtures, tests, specs, or canonical app paths", async () => {

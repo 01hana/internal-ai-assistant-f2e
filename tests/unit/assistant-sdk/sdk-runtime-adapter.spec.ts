@@ -177,8 +177,9 @@ describe("SDK runtime adapter composer", () => {
 
     expect(source).toContain("createAssistantRuntimeController");
     expect(source).toContain("createAssistantRuntimeStores");
+    expect(source).toContain("createAssistantSseStreamRunner");
     expect(source).not.toMatch(/app\/(?:features|services|stores|utils)/);
-    expect(source).not.toMatch(/parseAssistantSse|createAssistantSseStreamRunner|getReader|new\s+ReadableStream/);
+    expect(source).not.toMatch(/parseAssistantSse|getReader|new\s+ReadableStream/);
     expect(source).not.toMatch(/messages\s*=\s*\[|historyCursor|nextCursor\s*=\s*ref|answerDecisionState|normalizeEvidence/);
     expect(source).not.toMatch(/createPinia\s*\(|defineStore|getActivePinia|setActivePinia/);
     expect(source).not.toMatch(/frontend001Runtime|AssistantService|useChat|useAssistantSession|useAssistantSseStream/);

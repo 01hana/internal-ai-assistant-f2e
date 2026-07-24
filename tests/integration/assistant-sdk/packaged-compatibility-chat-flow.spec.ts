@@ -37,8 +37,8 @@ const canonicalOutcomeNames = [
   "clarification",
   "permission-denied",
   "tool-failure",
-  "timeout",
   "interrupted",
+  "timeout",
 ] as const satisfies readonly CanonicalSseOutcomeName[];
 
 function queryAny(container: Element, selectors: readonly string[]) {
@@ -192,7 +192,7 @@ describe("Frontend 002 packaged Compatibility Mode T143 fixture/router contract"
   });
 });
 
-describe.skip("Frontend 002 packaged Compatibility Mode T144/T145 productized widget gate", () => {
+describe("Frontend 002 packaged Compatibility Mode T146 productized chat-flow gate", () => {
   let app: TemporaryConsumingApp;
   let sdk: InstalledSdk;
 
@@ -233,6 +233,9 @@ describe.skip("Frontend 002 packaged Compatibility Mode T144/T145 productized wi
       handle.open();
       await nextTick();
       await Promise.resolve();
+      await vi.waitFor(() => {
+        expect(queryAny(target, productizedOpenWidgetRequirements[0].selectors)).toBe(true);
+      });
 
       expect(target.childElementCount, "Packaged Compatibility Mode must mount a widget DOM before chat flow can run.").toBeGreaterThan(0);
       for (const requirement of productizedClosedWidgetRequirements) {
@@ -266,7 +269,9 @@ describe.skip("Frontend 002 packaged Compatibility Mode T144/T145 productized wi
         await vi.advanceTimersByTimeAsync(60_000);
       }
 
-      await vi.waitFor(() => expect(target.textContent).toMatch(sseFixture.expectedText));
+      await vi.waitFor(() => expect(target.textContent).toMatch(sseFixture.expectedText), {
+        timeout: 3_000,
+      });
       expect(target.textContent).not.toMatch(/sourceSystem|connectorId|rawEvidence|rawConnectorPayload|sessionScope/);
       if (sseFixture.terminationMode !== "final") {
         expect(target.querySelector("[aria-busy='true'], [data-assistant-streaming], [data-assistant-loading]")).toBeNull();
@@ -283,9 +288,46 @@ describe.skip("Frontend 002 packaged Compatibility Mode T144/T145 productized wi
     }
   }
 
-  it("runs the full packaged DOM chat flow for all seven outcomes after T144/T145", async () => {
-    // Pending T144/T145: AssistantWidget and mountAssistantWidget are still
-    // shell-only / not productized. This is not a T143 fixture-router failure.
+  it("mounts and opens the productized widget DOM from the packaged public helper", async () => {
+    const target = document.createElement("div");
+    let handle: MountHandle | undefined;
+
+    try {
+      handle = sdk.mountAssistantWidget({
+        configuration: {
+          integrationMode: compatibilityMode,
+        },
+        provider: async () => ({ hostApp: "phase-11-packaged-mount" }),
+        target,
+      });
+      await nextTick();
+      await Promise.resolve();
+
+      expect(target.childElementCount, "Packaged mountAssistantWidget must mount a closed widget DOM.").toBeGreaterThan(0);
+      for (const requirement of productizedClosedWidgetRequirements) {
+        expect(queryAny(target, requirement.selectors), `Packaged widget must render ${requirement.name}.`).toBe(true);
+      }
+
+      handle.open();
+      await nextTick();
+      await Promise.resolve();
+
+      await vi.waitFor(() => {
+        for (const requirement of productizedOpenWidgetRequirements) {
+          expect(queryAny(target, requirement.selectors), `Opened packaged widget must render ${requirement.name}.`).toBe(true);
+        }
+      });
+    }
+    finally {
+      handle?.destroy();
+      await nextTick();
+      await Promise.resolve();
+      expect(target.childElementCount, "Packaged mount helper must clean up its widget DOM.").toBe(0);
+    }
+  });
+
+  it("runs the full packaged DOM chat flow for all seven outcomes", async () => {
+    // T146 closure: full packaged DOM chat flow verifies all seven canonical outcomes through the packaged public helper.
     for (const outcomeName of canonicalOutcomeNames) {
       await runOutcome(outcomeName);
     }
