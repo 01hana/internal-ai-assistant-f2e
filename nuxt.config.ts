@@ -1,5 +1,10 @@
 import { fileURLToPath, URL } from "node:url";
 
+// Server-only upstream. Browser clients always address the same-origin route.
+const assistantApiOrigin = (process.env.ASSISTANT_API_ORIGIN ?? "http://localhost:4000")
+  .replace(/\/+$/, "");
+const assistantApiBase = `${assistantApiOrigin}/api/v1`;
+
 export default defineNuxtConfig({
   alias: {
     "@ideaxpress/assistant-sdk/styles.css": fileURLToPath(new URL("./packages/assistant-sdk/styles.css", import.meta.url)),
@@ -18,7 +23,21 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
+      // Frontend 001 API adapter ownership; do not repurpose this for SDK proxy routing.
       apiBase: process.env.NUXT_API_URL ?? "",
+    },
+  },
+  nitro: {
+    devProxy: {
+      "/api/v1/assistant": {
+        changeOrigin: true,
+        target: assistantApiOrigin,
+      },
+    },
+  },
+  routeRules: {
+    "/api/v1/assistant/**": {
+      proxy: `${assistantApiBase}/assistant/**`,
     },
   },
   pinia: {

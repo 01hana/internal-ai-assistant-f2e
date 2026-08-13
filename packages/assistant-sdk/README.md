@@ -21,6 +21,49 @@ import "@ideaxpress/assistant-sdk/styles.css";
 
 請不要 deep import runtime、transport、session、context、events、source files，或任何 monorepo 內部路徑。
 
+## Theme token contract
+
+SDK 樣式是 self-contained package stylesheet，不依賴 host Tailwind content scan、`@nuxt/ui`、`@nuxt/icon`、Quasar component CSS 或 deep CSS import。Host app 只要覆寫 `--assistant-sdk-*` CSS variables，就能把自己的 design system token 映射到 SDK。
+
+SDK 會提供 `--assistant-sdk-default-*` fallback；host 請設定 public tokens，不要依賴或覆寫 default tokens。Public tokens 可以放在 mount target、任一 ancestor、`[data-assistant-sdk-root]` 或 `:root`。
+
+```css
+#assistant-root {
+  --assistant-sdk-accent: var(--color-primary-600);
+  --assistant-sdk-accent-foreground: var(--color-primary-contrast);
+  --assistant-sdk-background: var(--surface-overlay);
+  --assistant-sdk-surface: var(--surface-muted);
+  --assistant-sdk-surface-elevated: var(--surface-card);
+  --assistant-sdk-foreground: var(--text-primary);
+  --assistant-sdk-muted: var(--text-secondary);
+  --assistant-sdk-border: var(--border-subtle);
+  --assistant-sdk-radius: var(--radius-xl);
+  --assistant-sdk-radius-md: var(--radius-lg);
+  --assistant-sdk-shadow: var(--shadow-xl);
+  --assistant-sdk-button-primary-background: var(--color-primary-600);
+  --assistant-sdk-button-primary-foreground: var(--color-primary-contrast);
+  --assistant-sdk-input-background: var(--surface-input);
+}
+```
+
+Nuxt UI host 可映射 Nuxt app token；Quasar host 可映射 Quasar CSS variables。SDK 不 import 這些 framework，也不要求 framework 在 SDK source 上產生 utility classes。
+
+```css
+:root {
+  /* Nuxt UI-style token mapping */
+  --assistant-sdk-accent: var(--ui-primary);
+  --assistant-sdk-surface-elevated: var(--ui-bg-elevated);
+  --assistant-sdk-border: var(--ui-border);
+
+  /* Quasar-style token mapping */
+  --assistant-sdk-danger: var(--q-negative);
+  --assistant-sdk-warning: var(--q-warning);
+  --assistant-sdk-success: var(--q-positive);
+}
+```
+
+常用 public tokens 包含 layout (`--assistant-sdk-panel-width`, `--assistant-sdk-panel-height`, `--assistant-sdk-launcher-size`, `--assistant-sdk-gap`)、typography (`--assistant-sdk-font-family`, `--assistant-sdk-font-size`, `--assistant-sdk-line-height`)、radius/spacing/shadow (`--assistant-sdk-radius-*`, `--assistant-sdk-space-*`, `--assistant-sdk-shadow`, `--assistant-sdk-bubble-shadow`)、semantic colors，以及 component-level tokens such as `--assistant-sdk-message-area-background`, `--assistant-sdk-message-bubble-background`, `--assistant-sdk-input-background`, `--assistant-sdk-button-primary-background`, `--assistant-sdk-button-secondary-background`, `--assistant-sdk-button-danger-background`, `--assistant-sdk-safe-outcome-background`, `--assistant-sdk-evidence-background`, `--assistant-sdk-feedback-background`, `--assistant-sdk-action-draft-background`, `--assistant-sdk-approval-request-background`, and `--assistant-sdk-focus-ring`.
+
 ## mountAssistantWidget usage
 
 `mountAssistantWidget` 會為每次 mount 建立隔離的 Vue app 與 Pinia runtime scope。呼叫 `destroy()` 或 `unmount()` 會釋放 SDK 建立的 DOM、事件與 runtime 資源。
@@ -104,7 +147,7 @@ Provider 不應回傳 token、secret、credential、raw permission object、conn
 
 ## WidgetConfiguration
 
-`WidgetConfiguration` 是 local-only 設定，包含 integration mode、launcher、theme、locale、panel placement、sessionScope 等 UI/lifecycle 選項。`sessionScope` 只用於 local namespace，不會序列化成 Backend 001 Compatibility Mode request body。
+`WidgetConfiguration` 是 local-only 設定，包含 integration mode、launcher、theme、locale、panel placement、sessionScope 與 `apiBaseUrl` 等 UI/lifecycle 選項。`sessionScope` 只用於 local namespace，不會序列化成 Backend 001 Compatibility Mode request body。
 
 ## HostCallbacks / HostEvents
 
@@ -166,9 +209,26 @@ Host backend/API gateway 必須負責 authentication、organization/customer bou
 
 SDK 不會推論 baseURL、tenant routing 或 backend auth。Same-origin fallback 假設 host app 已經把 `/api/v1/assistant/**` 路由接到正確 backend。
 
+### API endpoint configuration
+
+未設定 `configuration.apiBaseUrl` 時，SDK 會呼叫相對的 `/api/v1/assistant/**`。Frontend app 與一般 host 應將這個 same-origin route 交給自己的 reverse proxy / API gateway 轉送；browser 不需要知道 upstream origin。
+
+```ts
+mountAssistantWidget({
+  target: "#assistant-root",
+  provider,
+  configuration: {
+    // Same-origin default
+    apiBaseUrl: "/api/v1",
+  },
+});
+```
+
+若獨立 package consumer 已有自己的 Gateway endpoint，可由 host/deployment configuration 顯式提供 HTTP(S) `apiBaseUrl`。此值只能是 endpoint；不要放入 token、credential、tenant 或 permission data。
+
 ## Troubleshooting
 
-若 widget 無法送出訊息，先確認 host backend 是否提供 Backend 001-compatible same-origin endpoints，且 response content type 是否符合 JSON session/history 與 `text/event-stream` message stream。
+若 widget 無法送出訊息，先確認 host/deployment 已將 same-origin `/api/v1/assistant/**` 端點路由到正確服務，且 response content type 是否符合 JSON session/history 與 `text/event-stream` message stream。
 
 若 duplicate mount error 發生，表示同一個 target 已有 active widget。請呼叫舊 handle 的 `destroy()`，或使用不同 target。
 

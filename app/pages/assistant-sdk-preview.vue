@@ -33,6 +33,7 @@ const provider: AssistantHostContextProvider = () => ({
 });
 
 const configuration: WidgetConfiguration = {
+  apiBaseUrl: "/api/v1",
   integrationMode: "backend001-compatibility",
   position: "bottom-right",
   sessionScope: "page",
