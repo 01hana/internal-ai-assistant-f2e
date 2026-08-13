@@ -16,6 +16,8 @@ import {
   productizedAssistantWidgetShellTexts,
   productizedOpenWidgetRequirements,
 } from "../../fixtures/assistant-sdk/productized-sdk-fixtures";
+import { createCanonicalSseOutcomeFixture } from "../../fixtures/assistant-sdk/canonical-sse-outcome-adapter";
+import { createCompatibilityFetchRouter } from "../../fixtures/assistant-sdk/compatibility-fetch-router";
 
 const projectRootPath = process.cwd();
 const sdkSourcePath = join(projectRootPath, "packages/assistant-sdk/src");
@@ -56,6 +58,10 @@ function queryAny(container: Element, selectors: readonly string[]) {
 
 function expectStylesheetOwnsSelector(stylesheet: string, selector: string) {
   expect(stylesheet, `SDK styles.css must contain package-owned styling for ${selector}.`).toContain(selector);
+}
+
+function expectStylesheetUsesThemeToken(stylesheet: string, token: string) {
+  expect(stylesheet, `SDK styles.css must consume theme token ${token} with an internal fallback.`).toContain(`var(${token}`);
 }
 
 describe("Frontend 002 productized AssistantWidget runtime completeness", () => {
@@ -110,7 +116,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     await nextTick();
     await vi.waitFor(() => {
       expect(wrapper.find("[data-assistant-panel]").exists()).toBe(true);
-      expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(true);
+      expect(wrapper.find("[data-testid='assistant-product-runtime-panel']").exists()).toBe(true);
     });
 
     const root = wrapper.element;
@@ -120,16 +126,37 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
         `Open AssistantWidget must render ${requirement.name} from the shared canonical runtime UI.`,
       ).toBe(true);
     }
-    expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(true);
-    expect(wrapper.find("[data-testid='assistant-message-list']").exists()).toBe(true);
-    expect(wrapper.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
-    expect(wrapper.find("[data-testid='assistant-send']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-runtime-root']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='assistant-message-area']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-panel-footer']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-chat-input']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='assistant-chat-submit']").exists()).toBe(true);
+    expect(wrapper.get("[data-assistant-launcher]").attributes("aria-label")).toBe("Open assistant");
+    expect(wrapper.get("[data-assistant-launcher]").find("svg.assistant-product-icon").exists()).toBe(true);
+    expect(wrapper.get("[data-assistant-close]").attributes("aria-label")).toBe("Close assistant");
+    expect(wrapper.get("[data-assistant-close]").find("svg.assistant-product-icon").exists()).toBe(true);
 
     expectStylesheetOwnsSelector(stylesheet, ".assistant-sdk-panel");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-runtime-root\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-list\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-composer-input\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-send\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-product-runtime-panel\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-area\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-panel-footer\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-input\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-submit\"]");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-frame");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--assistant");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--user");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-timestamp");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-typing-indicator");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--warning");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--error");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--neutral");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-panel-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-message-area-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-message-bubble-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-input-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-button-primary-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-focus-ring");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-user-avatar-background");
     expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
   });
 
@@ -161,12 +188,12 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     await flushPromises();
     await nextTick();
     await vi.waitFor(() => {
-      expect(wrapper.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
+      expect(wrapper.find("[data-testid='assistant-chat-input']").exists()).toBe(true);
     });
 
-    const input = wrapper.get("[data-testid='assistant-composer-input']");
+    const input = wrapper.get("[data-testid='assistant-chat-input']");
     await input.setValue("  Summarize the order  ");
-    await wrapper.get("[data-testid='assistant-send']").trigger("click");
+    await wrapper.get("[data-testid='assistant-chat-submit']").trigger("click");
     await flushPromises();
     await nextTick();
 
@@ -174,7 +201,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     expect(onOpened).toHaveBeenCalledWith({});
     expect(onError).toHaveBeenCalledWith({
       error: expect.objectContaining({
-        code: expect.stringMatching(/^transport_/),
+        code: "session_bootstrap_failed",
       }),
     });
 
@@ -182,37 +209,47 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     expect(callbackPayload).not.toMatch(/pageContext|selectedRows|entityType|entityId|sessionScope|sourceSystem|authority|connector|permission|token|credential|secret/i);
     expect(wrapper.attributes("data-theme")).toBe("dark");
     expect(wrapper.attributes("data-runtime-scope")).toContain("orders-widget");
-    expect(wrapper.text()).toContain("Summarize the order");
+    expect(wrapper.text()).not.toContain("Summarize the order");
   });
 
   it("keeps component usage isolated across two widget-local runtime scopes", async () => {
-    const first = mount(AssistantWidget, {
-      props: {
-        provider: async () => ({ hostApp: "first-widget" }),
-      },
+    const router = createCompatibilityFetchRouter({
+      sseFixture: createCanonicalSseOutcomeFixture("completed-answer"),
     });
-    const second = mount(AssistantWidget, {
-      props: {
-        provider: async () => ({ hostApp: "second-widget" }),
-      },
-    });
+    vi.stubGlobal("fetch", vi.fn(router.fetch));
 
-    expect(first.attributes("data-runtime-scope")).not.toBe(second.attributes("data-runtime-scope"));
+    try {
+      const first = mount(AssistantWidget, {
+        props: {
+          provider: async () => ({ hostApp: "first-widget" }),
+        },
+      });
+      const second = mount(AssistantWidget, {
+        props: {
+          provider: async () => ({ hostApp: "second-widget" }),
+        },
+      });
 
-    await first.get("[data-assistant-launcher]").trigger("click");
-    await flushPromises();
-    await nextTick();
-    await vi.waitFor(() => {
-      expect(first.find("[data-testid='assistant-composer-input']").exists()).toBe(true);
-    });
-    await first.get("[data-testid='assistant-composer-input']").setValue("first widget only");
-    await first.get("[data-testid='assistant-send']").trigger("click");
-    await flushPromises();
-    await nextTick();
+      expect(first.attributes("data-runtime-scope")).not.toBe(second.attributes("data-runtime-scope"));
 
-    expect(first.text()).toContain("first widget only");
-    expect(second.find("[data-testid='assistant-runtime-root']").exists()).toBe(false);
-    expect(second.text()).not.toContain("first widget only");
+      await first.get("[data-assistant-launcher]").trigger("click");
+      await flushPromises();
+      await nextTick();
+      await vi.waitFor(() => {
+        expect(first.get("[data-testid='assistant-chat-input']").attributes("disabled")).toBeUndefined();
+      });
+      await first.get("[data-testid='assistant-chat-input']").setValue("first widget only");
+      await first.get("[data-testid='assistant-chat-submit']").trigger("click");
+      await flushPromises();
+      await nextTick();
+
+      expect(first.text()).toContain("first widget only");
+      expect(second.find("[data-testid='assistant-product-runtime-panel']").exists()).toBe(false);
+      expect(second.text()).not.toContain("first widget only");
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps canonical runtime reuse guardrails while becoming productized", async () => {

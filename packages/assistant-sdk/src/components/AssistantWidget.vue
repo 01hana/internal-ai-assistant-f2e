@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /// <reference types="vite/client" />
 import { createPinia } from "pinia";
-import { computed, defineAsyncComponent, onBeforeUnmount, shallowRef } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, shallowRef, type Component } from "vue";
 import type {
   AssistantHostContextProvider,
   HostCallbacks,
@@ -48,7 +48,14 @@ function safeError(code: string, message: string) {
 }
 
 type SdkRuntimeAdapter = {
+  readonly bootstrapSession: (input?: { readonly forceNew?: boolean }) => Promise<{
+    readonly error?: { readonly code: string; readonly safeMessage: string };
+    readonly ok: boolean;
+    readonly sessionId?: string;
+  }>;
   readonly cancelMessageStream: () => Promise<void>;
+  // The widget loads the private runtime module through an allowlisted Vite glob.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly controller: any;
   readonly destroy: () => Promise<void>;
   readonly emitHostEvent: (eventName: string, payload?: Readonly<Record<string, unknown>>) => Promise<{ readonly ok: boolean }>;
@@ -58,31 +65,75 @@ type SdkRuntimeAdapter = {
     pageContext?: Readonly<Record<string, unknown>>;
     sessionId?: string;
   }) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly transport: any;
 };
 
-const runtimeRootModules = import.meta.glob("../../../assistant-runtime/src/components/AssistantRuntimeRoot.vue");
-const runtimeModules = import.meta.glob("../../../assistant-runtime/src/runtime/index.ts");
-const sdkRuntimeAdapterModules = import.meta.glob("../runtime/sdkRuntimeAdapter.ts");
-const loadRuntimeRoot = runtimeRootModules["../../../assistant-runtime/src/components/AssistantRuntimeRoot.vue"] as (() => Promise<{ default: unknown }>) | undefined;
-const loadRuntimeModule = runtimeModules["../../../assistant-runtime/src/runtime/index.ts"] as (() => Promise<Record<string, unknown>>) | undefined;
-const loadSdkRuntimeAdapterModule = sdkRuntimeAdapterModules["../runtime/sdkRuntimeAdapter.ts"] as (() => Promise<{
+const productRuntimePanelModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductRuntimePanel.vue", { eager: true }) as Record<string, { default: Component }>;
+const productPanelShellModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductPanelShell.vue", { eager: true }) as Record<string, { default: Component }>;
+const productIconModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductIcon.vue", { eager: true }) as Record<string, { default: Component }>;
+const runtimeModules = import.meta.glob("../../../assistant-runtime/src/runtime/index.ts", { eager: true }) as Record<string, Record<string, unknown>>;
+const sdkRuntimeAdapterModules = import.meta.glob("../runtime/sdkRuntimeAdapter.ts", { eager: true }) as Record<string, {
   createSdkRuntimeAdapter: (options: Record<string, unknown>) => SdkRuntimeAdapter;
-}>) | undefined;
+}>;
+// Nuxt and the SDK build normalize glob keys differently; each allowlisted glob
+// intentionally contains exactly one private module, so consume that module by value.
+const productRuntimePanelModule = Object.values(productRuntimePanelModules)[0];
+const productPanelShellModule = Object.values(productPanelShellModules)[0];
+const productIconModule = Object.values(productIconModules)[0];
+const runtimeModule = Object.values(runtimeModules)[0];
+const sdkRuntimeAdapterModule = Object.values(sdkRuntimeAdapterModules)[0];
+const loadRuntimeModule = async () => runtimeModule;
+const loadSdkRuntimeAdapterModule = async () => sdkRuntimeAdapterModule;
 
-if (!loadRuntimeRoot || !loadRuntimeModule || !loadSdkRuntimeAdapterModule) {
+if (!productRuntimePanelModule || !productPanelShellModule || !productIconModule || !runtimeModule || !sdkRuntimeAdapterModule) {
   throw new Error("assistant_sdk_runtime_modules_unavailable");
 }
 
-const AssistantRuntimeRoot = defineAsyncComponent(loadRuntimeRoot as () => Promise<any>);
+const AssistantProductRuntimePanel = defineAsyncComponent(async () => productRuntimePanelModule);
+const AssistantProductPanelShell = defineAsyncComponent(async () => productPanelShellModule);
+const AssistantProductIcon = defineAsyncComponent(async () => productIconModule);
 const runtimeScope = createRuntimeScope(props.configuration);
 const launcherEnabled = computed(() => props.configuration?.launcher?.enabled !== false);
 const adapterRef = shallowRef<SdkRuntimeAdapter | null>(null);
 const controller = computed(() => adapterRef.value?.controller ?? null);
 const isOpen = computed(() => Boolean(adapterRef.value?.controller.stores.widget.isOpen.value));
 const panelOpen = computed(() => isOpen.value || !launcherEnabled.value);
+const panelContextReady = computed(() => Boolean(adapterRef.value?.controller.stores.session.contextReady.value));
+const panelCanSend = computed(() => {
+  const adapter = adapterRef.value;
+
+  if (!adapter || !panelContextReady.value) {
+    return false;
+  }
+
+  const session = adapter.controller.stores.session;
+  const availability = adapter.controller.stores.widget.availability.value;
+  return (
+    availability === "normal"
+    && session.status.value === "ready"
+    && typeof session.sessionId.value === "string"
+    && session.sessionId.value.trim().length > 0
+  );
+});
+const panelStatus = computed(() => {
+  const adapter = adapterRef.value;
+
+  if (!adapter) {
+    return "目前頁面內容尚未就緒";
+  }
+
+  const availability = adapter.controller.stores.widget.availability.value;
+  if (availability === "degraded") return "助理服務暫時不穩定";
+  if (availability === "unavailable") return "助理暫時無法使用";
+  return panelContextReady.value ? "AI 助理已就緒" : "目前頁面內容尚未就緒";
+});
 
 const adapterPromise = loadSdkRuntimeAdapterModule().then((module) => {
+  if (!module) {
+    throw new Error("assistant_sdk_runtime_modules_unavailable");
+  }
+
   const adapter = module.createSdkRuntimeAdapter({
     callbacks: props.callbacks,
     configuration: props.configuration,
@@ -134,10 +185,20 @@ async function prepareRuntimeForInteraction() {
     return null;
   }
 
-  adapter.controller.setReady();
-  adapter.controller.setContextReady(true);
-
   return context;
+}
+
+async function bootstrapSession(forceNew = false): Promise<boolean> {
+  const adapter = await getAdapter();
+  const result = await adapter.bootstrapSession({ forceNew });
+
+  if (!result.ok && result.error) {
+    await adapter.emitHostEvent("error", {
+      error: safeError(result.error.code, result.error.safeMessage),
+    });
+  }
+
+  return result.ok;
 }
 
 async function openWidget() {
@@ -148,7 +209,7 @@ async function openWidget() {
   await adapter.emitHostEvent("opened", {
     sessionId: session.sessionId.value ?? undefined,
   });
-  await prepareRuntimeForInteraction();
+  await bootstrapSession();
 }
 
 async function closeWidget() {
@@ -161,6 +222,15 @@ async function closeWidget() {
   });
 }
 
+async function restartWidget() {
+  const adapter = await getAdapter();
+
+  await adapter.controller.cleanup();
+  adapter.controller.reset();
+  adapter.controller.stores.widget.isOpen.value = true;
+  await bootstrapSession(true);
+}
+
 async function sendMessage(message: string) {
   const text = message.trim();
 
@@ -168,29 +238,27 @@ async function sendMessage(message: string) {
     return;
   }
 
-  const context = await prepareRuntimeForInteraction();
-
-  if (!context) {
+  if (!await bootstrapSession()) {
     return;
   }
 
+  const context = await prepareRuntimeForInteraction();
+  if (!context) return;
+
   const adapter = await getAdapter();
-  const helpers = await getRuntimeHelpers();
   const session = adapter.controller.stores.session;
-  if (!session.sessionId.value) {
-    try {
-      await adapter.controller.createSession();
-    }
-    catch {
-      await emitError("transport_execution_failed", "助理暫時無法建立對話，請稍後再試。");
-    }
+  const sessionId = session.sessionId.value;
+
+  if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
+    await emitError("missing_session_id", "助理對話尚未就緒，請稍後再試。");
+    return;
   }
 
-  const sessionId = session.sessionId.value ?? undefined;
   const requestId = createRequestId("assistant-sdk-message");
   const createdAt = new Date().toISOString();
   const assistantMessageKey = `assistant-sdk-assistant:${requestId}`;
 
+  const helpers = await getRuntimeHelpers();
   adapter.controller.appendUserMessage(helpers.createUserRuntimeMessage({
     content: text,
     createdAt,
@@ -252,7 +320,8 @@ async function submitFeedback(payload: { messageId: string; value: "helpful" | "
     return;
   }
 
-  const sessionId = session.sessionId.value ?? "local-session";
+  const sessionId = session.sessionId.value;
+  if (!sessionId) return;
   const requestId = createRequestId("assistant-sdk-feedback");
 
   adapter.controller.startFeedbackSubmission(payload.messageId, payload.value, requestId);
@@ -286,7 +355,8 @@ async function confirmActionDraft(actionDraftId: string) {
   }
 
   const actionState = adapter.controller.getActionDraftState(actionDraftId);
-  const sessionId = session.sessionId.value ?? "local-session";
+  const sessionId = session.sessionId.value;
+  if (!sessionId) return;
   const messageId = actionState.messageId ?? actionDraftId;
 
   adapter.controller.setActionDraftOperationStatus(actionDraftId, "confirming", {
@@ -316,7 +386,8 @@ async function cancelActionDraft(actionDraftId: string) {
   }
 
   const actionState = adapter.controller.getActionDraftState(actionDraftId);
-  const sessionId = session.sessionId.value ?? "local-session";
+  const sessionId = session.sessionId.value;
+  if (!sessionId) return;
   const messageId = actionState.messageId ?? actionDraftId;
 
   adapter.controller.setActionDraftOperationStatus(actionDraftId, "cancelling", {
@@ -382,39 +453,33 @@ defineExpose({
       data-assistant-launcher
       type="button"
       aria-label="Open assistant"
+      title="Open assistant"
       :aria-expanded="panelOpen"
       @click="openWidget"
     >
-      Assistant
+      <AssistantProductIcon name="chat" />
     </button>
-    <aside
+    <AssistantProductPanelShell
       v-if="panelOpen"
       class="assistant-sdk-panel"
       data-assistant-panel
-      role="dialog"
-      aria-label="Assistant panel"
-      aria-live="polite"
+      :context-ready="panelContextReady"
+      :status="panelStatus"
+      title="AI 助理"
+      restart-label="Restart assistant"
+      close-label="Close assistant"
       :style="{
         width: props.configuration?.size?.width ? `${props.configuration.size.width}px` : undefined,
         height: props.configuration?.size?.height ? `${props.configuration.size.height}px` : undefined,
         zIndex: props.configuration?.zIndex,
       }"
+      @close="closeWidget"
+      @restart="restartWidget"
     >
-      <header class="assistant-sdk-panel-header">
-        <p>Assistant</p>
-        <button
-          v-if="launcherEnabled"
-          type="button"
-          aria-label="Close assistant"
-          data-assistant-close
-          @click="closeWidget"
-        >
-          Close
-        </button>
-      </header>
-      <AssistantRuntimeRoot
+      <AssistantProductRuntimePanel
         :controller="controller"
         :runtime-scope="runtimeScope"
+        :composer-can-send="panelCanSend"
         :on-send-message="sendMessage"
         :on-load-more-history="loadMoreHistory"
         :on-cancel-streaming="cancelStreaming"
@@ -423,6 +488,6 @@ defineExpose({
         :on-cancel-action-draft="cancelActionDraft"
         :on-open-approval-detail="openApprovalDetail"
       />
-    </aside>
+    </AssistantProductPanelShell>
   </section>
 </template>

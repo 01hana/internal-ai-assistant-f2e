@@ -65,7 +65,9 @@ import type {
   HistoryMessageSummary,
 } from "../types";
 import type {
+  AssistantRuntimeCreateSessionInput,
   AssistantRuntimeLoadHistoryInput,
+  AssistantRuntimeRemoteRestorationCapability,
   AssistantRuntimeTransportPort,
 } from "../transport/ports";
 
@@ -126,7 +128,7 @@ type AssistantRuntimeClock = {
 export interface AssistantRuntimeController<TMessage = RuntimeMessage> {
   runtimeScope: string;
   stores: AssistantRuntimeStoreScope<TMessage>;
-  createSession(options?: { signal?: AbortSignal }): Promise<void>;
+  createSession(input?: AssistantRuntimeCreateSessionInput, options?: { signal?: AbortSignal }): Promise<void>;
   loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: { signal?: AbortSignal }): Promise<void>;
   appendHistoryPage(page: { messages: readonly HistoryMessageSummary[]; nextCursor: string | null }): void;
   accumulateDelta(current: string, event: AssistantSseEvent): string;
@@ -331,16 +333,20 @@ export function resolveRetrySourceText(
 
 export function createSessionController<TMessage>(
   state: AssistantRuntimeSessionState<TMessage>,
-  transport: Pick<AssistantRuntimeTransportPort, "createSession" | "loadHistory" | "cancelMessage" | "abortMessage">,
+  transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage">
+    & Partial<AssistantRuntimeRemoteRestorationCapability>,
   lifecycle: { canMutate: () => boolean; captureVersion: () => number; isCurrentVersion: (version: number) => boolean },
 ) {
   const orchestrator = createAssistantSessionHistoryOrchestrator({ transport });
 
   return {
-    async createSession(options: { signal?: AbortSignal } = {}) {
+    async createSession(
+      input: AssistantRuntimeCreateSessionInput = {},
+      options: { signal?: AbortSignal } = {},
+    ) {
       const version = lifecycle.captureVersion();
       state.status.value = "creating";
-      const session = await orchestrator.createSession({}, options);
+      const session = await orchestrator.createSession(input, options);
 
       if (!lifecycle.canMutate() || !lifecycle.isCurrentVersion(version)) {
         return;
@@ -1310,10 +1316,8 @@ export function createAssistantRuntimeController<TMessage = RuntimeMessage>(
   input: {
     runtimeScope: string;
     stores: AssistantRuntimeStoreScope<TMessage>;
-    transport: Pick<
-      AssistantRuntimeTransportPort,
-      "createSession" | "loadHistory" | "cancelMessage" | "abortMessage"
-    >;
+    transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage">
+      & Partial<AssistantRuntimeRemoteRestorationCapability>;
     sseRunner?: AssistantSseStreamRunner<unknown>;
     clock?: Partial<Omit<AssistantRuntimeClock, "Date">> & { Date?: Pick<DateConstructor, "now"> };
     idGenerator?: () => AssistantRequestId;

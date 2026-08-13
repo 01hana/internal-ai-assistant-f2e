@@ -64,6 +64,10 @@ function expectStylesheetOwnsSelector(stylesheet: string, selector: string) {
   expect(stylesheet, `Public SDK styles.css must style mounted widget selector ${selector}.`).toContain(selector);
 }
 
+function expectStylesheetUsesThemeToken(stylesheet: string, token: string) {
+  expect(stylesheet, `Public SDK styles.css must consume theme token ${token} with an internal fallback.`).toContain(`var(${token}`);
+}
+
 describe("Frontend 002 productized mountAssistantWidget helper", () => {
   it("creates an isolated Vue app, mounts the full productized AssistantWidget, and opens/closes through the handle", async () => {
     const stylesheet = await readFile(sdkStylesheetPath, "utf8");
@@ -94,15 +98,35 @@ describe("Frontend 002 productized mountAssistantWidget helper", () => {
     await flushWidgetMount();
     await expectMountedOpenWidget(target);
     expect(callbacks.onOpened).toHaveBeenCalledTimes(1);
-    expect(target.querySelector("[data-testid='assistant-runtime-root']")).toBeTruthy();
-    expect(target.querySelector("[data-testid='assistant-message-list']")).toBeTruthy();
-    expect(target.querySelector("[data-testid='assistant-composer-input']")).toBeTruthy();
-    expect(target.querySelector("[data-testid='assistant-send']")).toBeTruthy();
+    expect(target.querySelector("[data-testid='assistant-runtime-root']")).toBeNull();
+    expect(target.querySelector("[data-testid='assistant-product-runtime-panel']")).toBeTruthy();
+    expect(target.querySelector("[data-testid='assistant-message-area']")).toBeTruthy();
+    expect(target.querySelector("[data-testid='assistant-panel-footer']")).toBeTruthy();
+    expect(target.querySelector("[data-testid='assistant-chat-input']")).toBeTruthy();
+    expect(target.querySelector("[data-testid='assistant-chat-submit']")).toBeTruthy();
+    expect(target.querySelector("[data-assistant-launcher] svg.assistant-product-icon")).toBeTruthy();
+    expect(target.querySelector("[data-assistant-close] svg.assistant-product-icon")).toBeTruthy();
     expectStylesheetOwnsSelector(stylesheet, ".assistant-sdk-panel");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-runtime-root\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-list\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-composer-input\"]");
-    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-send\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-product-runtime-panel\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-message-area\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-panel-footer\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-input\"]");
+    expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-submit\"]");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-frame");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--assistant");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--user");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-timestamp");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-typing-indicator");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--warning");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--error");
+    expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--neutral");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-panel-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-message-area-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-message-bubble-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-input-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-button-primary-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-focus-ring");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-user-avatar-background");
     expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
 
     handle.close();

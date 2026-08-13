@@ -4,7 +4,7 @@ import type {
   SafeError,
 } from "../types/public";
 
-export type HostContextOperation = "send" | "retry";
+export type HostContextOperation = "bootstrap" | "send" | "retry";
 
 export interface HostContextResolutionInput {
   readonly integrationMode: IntegrationMode;
@@ -22,6 +22,18 @@ export type HostContextResolutionResult =
   | {
       readonly context: Readonly<Record<string, unknown>>;
       readonly ok: true;
+      readonly resolutionId: string;
+    }
+  | {
+      readonly error: SafeError;
+      readonly ok: false;
+    };
+
+export type HostContextBootstrapSnapshotResolutionResult =
+  | {
+      readonly localContext: Readonly<Record<string, unknown>>;
+      readonly ok: true;
+      readonly requestContext: Readonly<Record<string, unknown>>;
       readonly resolutionId: string;
     }
   | {
@@ -213,24 +225,11 @@ export function assertLocalOnlyFieldsAbsent(
   };
 }
 
-export async function resolveHostContextForRequest(
-  input: HostContextResolutionInput,
-): Promise<HostContextResolutionResult> {
-  let providerContext: unknown;
-
-  try {
-    providerContext = await input.provider();
-  }
-  catch {
-    return {
-      error: createSafeError("context_unavailable", {
-        retryable: true,
-        userMessage: "context unavailable",
-      }),
-      ok: false,
-    };
-  }
-
+export function resolveProvidedHostContextForRequest(input: {
+  readonly context: unknown;
+  readonly integrationMode: IntegrationMode;
+}): HostContextResolutionResult {
+  const providerContext = input.context;
   if (!providerContext || typeof providerContext !== "object" || Array.isArray(providerContext)) {
     return {
       error: createSafeError("context_unavailable", {
@@ -265,4 +264,24 @@ export async function resolveHostContextForRequest(
     ok: true,
     resolutionId: nextResolutionId(),
   };
+}
+
+export async function resolveHostContextForRequest(
+  input: HostContextResolutionInput,
+): Promise<HostContextResolutionResult> {
+  try {
+    return resolveProvidedHostContextForRequest({
+      context: await input.provider(),
+      integrationMode: input.integrationMode,
+    });
+  }
+  catch {
+    return {
+      error: createSafeError("context_unavailable", {
+        retryable: true,
+        userMessage: "context unavailable",
+      }),
+      ok: false,
+    };
+  }
 }

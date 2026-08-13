@@ -4,6 +4,7 @@ import type {
   AssistantRuntimeCancelMessageInput,
   AssistantRuntimeCreateSessionInput,
   AssistantRuntimeFeedbackInput,
+  AssistantRuntimeGetSessionInput,
   AssistantRuntimeLoadHistoryInput,
   AssistantRuntimeRequestOptions,
   AssistantRuntimeSendMessageInput,
@@ -23,6 +24,7 @@ import type {
 } from "./types";
 
 export type DefaultTransportOptions = {
+  readonly apiBaseUrl?: string;
   readonly execute?: SdkTransportExecutor;
   readonly capabilities?: SdkTransportCapabilityMap;
   readonly integrationMode?: "backend001-compatibility" | "backend002";
@@ -31,19 +33,37 @@ export type DefaultTransportOptions = {
 type PortResult<T> = AssistantRuntimeTransportResult<T>;
 type CompatibilityFetchRoute =
   | "createSession"
+  | "getSession"
   | "loadHistory"
   | "streamMessage";
 
 const COMPATIBILITY_API_PREFIX = "/api/v1";
 
+function resolveCompatibilityApiBase(apiBaseUrl?: string): string {
+  const configuredBase = apiBaseUrl?.trim();
+
+  if (!configuredBase) {
+    return COMPATIBILITY_API_PREFIX;
+  }
+
+  const isAbsoluteHttpUrl = /^https?:\/\//i.test(configuredBase);
+  const isRootRelativePath = configuredBase.startsWith("/");
+
+  // Keep endpoint configuration explicit and reject non-HTTP schemes.
+  if (!isAbsoluteHttpUrl && !isRootRelativePath) {
+    return COMPATIBILITY_API_PREFIX;
+  }
+
+  return configuredBase.replace(/\/+$/, "") || COMPATIBILITY_API_PREFIX;
+}
+
 function createRequestId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `sdk-request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function getSessionId(input: { readonly sessionId?: string }, requestId: string): string {
-  return typeof input.sessionId === "string" && input.sessionId.length > 0
-    ? input.sessionId
-    : `pending-${requestId}`;
+function readSessionId(input: { readonly sessionId?: string }): string | null {
+  const sessionId = input.sessionId?.trim();
+  return sessionId ? sessionId : null;
 }
 
 function toFailure<T>(code: Parameters<typeof toTransportFailure>[0] = "transport_execution_failed"): PortResult<T> {
@@ -180,6 +200,11 @@ function buildMessageExecutionInput(
   integrationMode: DefaultTransportOptions["integrationMode"],
 ): PortResult<SdkTransportExecutionInput> {
   const requestId = createRequestId();
+  const sessionId = readSessionId(input);
+
+  if (!sessionId) {
+    return toFailure("missing_session_id");
+  }
   const mode = integrationMode ?? "backend001-compatibility";
   const buildResult = buildAssistantRequest({
     hostContext: mode === "backend001-compatibility" || input.pageContext === undefined
@@ -199,7 +224,7 @@ function buildMessageExecutionInput(
     value: createExecutionInput(
       operation,
       buildResult.request,
-      getSessionId(input, requestId),
+      sessionId,
       requestId,
     ),
   };
@@ -210,6 +235,11 @@ function buildSafeOperationExecutionInput(
   input: Readonly<Record<string, unknown>>,
 ): PortResult<SdkTransportExecutionInput> {
   const requestId = createRequestId();
+  const sessionId = readSessionId(input);
+
+  if (operation !== "createSession" && !sessionId) {
+    return toFailure("missing_session_id");
+  }
   const request = {
     operation,
     ...input,
@@ -222,7 +252,7 @@ function buildSafeOperationExecutionInput(
 
   return {
     ok: true,
-    value: createExecutionInput(operation, request, getSessionId(input, requestId), requestId),
+    value: createExecutionInput(operation, request, sessionId ?? "", requestId),
   };
 }
 
@@ -281,17 +311,22 @@ function createStreamRequestInit(
   };
 }
 
-function createCompatibilitySessionMessagesPath(sessionId: string, cursor?: unknown): string {
+function createCompatibilitySessionMessagesPath(apiBase: string, sessionId: string, cursor?: unknown): string {
   const encodedSessionId = encodeURIComponent(sessionId);
-  const path = `${COMPATIBILITY_API_PREFIX}/assistant/sessions/${encodedSessionId}/messages`;
+  const path = `${apiBase}/assistant/sessions/${encodedSessionId}/messages`;
 
   return typeof cursor === "string" && cursor.length > 0
     ? `${path}?cursor=${encodeURIComponent(cursor)}`
     : path;
 }
 
+function createCompatibilitySessionPath(apiBase: string, sessionId: string): string {
+  return `${apiBase}/assistant/sessions/${encodeURIComponent(sessionId)}`;
+}
+
 async function executeCompatibilityFetch<T>(
   fetchImpl: typeof fetch,
+  apiBase: string,
   route: CompatibilityFetchRoute,
   executionInput: SdkTransportExecutionInput,
   runtimeOptions?: AssistantRuntimeRequestOptions,
@@ -299,20 +334,27 @@ async function executeCompatibilityFetch<T>(
   try {
     if (route === "createSession") {
       return await normalizeJsonResponse<T>(await fetchImpl(
-        `${COMPATIBILITY_API_PREFIX}/assistant/sessions`,
+        `${apiBase}/assistant/sessions`,
         createJsonRequestInit("POST", runtimeOptions, {}),
+      ));
+    }
+
+    if (route === "getSession") {
+      return await normalizeJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        createJsonRequestInit("GET", runtimeOptions),
       ));
     }
 
     if (route === "loadHistory") {
       return await normalizeJsonResponse<T>(await fetchImpl(
-        createCompatibilitySessionMessagesPath(executionInput.sessionId, executionInput.request.cursor),
+        createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId, executionInput.request.cursor),
         createJsonRequestInit("GET", runtimeOptions),
       ));
     }
 
     const response = await fetchImpl(
-      createCompatibilitySessionMessagesPath(executionInput.sessionId),
+      createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId),
       createStreamRequestInit(runtimeOptions, executionInput.request),
     );
 
@@ -338,11 +380,18 @@ async function executeOperation<T>(
       compatibilityFetch
       && (
         operation === "createSession"
+        || operation === "getSession"
         || operation === "loadHistory"
         || operation === "streamMessage"
       )
     ) {
-      return await executeCompatibilityFetch<T>(compatibilityFetch, operation, executionInput, runtimeOptions);
+      return await executeCompatibilityFetch<T>(
+        compatibilityFetch,
+        resolveCompatibilityApiBase(options.apiBaseUrl),
+        operation,
+        executionInput,
+        runtimeOptions,
+      );
     }
 
     return toFailure("transport_unavailable");
@@ -361,6 +410,7 @@ async function executeOperation<T>(
 }
 
 export function createDefaultTransport(options: DefaultTransportOptions = {}) {
+  const supportsLegacyRemoteRestoration = (options.integrationMode ?? "backend001-compatibility") === "backend001-compatibility";
   async function send(
     request: PackageBuiltRequest,
     runtimeOptions?: AssistantRuntimeRequestOptions,
@@ -381,6 +431,17 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
 
     return executionInput.ok
       ? executeOperation(options, "createSession", executionInput.value, runtimeOptions)
+      : executionInput;
+  }
+
+  async function getSession(
+    input: AssistantRuntimeGetSessionInput,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ) {
+    const executionInput = buildSafeOperationExecutionInput("getSession", input);
+
+    return executionInput.ok
+      ? executeOperation(options, "getSession", executionInput.value, runtimeOptions)
       : executionInput;
   }
 
@@ -483,13 +544,17 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
       : executionInput;
   }
 
+  const remoteRestoration = supportsLegacyRemoteRestoration
+    ? { getSession, loadHistory }
+    : {};
+
   return {
     abortMessage,
     cancelMessage,
     confirmAction,
     createSession,
     loadApprovalRequest,
-    loadHistory,
+    ...remoteRestoration,
     rejectAction,
     send,
     sendMessage,

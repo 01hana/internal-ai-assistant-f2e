@@ -10,6 +10,9 @@ function createTestTransportPort(): AssistantRuntimeTransportPort {
     async createSession() {
       return { ok: true, value: { sessionId: "session-1" } };
     },
+    async getSession(input) {
+      return { ok: true, value: { sessionId: input.sessionId } };
+    },
     async loadHistory(input) {
       return { ok: true, value: { sessionId: input.sessionId, messages: [] } };
     },
@@ -48,10 +51,9 @@ function createTestTransportPort(): AssistantRuntimeTransportPort {
 }
 
 describe("assistant runtime transport port foundation", () => {
-  it("covers session, history, message stream/send, cancel/abort, feedback, action, and approval operations", () => {
+  it("keeps create/message/cancel operations universal while remote restoration is optional", () => {
     expect(assistantRuntimeTransportOperationNames).toEqual([
       "createSession",
-      "loadHistory",
       "sendMessage",
       "streamMessage",
       "cancelMessage",
@@ -68,7 +70,7 @@ describe("assistant runtime transport port foundation", () => {
     expect(assistantRuntimeTransportOwnership.frontend001AdapterOwns).toContain("Nuxt HTTP/auth/headers");
     expect(assistantRuntimeTransportOwnership.frontend002AdapterOwns).toContain("request builder");
     expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("SSE parser");
-    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("session state machine");
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("canonical session state machine");
   });
 
   it("is implementable without endpoint, envelope, route, or parser ownership", async () => {
@@ -77,6 +79,10 @@ describe("assistant runtime transport port foundation", () => {
     await expect(port.createSession({})).resolves.toEqual({
       ok: true,
       value: { sessionId: "session-1" }
+    });
+    await expect(port.getSession?.({ sessionId: "session-1" })).resolves.toEqual({
+      ok: true,
+      value: { sessionId: "session-1" },
     });
     await expect(port.streamMessage({ message: "hello" })).resolves.toMatchObject({
       ok: true

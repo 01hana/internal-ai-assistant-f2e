@@ -1,11 +1,11 @@
 import type { AssistantSession, HistoryMessageSummary } from "../types";
-export type AssistantRuntimeOperationName = "createSession" | "loadHistory" | "sendMessage" | "streamMessage" | "cancelMessage" | "abortMessage" | "submitFeedback" | "confirmAction" | "rejectAction" | "loadApprovalRequest";
-export declare const assistantRuntimeTransportOperationNames: readonly ["createSession", "loadHistory", "sendMessage", "streamMessage", "cancelMessage", "abortMessage", "submitFeedback", "confirmAction", "rejectAction", "loadApprovalRequest"];
+export type AssistantRuntimeOperationName = "createSession" | "sendMessage" | "streamMessage" | "cancelMessage" | "abortMessage" | "submitFeedback" | "confirmAction" | "rejectAction" | "loadApprovalRequest";
+export declare const assistantRuntimeTransportOperationNames: readonly ["createSession", "sendMessage", "streamMessage", "cancelMessage", "abortMessage", "submitFeedback", "confirmAction", "rejectAction", "loadApprovalRequest"];
 export declare const assistantRuntimeTransportOwnership: {
-    readonly sharedRuntimeOwns: readonly ["session orchestration", "history orchestration", "canonical SSE consumption", "retry/cancel/timeout/interrupted state", "safe outcome state"];
+    readonly sharedRuntimeOwns: readonly ["canonical session runtime state", "create/history operation execution", "session store mutation", "canonical runtime lifecycle", "cancellation/cleanup", "canonical SSE consumption", "retry/cancel/timeout/interrupted state", "safe outcome state"];
     readonly frontend001AdapterOwns: readonly ["Nuxt runtime config", "Nuxt HTTP/auth/headers", "Frontend 001 route/page wiring"];
-    readonly frontend002AdapterOwns: readonly ["provider/context resolution", "request builder", "forbidden outgoing field gate", "default/injected transport execution"];
-    readonly forbiddenAdapterOwnership: readonly ["SSE parser", "session state machine", "retry state machine", "safe outcome renderer contract"];
+    readonly frontend002AdapterOwns: readonly ["provider/context resolution", "provider/storage candidate collection", "capability-aware restore-or-create policy", "local persistence fallback", "integration bootstrap coordination", "request builder", "forbidden outgoing field gate", "default/injected transport execution"];
+    readonly forbiddenAdapterOwnership: readonly ["SSE parser", "canonical session state machine", "retry state machine", "safe outcome renderer contract"];
 };
 export type AssistantRuntimeSafeError = {
     code: string;
@@ -44,6 +44,9 @@ export type AssistantRuntimeCreateSessionInput = {
     sessionId?: string;
     pageContext?: AssistantRuntimePageContext;
 };
+export type AssistantRuntimeGetSessionInput = {
+    sessionId: string;
+};
 export type AssistantRuntimeLoadHistoryInput = {
     sessionId: string;
     cursor?: string;
@@ -73,9 +76,15 @@ export type AssistantRuntimeApprovalInput = {
     messageId: string;
     approvalRequestId: string;
 };
+export type AssistantRuntimeRemoteRestorationCapability = {
+    getSession(input: AssistantRuntimeGetSessionInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<AssistantRuntimeSession>>;
+    loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<AssistantRuntimeHistory>>;
+};
 export type AssistantRuntimeTransportPort = {
     createSession(input: AssistantRuntimeCreateSessionInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<AssistantRuntimeSession>>;
-    loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<AssistantRuntimeHistory>>;
+    /** Optional: a transport may support validating and loading a remote session. */
+    getSession?: AssistantRuntimeRemoteRestorationCapability["getSession"];
+    loadHistory?: AssistantRuntimeRemoteRestorationCapability["loadHistory"];
     sendMessage(input: AssistantRuntimeSendMessageInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<AssistantRuntimeMessage>>;
     streamMessage(input: AssistantRuntimeStreamMessageInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<ReadableStream<Uint8Array>>>;
     cancelMessage(input: AssistantRuntimeCancelMessageInput, options?: AssistantRuntimeRequestOptions): Promise<AssistantRuntimeTransportResult<{
@@ -97,3 +106,4 @@ export type AssistantRuntimeTransportPort = {
         approvalRequestId: string;
     }>>;
 };
+export declare function supportsAssistantRuntimeRemoteRestoration(transport: AssistantRuntimeTransportPort): transport is AssistantRuntimeTransportPort & AssistantRuntimeRemoteRestorationCapability;

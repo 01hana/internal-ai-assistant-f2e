@@ -425,7 +425,7 @@ export function useAssistantSession(options: UseAssistantSessionOptions) {
         )
 
         if (isReusableAssistantSession(response.data)) {
-          const session = await sessionOrchestrator.resumeSession(
+          const session = await sessionOrchestrator.adoptValidatedSession(
             response.data.sessionId,
           )
 

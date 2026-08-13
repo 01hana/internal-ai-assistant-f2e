@@ -89,7 +89,7 @@ export const runtimeRegressionGate: readonly RuntimeRegressionGateEntry[] = [
     category: "ChatWidget shell adapter behavior",
     area: "frontend001-adapter",
     owner: "frontend001-nuxt-adapter",
-    requiredFlow: "ChatWidget launcher, open/close, Escape handling, panel shell, live region, restart, focus return, and AssistantRuntimeRoot adapter wiring.",
+    requiredFlow: "ChatWidget launcher, open/close, Escape handling, product ChatPanel shell, live region, restart, focus return, and Frontend 001 product UI adapter wiring.",
     command: "npx vitest run tests/component/assistant/ChatWidget.shell.spec.ts --reporter=dot",
     paths: ["tests/component/assistant/ChatWidget.shell.spec.ts"],
     required: true,

@@ -198,6 +198,13 @@ function createTransport(): AssistantRuntimeTransportPort {
         status: "active",
       },
     })),
+    getSession: vi.fn(async input => ({
+      ok: true,
+      value: {
+        sessionId: input.sessionId,
+        status: "active",
+      },
+    })),
     loadHistory: vi.fn(async () => ({
       ok: true,
       value: {

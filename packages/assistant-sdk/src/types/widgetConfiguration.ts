@@ -1,4 +1,10 @@
 export interface WidgetConfiguration {
+  /**
+   * Backend 001 Compatibility Mode API base. Defaults to the host's same-origin
+   * `/api/v1` proxy when omitted. This is an endpoint only; never put tokens or
+   * other authorization material in this value.
+   */
+  readonly apiBaseUrl?: string;
   readonly featureFlags?: readonly string[];
   readonly integrationMode?: "backend001-compatibility" | "backend002";
   readonly launcher?: {

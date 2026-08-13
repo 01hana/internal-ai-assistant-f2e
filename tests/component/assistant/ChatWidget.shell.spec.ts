@@ -51,6 +51,10 @@ const chatWidgetSourcePath = resolve(
   process.cwd(),
   'app/features/assistant/components/ChatWidget.vue',
 )
+const chatPanelSourcePath = resolve(
+  process.cwd(),
+  'app/features/assistant/components/ChatPanel.vue',
+)
 
 function createApprovalHostProvider(
   onOpenApprovalDetail?: (payload: {
@@ -251,12 +255,22 @@ describe('ChatWidget floating launcher shell', () => {
 
   it('uses the Frontend 001 product panel as the active UI renderer', () => {
     const source = readFileSync(chatWidgetSourcePath, 'utf8')
+    const panelSource = readFileSync(chatPanelSourcePath, 'utf8')
 
     expect(source).toContain('<ChatPanel')
+    expect(source).toContain('<UButton')
+    expect(source).toContain('<UIcon')
+    expect(source).not.toContain('AssistantProductIcon')
+    expect(source).not.toContain('AssistantProductRuntimePanel')
+    expect(source).not.toContain('AssistantProductPanelShell')
     expect(source).not.toContain('AssistantRuntimeRoot')
     expect(source).not.toContain('FRONTEND001_RUNTIME_SCOPE')
     expect(source).not.toContain('AssistantService')
     expect(source).not.toMatch(/createAssistantSseStreamRunner|parseAssistantSse|ReadableStream|AbortController/)
+    expect(panelSource).toContain('<ChatMessageArea')
+    expect(panelSource).toContain('<ChatInputBar')
+    expect(panelSource).not.toContain('AssistantProductRuntimePanel')
+    expect(panelSource).not.toContain('AssistantProductPanelShell')
   })
 
   it('keeps Frontend 001 product selectors active in the ChatWidget path', async () => {
@@ -268,7 +282,11 @@ describe('ChatWidget floating launcher shell', () => {
     expect(wrapper.get('[data-testid="assistant-panel-footer"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="assistant-chat-input"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="assistant-chat-submit"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-panel-restart"]').attributes('aria-label')).toBe('重新開始助理對話')
+    expect(wrapper.get('[data-testid="assistant-panel-close"]').attributes('aria-label')).toBe('關閉助理面板')
+    expect(wrapper.get('[data-testid="assistant-launcher"]').attributes('aria-controls')).toBe('assistant-chat-panel')
     expect(wrapper.find('[data-testid="assistant-runtime-root"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assistant-product-runtime-panel"]').exists()).toBe(false)
   })
 
   it('forwards open approval detail events to the host callback when available', async () => {

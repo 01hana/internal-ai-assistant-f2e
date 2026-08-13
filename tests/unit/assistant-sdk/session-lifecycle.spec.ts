@@ -50,6 +50,13 @@ function createTransport(overrides: Partial<AssistantRuntimeTransportPort> = {})
         status: "active",
       },
     })),
+    getSession: vi.fn(async input => ({
+      ok: true,
+      value: {
+        sessionId: input.sessionId,
+        status: "active",
+      },
+    })),
     loadApprovalRequest: vi.fn(async input => ({
       ok: true,
       value: {

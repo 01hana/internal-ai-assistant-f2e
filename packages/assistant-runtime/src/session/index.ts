@@ -3,6 +3,7 @@ import type {
   AssistantRuntimeCreateSessionInput,
   AssistantRuntimeHistory,
   AssistantRuntimeLoadHistoryInput,
+  AssistantRuntimeRemoteRestorationCapability,
   AssistantRuntimeSession,
   AssistantRuntimeTransportPort,
 } from "../transport/ports";
@@ -47,7 +48,8 @@ export interface AssistantHistoryPageState {
 
 export interface AssistantSessionHistoryOrchestrator {
   createSession(input?: AssistantRuntimeCreateSessionInput, options?: { signal?: AbortSignal }): Promise<AssistantRuntimeSession>;
-  resumeSession(sessionId: string, options?: { signal?: AbortSignal }): Promise<AssistantRuntimeSession>;
+  /** Adopt a session only after the caller has already remotely validated it. */
+  adoptValidatedSession(sessionId: string, options?: { signal?: AbortSignal }): Promise<AssistantRuntimeSession>;
   loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: { signal?: AbortSignal }): Promise<AssistantRuntimeHistory>;
   appendHistoryPage(current: AssistantHistoryPageState, page: AssistantHistoryPageState): AssistantHistoryPageState;
   accumulateDelta(current: string, event: AssistantSseEvent): string;
@@ -197,7 +199,7 @@ export function appendAssistantHistoryPage(
   };
 }
 
-function unwrapTransportResult<T>(result: Awaited<ReturnType<AssistantRuntimeTransportPort[keyof AssistantRuntimeTransportPort]>>): T {
+function unwrapTransportResult<T>(result: { readonly ok: boolean; readonly value?: unknown; readonly error?: unknown }): T {
   if (result.ok) {
     return result.value as T;
   }
@@ -206,10 +208,8 @@ function unwrapTransportResult<T>(result: Awaited<ReturnType<AssistantRuntimeTra
 }
 
 export function createAssistantSessionHistoryOrchestrator(input: {
-  transport: Pick<
-    AssistantRuntimeTransportPort,
-    "createSession" | "loadHistory" | "cancelMessage" | "abortMessage"
-  >;
+  transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage">
+    & Partial<AssistantRuntimeRemoteRestorationCapability>;
 }): AssistantSessionHistoryOrchestrator {
   const pendingControllers = new Set<AbortController>();
   const externalAbortListeners = new Map<
@@ -269,16 +269,21 @@ export function createAssistantSessionHistoryOrchestrator(input: {
         options.signal,
       );
     },
-    async resumeSession(sessionId, options = {}) {
+    async adoptValidatedSession(sessionId, options = {}) {
       return runTrackedOperation(
         async () => ({ sessionId, status: "active" }),
         options.signal,
       );
     },
     async loadHistory(loadInput, options = {}) {
+      const loadHistory = input.transport.loadHistory;
+      if (typeof loadHistory !== "function") {
+        throw { code: "remote_restoration_unavailable" };
+      }
+
       return runTrackedOperation(
         async trackedOptions => unwrapTransportResult<AssistantRuntimeHistory>(
-          await input.transport.loadHistory(loadInput, trackedOptions),
+          await loadHistory(loadInput, trackedOptions),
         ),
         options.signal,
       );

@@ -4,7 +4,7 @@ import { type AssistantMessageFeedbackUiState, type AssistantFeedbackValue } fro
 import { accumulateAssistantAnswerDelta, type AssistantSseStreamRunner } from "../sse";
 import type { AssistantRuntimeSessionState, AssistantRuntimeStoreScope } from "../stores";
 import type { ActionDraftId, ApprovalRequestId, AssistantMessageFinalData, AssistantMessageId, AssistantRequestId, AssistantSession, AssistantSseEvent, HistoryMessageSummary } from "../types";
-import type { AssistantRuntimeLoadHistoryInput, AssistantRuntimeTransportPort } from "../transport/ports";
+import type { AssistantRuntimeCreateSessionInput, AssistantRuntimeLoadHistoryInput, AssistantRuntimeRemoteRestorationCapability, AssistantRuntimeTransportPort } from "../transport/ports";
 export type AssistantRuntimeStreamingTerminalStatus = "completed" | "interrupted" | "failed" | "cancelled";
 export type AssistantRuntimeStreamingStatus = "idle" | "connecting" | "sending" | "queued" | "streaming" | "finalizing" | AssistantRuntimeStreamingTerminalStatus;
 export interface AssistantRuntimeStreamingActivity {
@@ -47,7 +47,7 @@ type AssistantRuntimeClock = {
 export interface AssistantRuntimeController<TMessage = RuntimeMessage> {
     runtimeScope: string;
     stores: AssistantRuntimeStoreScope<TMessage>;
-    createSession(options?: {
+    createSession(input?: AssistantRuntimeCreateSessionInput, options?: {
         signal?: AbortSignal;
     }): Promise<void>;
     loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: {
@@ -197,12 +197,12 @@ export declare function resolveRetrySourceText(messages: readonly {
     kind?: string;
     status?: string;
 }[], messageKey: string): string | null;
-export declare function createSessionController<TMessage>(state: AssistantRuntimeSessionState<TMessage>, transport: Pick<AssistantRuntimeTransportPort, "createSession" | "loadHistory" | "cancelMessage" | "abortMessage">, lifecycle: {
+export declare function createSessionController<TMessage>(state: AssistantRuntimeSessionState<TMessage>, transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage"> & Partial<AssistantRuntimeRemoteRestorationCapability>, lifecycle: {
     canMutate: () => boolean;
     captureVersion: () => number;
     isCurrentVersion: (version: number) => boolean;
 }): {
-    createSession(options?: {
+    createSession(input?: AssistantRuntimeCreateSessionInput, options?: {
         signal?: AbortSignal;
     }): Promise<void>;
     loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: {
@@ -409,7 +409,7 @@ export declare function createApprovalController<TMessage>(state: AssistantRunti
 export declare function createAssistantRuntimeController<TMessage = RuntimeMessage>(input: {
     runtimeScope: string;
     stores: AssistantRuntimeStoreScope<TMessage>;
-    transport: Pick<AssistantRuntimeTransportPort, "createSession" | "loadHistory" | "cancelMessage" | "abortMessage">;
+    transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage"> & Partial<AssistantRuntimeRemoteRestorationCapability>;
     sseRunner?: AssistantSseStreamRunner<unknown>;
     clock?: Partial<Omit<AssistantRuntimeClock, "Date">> & {
         Date?: Pick<DateConstructor, "now">;

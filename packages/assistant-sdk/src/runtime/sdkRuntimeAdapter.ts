@@ -22,6 +22,7 @@ import type { HostContextOperation } from "../context/contextResolution";
 import { createHostEventEmitter } from "../events/hostEventEmitter";
 import { createMountHandle } from "../lifecycle/mountHandle";
 import { createSdkSessionLifecycleAdapter } from "../session/sessionLifecycle";
+import { createSdkSessionBootstrap } from "../session/sessionBootstrap";
 import type {
   AssistantHostContextProvider,
   HostCallbacks,
@@ -49,6 +50,7 @@ function resolveIntegrationMode(configuration: WidgetConfiguration | undefined):
 export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
   const integrationMode = resolveIntegrationMode(options.configuration);
   const transport = options.transport ?? createDefaultTransport({
+    apiBaseUrl: options.configuration?.apiBaseUrl,
     capabilities: options.capabilities,
     execute: options.execute,
     integrationMode,
@@ -57,7 +59,6 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     pinia: options.pinia,
     runtimeScope: options.runtimeScope,
   });
-  let controller!: ReturnType<typeof createAssistantRuntimeController>;
   const sessionLifecycle = createSdkSessionLifecycleAdapter({
     namespace: options.configuration?.sessionScope,
     transport,
@@ -186,12 +187,26 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     },
   });
 
-  controller = createAssistantRuntimeController({
+  const controller = createAssistantRuntimeController({
     runtimeScope: options.runtimeScope,
     sseRunner,
     stores,
     transport,
   });
+
+  const sessionBootstrap = createSdkSessionBootstrap({
+    configuration: options.configuration,
+    controller,
+    emitHostEvent: hostEvents.emit,
+    resolveSnapshot: resolveBootstrapSnapshot,
+    transport,
+  });
+
+  // A launcher-less widget renders its panel immediately, so it needs the same
+  // session bootstrap that the launcher click starts for the default shell.
+  if (options.configuration?.launcher?.enabled === false) {
+    void sessionBootstrap.bootstrap();
+  }
 
   function getLifecycleVersion(): number {
     return lifecycleVersion;
@@ -218,6 +233,30 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
 
     controller.setContextReady(true);
     return result.context;
+  }
+
+  async function resolveBootstrapSnapshot() {
+    if (destroyed) {
+      return {
+        error: {
+          code: "context_unavailable",
+          message: "context_unavailable",
+          retryable: true,
+          userMessage: "context unavailable",
+        },
+        ok: false as const,
+      };
+    }
+
+    const result = await hostContextResolver.resolveBootstrapSnapshot();
+    if (!result.ok) {
+      controller.setContextReady(false);
+      await hostEvents.emit("context-resolution-failed", { error: result.error });
+      return result;
+    }
+
+    controller.setContextReady(true);
+    return result;
   }
 
   async function destroy(): Promise<void> {
@@ -250,6 +289,7 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
       return callback();
     },
     sessionLifecycle,
+    bootstrapSession: sessionBootstrap.bootstrap,
     sseRunner,
     startMessageStream(input: AssistantRuntimeStreamMessageInput): Promise<void> {
       if (destroyed) {

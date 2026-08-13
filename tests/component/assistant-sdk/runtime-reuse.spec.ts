@@ -21,6 +21,7 @@ const sdkComponentPath = join(sdkSourcePath, "components/AssistantWidget.vue");
 const sdkRootEntryPath = join(sdkSourcePath, "index.ts");
 const sdkPackageJsonPath = join(sdkRootPath, "package.json");
 const sharedRuntimeComponentPath = join(projectRootPath, "packages/assistant-runtime/src/components/AssistantRuntimeRoot.vue");
+const sharedProductRuntimePanelPath = join(projectRootPath, "packages/assistant-runtime/src/components/product-ui/AssistantProductRuntimePanel.vue");
 const frontend001ChatWidgetPath = join(projectRootPath, "app/features/assistant/components/ChatWidget.vue");
 
 const forbiddenCopiedRuntimeSignals = [
@@ -108,6 +109,7 @@ describe("Frontend 002 AssistantWidget runtime reuse boundary", () => {
     expect(frontend001NuxtAdapterBoundary.role).toContain("Nuxt Adapter");
     expect(frontend002SdkAdapterBoundary.role).toContain("SDK Adapter");
     expect(await pathExists(sharedRuntimeComponentPath), "Shared canonical AssistantRuntimeRoot.vue must exist before SDK runtime adapter work.").toBe(true);
+    expect(await pathExists(sharedProductRuntimePanelPath), "Shared product UI must exist so SDK can match Frontend 001 ChatPanel without importing app source.").toBe(true);
     expect(await pathExists(frontend001ChatWidgetPath), "Frontend 001 ChatWidget.vue remains product shell regression baseline, not final SDK runtime source.").toBe(true);
   });
 
@@ -116,7 +118,8 @@ describe("Frontend 002 AssistantWidget runtime reuse boundary", () => {
 
     const source = await readFile(sdkComponentPath, "utf8");
 
-    expect(source, "T144 AssistantWidget must render the Shared Runtime canonical UI.").toContain("AssistantRuntimeRoot");
+    expect(source, "AssistantWidget must render the Shared Product UI, not the generic runtime root.").toContain("AssistantProductRuntimePanel");
+    expect(source, "AssistantWidget must not use the generic runtime root as the product UI target.").not.toContain("AssistantRuntimeRoot");
     expect(source, "T144 AssistantWidget must compose the SDK runtime adapter instead of app runtime owners.").toContain("createSdkRuntimeAdapter");
 
     for (const forbiddenSignal of forbiddenCopiedRuntimeSignals) {

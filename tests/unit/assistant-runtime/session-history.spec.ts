@@ -74,12 +74,12 @@ describe("assistant-runtime session and history orchestration", () => {
     });
   });
 
-  it("uses only adapter transport ports for create/resume/history/cancel", async () => {
+  it("uses only adapter transport ports for create/validated-adoption/history/cancel", async () => {
     const transport = createTransport();
     const orchestrator = createAssistantSessionHistoryOrchestrator({ transport });
 
     await expect(orchestrator.createSession()).resolves.toEqual({ sessionId: "session-created", status: "active" });
-    await expect(orchestrator.resumeSession("session-existing")).resolves.toEqual({
+    await expect(orchestrator.adoptValidatedSession("session-existing")).resolves.toEqual({
       sessionId: "session-existing",
       status: "active",
     });

@@ -4,6 +4,7 @@ import type {
   AssistantRuntimeCancelMessageInput,
   AssistantRuntimeCreateSessionInput,
   AssistantRuntimeFeedbackInput,
+  AssistantRuntimeGetSessionInput,
   AssistantRuntimeLoadHistoryInput,
   AssistantRuntimeRequestOptions,
   AssistantRuntimeSendMessageInput,
@@ -38,6 +39,7 @@ export type TransportResult<T = unknown> = TransportSuccess<T> | TransportFailur
 
 export type SdkTransportOperationInputMap = {
   readonly createSession: AssistantRuntimeCreateSessionInput;
+  readonly getSession: AssistantRuntimeGetSessionInput;
   readonly loadHistory: AssistantRuntimeLoadHistoryInput;
   readonly sendMessage: AssistantRuntimeSendMessageInput;
   readonly streamMessage: AssistantRuntimeStreamMessageInput;

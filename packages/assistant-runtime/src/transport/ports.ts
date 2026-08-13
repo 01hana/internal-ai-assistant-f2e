@@ -2,7 +2,6 @@ import type { AssistantSession, HistoryMessageSummary } from "../types";
 
 export type AssistantRuntimeOperationName =
   | "createSession"
-  | "loadHistory"
   | "sendMessage"
   | "streamMessage"
   | "cancelMessage"
@@ -14,7 +13,6 @@ export type AssistantRuntimeOperationName =
 
 export const assistantRuntimeTransportOperationNames = [
   "createSession",
-  "loadHistory",
   "sendMessage",
   "streamMessage",
   "cancelMessage",
@@ -27,8 +25,11 @@ export const assistantRuntimeTransportOperationNames = [
 
 export const assistantRuntimeTransportOwnership = {
   sharedRuntimeOwns: [
-    "session orchestration",
-    "history orchestration",
+    "canonical session runtime state",
+    "create/history operation execution",
+    "session store mutation",
+    "canonical runtime lifecycle",
+    "cancellation/cleanup",
     "canonical SSE consumption",
     "retry/cancel/timeout/interrupted state",
     "safe outcome state"
@@ -40,13 +41,17 @@ export const assistantRuntimeTransportOwnership = {
   ],
   frontend002AdapterOwns: [
     "provider/context resolution",
+    "provider/storage candidate collection",
+    "capability-aware restore-or-create policy",
+    "local persistence fallback",
+    "integration bootstrap coordination",
     "request builder",
     "forbidden outgoing field gate",
     "default/injected transport execution"
   ],
   forbiddenAdapterOwnership: [
     "SSE parser",
-    "session state machine",
+    "canonical session state machine",
     "retry state machine",
     "safe outcome renderer contract"
   ]
@@ -93,6 +98,10 @@ export type AssistantRuntimeCreateSessionInput = {
   pageContext?: AssistantRuntimePageContext;
 };
 
+export type AssistantRuntimeGetSessionInput = {
+  sessionId: string;
+};
+
 export type AssistantRuntimeLoadHistoryInput = {
   sessionId: string;
   cursor?: string;
@@ -129,15 +138,25 @@ export type AssistantRuntimeApprovalInput = {
   approvalRequestId: string;
 };
 
-export type AssistantRuntimeTransportPort = {
-  createSession(
-    input: AssistantRuntimeCreateSessionInput,
+export type AssistantRuntimeRemoteRestorationCapability = {
+  getSession(
+    input: AssistantRuntimeGetSessionInput,
     options?: AssistantRuntimeRequestOptions
   ): Promise<AssistantRuntimeTransportResult<AssistantRuntimeSession>>;
   loadHistory(
     input: AssistantRuntimeLoadHistoryInput,
     options?: AssistantRuntimeRequestOptions
   ): Promise<AssistantRuntimeTransportResult<AssistantRuntimeHistory>>;
+};
+
+export type AssistantRuntimeTransportPort = {
+  createSession(
+    input: AssistantRuntimeCreateSessionInput,
+    options?: AssistantRuntimeRequestOptions
+  ): Promise<AssistantRuntimeTransportResult<AssistantRuntimeSession>>;
+  /** Optional: a transport may support validating and loading a remote session. */
+  getSession?: AssistantRuntimeRemoteRestorationCapability["getSession"];
+  loadHistory?: AssistantRuntimeRemoteRestorationCapability["loadHistory"];
   sendMessage(
     input: AssistantRuntimeSendMessageInput,
     options?: AssistantRuntimeRequestOptions
@@ -171,3 +190,9 @@ export type AssistantRuntimeTransportPort = {
     options?: AssistantRuntimeRequestOptions
   ): Promise<AssistantRuntimeTransportResult<{ approvalRequestId: string }>>;
 };
+
+export function supportsAssistantRuntimeRemoteRestoration(
+  transport: AssistantRuntimeTransportPort,
+): transport is AssistantRuntimeTransportPort & AssistantRuntimeRemoteRestorationCapability {
+  return typeof transport.getSession === "function" && typeof transport.loadHistory === "function";
+}

@@ -24,6 +24,7 @@ type DefaultTransport = {
   readonly send: (request: PackageBuiltRequest) => unknown | Promise<unknown>;
   readonly execute?: unknown;
   readonly createSession: AssistantRuntimeTransportPort["createSession"];
+  readonly getSession: AssistantRuntimeTransportPort["getSession"];
   readonly loadHistory: AssistantRuntimeTransportPort["loadHistory"];
   readonly sendMessage: AssistantRuntimeTransportPort["sendMessage"];
   readonly streamMessage: AssistantRuntimeTransportPort["streamMessage"];
@@ -200,6 +201,97 @@ describe("Frontend 002 default transport adapter boundary", () => {
       },
       ok: false,
     });
+
+    expect(transport.getSession).toBeUndefined();
+    expect(transport.loadHistory).toBeUndefined();
+  });
+
+  it("uses an explicitly configured Compatibility Mode API base for session, history, and SSE requests", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        return new Response(new ReadableStream<Uint8Array>(), {
+          headers: { "content-type": "text/event-stream" },
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ data: { sessionId: "session-001" } }), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({
+        apiBaseUrl: "http://localhost:3000/api/v1/",
+      }) as DefaultTransport;
+
+      await transport.createSession({});
+      await transport.loadHistory({ sessionId: "session-001" });
+      await transport.streamMessage({
+        message: "請摘要目前頁面",
+        sessionId: "session-001",
+      });
+
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        "http://localhost:3000/api/v1/assistant/sessions",
+        "http://localhost:3000/api/v1/assistant/sessions/session-001/messages",
+        "http://localhost:3000/api/v1/assistant/sessions/session-001/messages",
+      ]);
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps same-origin /api/v1 as the Compatibility Mode fallback", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { sessionId: "session-001" } }), {
+      headers: { "content-type": "application/json" },
+      status: 200,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport() as DefaultTransport;
+
+      await transport.createSession({});
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/assistant/sessions",
+        expect.objectContaining({ method: "POST" }),
+      );
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fails closed without a real session ID and never creates a pending session route", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport() as DefaultTransport;
+
+      await expect(transport.loadHistory({ sessionId: "" })).resolves.toMatchObject({
+        error: { code: "missing_session_id" },
+        ok: false,
+      });
+      await expect(transport.streamMessage({ message: "請摘要目前頁面" })).resolves.toMatchObject({
+        error: { code: "missing_session_id" },
+        ok: false,
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("stays a low-level SDK adapter without creating a second API client or runtime owner", async () => {
@@ -262,7 +354,7 @@ describe("Frontend 002 default transport adapter boundary", () => {
 
     expect(serializedTransport).not.toMatch(/parseSse|parseAssistantSse|createSseParser|retry|cancel|timeout|interrupted|errorFlow|outcomeState/);
     expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("SSE parser");
-    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("session state machine");
+    expect(assistantRuntimeTransportOwnership.forbiddenAdapterOwnership).toContain("canonical session state machine");
   });
 
   it("preserves frontend mode values as request-builder inputs, not backend routes or transport-owned modes", () => {

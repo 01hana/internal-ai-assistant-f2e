@@ -8,6 +8,7 @@ import {
 
 export type CompatibilityFetchRoute =
   | "create-session"
+  | "get-session"
   | "load-history"
   | "message-stream"
   | "unmatched";
@@ -93,6 +94,10 @@ function classifyRoute(method: string, pathname: string): CompatibilityFetchRout
     return "create-session";
   }
 
+  if (method === "GET" && /^\/assistant\/sessions\/[^/]+\/?$/.test(assistantPath)) {
+    return "get-session";
+  }
+
   if (method === "GET" && /^\/assistant\/sessions\/[^/]+\/messages\/?$/.test(assistantPath)) {
     return "load-history";
   }
@@ -132,6 +137,16 @@ export function createCompatibilityFetchRouter(options: CompatibilityFetchRouter
           status: "active",
         },
       }, { status: 201 });
+    }
+
+    if (route === "get-session") {
+      return jsonResponse({
+        requestId: "request-get-session-001",
+        data: {
+          sessionId,
+          status: "active",
+        },
+      });
     }
 
     if (route === "load-history") {

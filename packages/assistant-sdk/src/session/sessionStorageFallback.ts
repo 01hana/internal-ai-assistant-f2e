@@ -16,6 +16,7 @@ type FallbackResult =
 
 type SessionStorageLike = {
   readonly getItem: (key: string) => string | null;
+  readonly removeItem?: (key: string) => unknown;
   readonly setItem: (key: string, value: string) => unknown;
 };
 
@@ -117,6 +118,25 @@ export function createSessionStorageFallback(options: { readonly storage?: Sessi
           ok: true,
           persistence: "sessionStorage",
           sessionId,
+        };
+      } catch {
+        return failure("session_storage_unavailable");
+      }
+    },
+    clear(input: FallbackInput): FallbackResult {
+      const namespace = safeString(input.namespace, "namespace");
+      if (typeof namespace !== "string") {
+        return namespace;
+      }
+      if (!storage?.removeItem) {
+        return failure("session_storage_unavailable");
+      }
+
+      try {
+        storage.removeItem(namespace);
+        return {
+          ok: true,
+          persistence: "sessionStorage",
         };
       } catch {
         return failure("session_storage_unavailable");

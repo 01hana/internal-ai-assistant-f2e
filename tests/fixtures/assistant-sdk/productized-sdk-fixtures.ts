@@ -29,7 +29,7 @@ export const productizedOpenWidgetRequirements = [
       "aside[aria-label*='assistant' i]",
       ".assistant-sdk-panel",
       "[data-assistant-panel]",
-      "[data-testid='assistant-runtime-root']",
+      "[data-testid='assistant-product-runtime-panel']",
     ],
   },
   {
@@ -38,7 +38,7 @@ export const productizedOpenWidgetRequirements = [
       "[role='log']",
       "[aria-label*='conversation' i]",
       "[data-assistant-message-list]",
-      "[data-testid='assistant-message-list']",
+      "[data-testid='assistant-message-area']",
       ".assistant-message-list",
     ],
   },
@@ -49,7 +49,7 @@ export const productizedOpenWidgetRequirements = [
       "input[type='text']",
       "[contenteditable='true']",
       "[data-assistant-composer]",
-      "[data-testid='assistant-composer-input']",
+      "[data-testid='assistant-chat-input']",
     ],
   },
   {
@@ -58,7 +58,7 @@ export const productizedOpenWidgetRequirements = [
       "button[type='submit']",
       "button[aria-label*='send' i]",
       "[data-assistant-send]",
-      "[data-testid='assistant-send']",
+      "[data-testid='assistant-chat-submit']",
     ],
   },
 ] as const;

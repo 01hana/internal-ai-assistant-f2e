@@ -1,4 +1,4 @@
-import type { AssistantRuntimeCancelMessageInput, AssistantRuntimeCreateSessionInput, AssistantRuntimeHistory, AssistantRuntimeLoadHistoryInput, AssistantRuntimeSession, AssistantRuntimeTransportPort } from "../transport/ports";
+import type { AssistantRuntimeCancelMessageInput, AssistantRuntimeCreateSessionInput, AssistantRuntimeHistory, AssistantRuntimeLoadHistoryInput, AssistantRuntimeRemoteRestorationCapability, AssistantRuntimeSession, AssistantRuntimeTransportPort } from "../transport/ports";
 import type { AssistantSession, AssistantSessionId, AssistantSseEvent, HistoryMessageSummary } from "../types";
 export type AssistantSessionRecoveryReason = "expired" | "closed" | "invisible" | "not_found" | "unavailable" | "unknown";
 export type AssistantSessionCandidateSource = "host_managed" | "session_storage";
@@ -20,7 +20,8 @@ export interface AssistantSessionHistoryOrchestrator {
     createSession(input?: AssistantRuntimeCreateSessionInput, options?: {
         signal?: AbortSignal;
     }): Promise<AssistantRuntimeSession>;
-    resumeSession(sessionId: string, options?: {
+    /** Adopt a session only after the caller has already remotely validated it. */
+    adoptValidatedSession(sessionId: string, options?: {
         signal?: AbortSignal;
     }): Promise<AssistantRuntimeSession>;
     loadHistory(input: AssistantRuntimeLoadHistoryInput, options?: {
@@ -52,5 +53,5 @@ export declare function resolveSessionRecoveryReason(input: unknown): AssistantS
 export declare function shouldClearScopedSessionFallback(reason: AssistantSessionRecoveryReason | null): boolean;
 export declare function appendAssistantHistoryPage(current: AssistantHistoryPageState, page: AssistantHistoryPageState): AssistantHistoryPageState;
 export declare function createAssistantSessionHistoryOrchestrator(input: {
-    transport: Pick<AssistantRuntimeTransportPort, "createSession" | "loadHistory" | "cancelMessage" | "abortMessage">;
+    transport: Pick<AssistantRuntimeTransportPort, "createSession" | "cancelMessage" | "abortMessage"> & Partial<AssistantRuntimeRemoteRestorationCapability>;
 }): AssistantSessionHistoryOrchestrator;

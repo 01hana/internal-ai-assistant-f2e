@@ -237,6 +237,11 @@ describe("Frontend 002 packaged Compatibility Mode T146 productized chat-flow ga
         expect(queryAny(target, productizedOpenWidgetRequirements[0].selectors)).toBe(true);
       });
 
+      await vi.waitFor(() => {
+        expect(fetchRouter.getCallsByRoute("create-session")).toHaveLength(1);
+      });
+      expect(fetchRouter.calls.map(call => call.route)).toEqual(["create-session"]);
+
       expect(target.childElementCount, "Packaged Compatibility Mode must mount a widget DOM before chat flow can run.").toBeGreaterThan(0);
       for (const requirement of productizedClosedWidgetRequirements) {
         expect(queryAny(target, requirement.selectors), `Packaged widget must render ${requirement.name}.`).toBe(true);
@@ -249,6 +254,9 @@ describe("Frontend 002 packaged Compatibility Mode T146 productized chat-flow ga
       const sendAction = findFirst(target, productizedOpenWidgetRequirements[3].selectors);
       expect(composer, "Packaged widget must expose a semantic composer.").toBeTruthy();
       expect(sendAction, "Packaged widget must expose a semantic send action.").toBeTruthy();
+      await vi.waitFor(() => {
+        expect(sendAction?.hasAttribute("disabled")).toBe(false);
+      });
 
       if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
         composer.value = "Summarize this order";
@@ -264,6 +272,9 @@ describe("Frontend 002 packaged Compatibility Mode T146 productized chat-flow ga
       const streamCall = fetchRouter.getCallsByRoute("message-stream").at(-1);
       const executedRequest = JSON.parse(streamCall?.bodyText || "{}");
       expectCompatibilityRequestBodySafe(executedRequest);
+      expect(fetchRouter.calls.map(call => call.route)).toEqual(["create-session", "message-stream"]);
+      expect(streamCall?.pathname).toBe("/assistant/sessions/session-001/messages");
+      expect(streamCall?.pathname).not.toContain("/pending-");
 
       if (sseFixture.terminationMode === "inactivity") {
         await vi.advanceTimersByTimeAsync(60_000);
