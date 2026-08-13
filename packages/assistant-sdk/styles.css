@@ -1,50 +1,155 @@
 .assistant-sdk-root,
 [data-assistant-sdk-root] {
-  --assistant-sdk-z-index: 2147483000;
-  --assistant-sdk-panel-width: min(420px, calc(100vw - 32px));
-  --assistant-sdk-panel-height: min(720px, calc(100vh - 32px));
-  --assistant-sdk-launcher-size: 56px;
-  --assistant-sdk-gap: 16px;
-  --assistant-sdk-radius: 18px;
-  --assistant-sdk-background: #ffffff;
-  --assistant-sdk-surface: #f8fafc;
-  --assistant-sdk-surface-elevated: #ffffff;
-  --assistant-sdk-foreground: #172033;
-  --assistant-sdk-muted: #64748b;
-  --assistant-sdk-accent: #2459d6;
-  --assistant-sdk-accent-foreground: #ffffff;
-  --assistant-sdk-danger: #b42318;
-  --assistant-sdk-warning: #9a6700;
-  --assistant-sdk-border: color-mix(in srgb, currentColor 14%, transparent);
-  --assistant-sdk-shadow: 0 24px 80px color-mix(in srgb, #172033 24%, transparent);
+  --assistant-sdk-default-z-index: 2147483000;
+  --assistant-sdk-default-panel-width: min(420px, calc(100vw - 32px));
+  --assistant-sdk-default-panel-height: min(720px, calc(100vh - 32px));
+  --assistant-sdk-default-launcher-size: 56px;
+  --assistant-sdk-default-gap: 16px;
+  --assistant-sdk-default-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --assistant-sdk-default-font-size: 14px;
+  --assistant-sdk-default-line-height: 1.5;
+  --assistant-sdk-default-font-weight-strong: 700;
+  --assistant-sdk-default-radius-sm: 10px;
+  --assistant-sdk-default-radius-md: 14px;
+  --assistant-sdk-default-radius-lg: 18px;
+  --assistant-sdk-default-radius-pill: 999px;
+  --assistant-sdk-default-radius: var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg));
+  --assistant-sdk-default-space-1: 4px;
+  --assistant-sdk-default-space-2: 8px;
+  --assistant-sdk-default-space-3: 12px;
+  --assistant-sdk-default-space-4: 16px;
+  --assistant-sdk-default-space-5: 20px;
+  --assistant-sdk-default-background: #ffffff;
+  --assistant-sdk-default-surface: #f8fafc;
+  --assistant-sdk-default-surface-elevated: #ffffff;
+  --assistant-sdk-default-foreground: #172033;
+  --assistant-sdk-default-muted: #64748b;
+  --assistant-sdk-default-accent: #0284c7;
+  --assistant-sdk-default-accent-strong: #075985;
+  --assistant-sdk-default-accent-soft: #38bdf8;
+  --assistant-sdk-default-accent-foreground: #ffffff;
+  --assistant-sdk-default-danger: #b42318;
+  --assistant-sdk-default-danger-foreground: #ffffff;
+  --assistant-sdk-default-warning: #9a6700;
+  --assistant-sdk-default-warning-foreground: #172033;
+  --assistant-sdk-default-success: #087443;
+  --assistant-sdk-default-info: #2563eb;
+  --assistant-sdk-default-border: color-mix(
+    in srgb,
+    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 14%,
+    transparent
+  );
+  --assistant-sdk-default-shadow: 0 24px 80px color-mix(
+    in srgb,
+    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 24%,
+    transparent
+  );
+  --assistant-sdk-default-bubble-shadow: 0 8px 28px color-mix(
+    in srgb,
+    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 8%,
+    transparent
+  );
+  --assistant-sdk-default-focus-ring: color-mix(
+    in srgb,
+    var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 24%,
+    transparent
+  );
+  --assistant-sdk-default-focus-border: color-mix(
+    in srgb,
+    var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 72%,
+    transparent
+  );
+  --assistant-sdk-default-disabled-opacity: 0.58;
+  --assistant-sdk-default-launcher-background: linear-gradient(
+    90deg,
+    var(--assistant-sdk-launcher-gradient-start, var(--assistant-sdk-accent-strong, var(--assistant-sdk-default-accent-strong))),
+    var(--assistant-sdk-launcher-gradient-end, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)))
+  );
+  --assistant-sdk-default-launcher-foreground: var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground));
+  --assistant-sdk-default-panel-background: var(--assistant-sdk-background, var(--assistant-sdk-default-background));
+  --assistant-sdk-default-panel-header-background: linear-gradient(
+    90deg,
+    var(--assistant-sdk-panel-header-gradient-start, var(--assistant-sdk-accent-strong, var(--assistant-sdk-default-accent-strong))),
+    var(--assistant-sdk-panel-header-gradient-end, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)))
+  );
+  --assistant-sdk-default-message-area-background: var(--assistant-sdk-surface, var(--assistant-sdk-default-surface));
+  --assistant-sdk-default-message-bubble-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  --assistant-sdk-default-user-message-background: linear-gradient(
+    135deg,
+    var(--assistant-sdk-user-message-gradient-start, var(--assistant-sdk-accent-strong, var(--assistant-sdk-default-accent-strong))),
+    var(--assistant-sdk-user-message-gradient-end, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)))
+  );
+  --assistant-sdk-default-user-message-foreground: var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground));
+  --assistant-sdk-default-user-avatar-background: linear-gradient(135deg, #64748b, #334155);
+  --assistant-sdk-default-assistant-message-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  --assistant-sdk-default-safe-outcome-background: color-mix(
+    in srgb,
+    var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)) 12%,
+    transparent
+  );
+  --assistant-sdk-default-safe-outcome-foreground: var(--assistant-sdk-warning-foreground, var(--assistant-sdk-default-warning-foreground));
+  --assistant-sdk-default-evidence-background: color-mix(
+    in srgb,
+    var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 8%,
+    transparent
+  );
+  --assistant-sdk-default-streaming-status-foreground: var(--assistant-sdk-info, var(--assistant-sdk-default-info));
+  --assistant-sdk-default-feedback-success-foreground: var(--assistant-sdk-success, var(--assistant-sdk-default-success));
+  --assistant-sdk-default-feedback-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  --assistant-sdk-default-action-draft-background: color-mix(
+    in srgb,
+    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 5%,
+    transparent
+  );
+  --assistant-sdk-default-approval-request-background: var(--assistant-sdk-action-draft-background, var(--assistant-sdk-default-action-draft-background));
+  --assistant-sdk-default-input-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  --assistant-sdk-default-input-foreground: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+  --assistant-sdk-default-button-primary-background: linear-gradient(
+    90deg,
+    var(--assistant-sdk-button-primary-gradient-start, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent))),
+    var(--assistant-sdk-button-primary-gradient-end, var(--assistant-sdk-accent-soft, var(--assistant-sdk-default-accent-soft)))
+  );
+  --assistant-sdk-default-button-primary-foreground: var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground));
+  --assistant-sdk-default-button-secondary-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  --assistant-sdk-default-button-secondary-foreground: var(--assistant-sdk-accent, var(--assistant-sdk-default-accent));
+  --assistant-sdk-default-button-danger-background: var(--assistant-sdk-danger, var(--assistant-sdk-default-danger));
+  --assistant-sdk-default-button-danger-foreground: var(--assistant-sdk-danger-foreground, var(--assistant-sdk-default-danger-foreground));
+  --assistant-sdk-default-error-foreground: var(--assistant-sdk-danger, var(--assistant-sdk-default-danger));
   position: fixed;
-  z-index: var(--assistant-sdk-z-index);
-  color: var(--assistant-sdk-foreground);
+  z-index: var(--assistant-sdk-z-index, var(--assistant-sdk-default-z-index));
+  color: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+  font-family: var(--assistant-sdk-font-family, var(--assistant-sdk-default-font-family));
+  font-size: var(--assistant-sdk-font-size, var(--assistant-sdk-default-font-size));
+  line-height: var(--assistant-sdk-line-height, var(--assistant-sdk-default-line-height));
 }
 
 .assistant-sdk-root[data-theme="dark"],
 [data-assistant-sdk-root][data-theme="dark"] {
-  --assistant-sdk-background: #121722;
-  --assistant-sdk-surface: #171f2d;
-  --assistant-sdk-surface-elevated: #1f2937;
-  --assistant-sdk-foreground: #f4f7fb;
-  --assistant-sdk-muted: #a8b3c5;
-  --assistant-sdk-accent: #7aa2ff;
-  --assistant-sdk-accent-foreground: #08111f;
-  --assistant-sdk-danger: #ffb4ab;
-  --assistant-sdk-warning: #ffd27a;
-  --assistant-sdk-border: color-mix(in srgb, currentColor 18%, transparent);
-  --assistant-sdk-shadow: 0 24px 80px color-mix(in srgb, #000000 40%, transparent);
+  --assistant-sdk-default-background: #121722;
+  --assistant-sdk-default-surface: #171f2d;
+  --assistant-sdk-default-surface-elevated: #1f2937;
+  --assistant-sdk-default-foreground: #f4f7fb;
+  --assistant-sdk-default-muted: #a8b3c5;
+  --assistant-sdk-default-accent: #7aa2ff;
+  --assistant-sdk-default-accent-foreground: #08111f;
+  --assistant-sdk-default-danger: #ffb4ab;
+  --assistant-sdk-default-danger-foreground: #08111f;
+  --assistant-sdk-default-warning: #ffd27a;
+  --assistant-sdk-default-warning-foreground: #08111f;
+  --assistant-sdk-default-success: #8edbb0;
+  --assistant-sdk-default-info: #9bbcff;
+  --assistant-sdk-default-border: color-mix(
+    in srgb,
+    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 18%,
+    transparent
+  );
+  --assistant-sdk-default-shadow: 0 24px 80px color-mix(in srgb, #000000 40%, transparent);
+  color-scheme: dark;
 }
 
 .assistant-sdk-root[data-theme="light"],
 [data-assistant-sdk-root][data-theme="light"] {
   color-scheme: light;
-}
-
-.assistant-sdk-root[data-theme="dark"],
-[data-assistant-sdk-root][data-theme="dark"] {
-  color-scheme: dark;
 }
 
 .assistant-sdk-root[data-theme="system"],
@@ -54,49 +159,14 @@
 
 .assistant-sdk-root[data-position="bottom-right"],
 [data-assistant-sdk-root][data-position="bottom-right"] {
-  right: var(--assistant-sdk-gap);
-  bottom: var(--assistant-sdk-gap);
+  right: var(--assistant-sdk-gap, var(--assistant-sdk-default-gap));
+  bottom: var(--assistant-sdk-gap, var(--assistant-sdk-default-gap));
 }
 
 .assistant-sdk-root[data-position="bottom-left"],
 [data-assistant-sdk-root][data-position="bottom-left"] {
-  left: var(--assistant-sdk-gap);
-  bottom: var(--assistant-sdk-gap);
-}
-
-.assistant-sdk-root .assistant-sdk-launcher,
-[data-assistant-sdk-root] .assistant-sdk-launcher {
-  inline-size: var(--assistant-sdk-launcher-size);
-  block-size: var(--assistant-sdk-launcher-size);
-  border-radius: 999px;
-}
-
-.assistant-sdk-root .assistant-sdk-panel,
-[data-assistant-sdk-root] .assistant-sdk-panel {
-  inline-size: var(--assistant-sdk-panel-width);
-  block-size: var(--assistant-sdk-panel-height);
-  max-inline-size: calc(100vw - 32px);
-  max-block-size: calc(100vh - 32px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: var(--assistant-sdk-radius);
-  background: var(--assistant-sdk-background);
-  box-shadow: var(--assistant-sdk-shadow);
-}
-
-.assistant-sdk-root .assistant-sdk-panel-header,
-[data-assistant-sdk-root] .assistant-sdk-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-block-end: 1px solid var(--assistant-sdk-border);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--assistant-sdk-accent) 18%, transparent), transparent 56%),
-    var(--assistant-sdk-surface-elevated);
+  left: var(--assistant-sdk-gap, var(--assistant-sdk-default-gap));
+  bottom: var(--assistant-sdk-gap, var(--assistant-sdk-default-gap));
 }
 
 .assistant-sdk-root button,
@@ -118,55 +188,141 @@
 [data-assistant-sdk-root] button[aria-disabled="true"],
 [data-assistant-sdk-root] textarea:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: var(--assistant-sdk-disabled-opacity, var(--assistant-sdk-default-disabled-opacity));
+}
+
+.assistant-sdk-root .assistant-sdk-launcher,
+[data-assistant-sdk-root] .assistant-sdk-launcher {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--assistant-sdk-launcher-size, var(--assistant-sdk-default-launcher-size));
+  block-size: var(--assistant-sdk-launcher-size, var(--assistant-sdk-default-launcher-size));
+  border: 0;
+  border-radius: var(--assistant-sdk-launcher-radius, var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill)));
+  background: var(--assistant-sdk-launcher-background, var(--assistant-sdk-default-launcher-background));
+  color: var(--assistant-sdk-launcher-foreground, var(--assistant-sdk-default-launcher-foreground));
+  box-shadow: var(--assistant-sdk-launcher-shadow, var(--assistant-sdk-shadow, var(--assistant-sdk-default-shadow)));
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+}
+
+.assistant-sdk-root .assistant-sdk-panel,
+[data-assistant-sdk-root] .assistant-sdk-panel {
+  inline-size: var(--assistant-sdk-panel-width, var(--assistant-sdk-default-panel-width));
+  block-size: var(--assistant-sdk-panel-height, var(--assistant-sdk-default-panel-height));
+  max-inline-size: calc(100vw - var(--assistant-sdk-gap, var(--assistant-sdk-default-gap)) - var(--assistant-sdk-gap, var(--assistant-sdk-default-gap)));
+  max-block-size: calc(100vh - var(--assistant-sdk-gap, var(--assistant-sdk-default-gap)) - var(--assistant-sdk-gap, var(--assistant-sdk-default-gap)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--assistant-sdk-panel-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-panel-radius, var(--assistant-sdk-radius, var(--assistant-sdk-default-radius)));
+  background: var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background));
+  box-shadow: var(--assistant-sdk-panel-shadow, var(--assistant-sdk-shadow, var(--assistant-sdk-default-shadow)));
+}
+
+.assistant-sdk-root .assistant-sdk-panel-header,
+[data-assistant-sdk-root] .assistant-sdk-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  padding:
+    calc(var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)) + var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1)))
+    var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4));
+  border-block-end: 1px solid var(--assistant-sdk-panel-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  background: var(--assistant-sdk-panel-header-background, var(--assistant-sdk-default-panel-header-background));
+}
+
+.assistant-sdk-root .assistant-sdk-panel-header p,
+[data-assistant-sdk-root] .assistant-sdk-panel-header p {
+  margin: 0;
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+}
+
+.assistant-sdk-root .assistant-sdk-panel-header button,
+[data-assistant-sdk-root] .assistant-sdk-panel-header button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--assistant-sdk-header-icon-button-size, 36px);
+  block-size: var(--assistant-sdk-header-icon-button-size, 36px);
+  border: 1px solid var(--assistant-sdk-button-secondary-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: 0;
+  background: var(--assistant-sdk-button-secondary-background, var(--assistant-sdk-default-button-secondary-background));
+  color: var(--assistant-sdk-button-secondary-foreground, var(--assistant-sdk-default-button-secondary-foreground));
+}
+
+.assistant-sdk-root .assistant-sdk-launcher:focus-visible,
+.assistant-sdk-root .assistant-sdk-panel:focus-visible,
+.assistant-sdk-root button:focus-visible,
+.assistant-sdk-root textarea:focus-visible,
+[data-assistant-sdk-root] .assistant-sdk-launcher:focus-visible,
+[data-assistant-sdk-root] .assistant-sdk-panel:focus-visible,
+[data-assistant-sdk-root] button:focus-visible,
+[data-assistant-sdk-root] textarea:focus-visible {
+  outline: var(--assistant-sdk-focus-ring-width, 2px) solid var(--assistant-sdk-focus-ring, var(--assistant-sdk-default-focus-ring));
+  outline-offset: var(--assistant-sdk-focus-ring-offset, 3px);
 }
 
 .assistant-sdk-root [data-testid="assistant-runtime-root"],
-[data-assistant-sdk-root] [data-testid="assistant-runtime-root"] {
+[data-assistant-sdk-root] [data-testid="assistant-runtime-root"],
+.assistant-sdk-root [data-testid="assistant-product-runtime-panel"],
+[data-assistant-sdk-root] [data-testid="assistant-product-runtime-panel"] {
   min-block-size: 0;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 14px;
   overflow: hidden;
-  padding: 16px;
-  background: var(--assistant-sdk-surface);
-  color: var(--assistant-sdk-foreground);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  line-height: 1.5;
+  background: var(--assistant-sdk-product-panel-background, var(--assistant-sdk-background, var(--assistant-sdk-default-background)));
+  color: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+  font-family: var(--assistant-sdk-font-family, var(--assistant-sdk-default-font-family));
+  line-height: var(--assistant-sdk-line-height, var(--assistant-sdk-default-line-height));
+}
+
+.assistant-sdk-root [data-testid="assistant-runtime-root"] {
+  gap: var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4));
+  padding: var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4));
+  background: var(--assistant-sdk-message-area-background, var(--assistant-sdk-default-message-area-background));
 }
 
 .assistant-sdk-root [data-testid="assistant-runtime-root"] > header,
 [data-assistant-sdk-root] [data-testid="assistant-runtime-root"] > header {
   display: grid;
-  gap: 4px;
+  gap: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1));
 }
 
 .assistant-sdk-root [data-testid="assistant-runtime-root"] > header p,
-[data-assistant-sdk-root] [data-testid="assistant-runtime-root"] > header p {
+[data-assistant-sdk-root] [data-testid="assistant-runtime-root"] > header p,
+.assistant-sdk-root [data-testid="assistant-user-message"] p,
+.assistant-sdk-root [data-testid="assistant-ai-message"] p,
+[data-assistant-sdk-root] [data-testid="assistant-user-message"] p,
+[data-assistant-sdk-root] [data-testid="assistant-ai-message"] p {
   margin: 0;
 }
 
 .assistant-sdk-root [data-testid="assistant-runtime-root"] > header p:first-child,
 [data-assistant-sdk-root] [data-testid="assistant-runtime-root"] > header p:first-child {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
 }
 
-.assistant-sdk-root [data-testid="assistant-load-more-history"],
-[data-assistant-sdk-root] [data-testid="assistant-load-more-history"] {
-  align-self: center;
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: 999px;
-  padding: 6px 12px;
-  background: var(--assistant-sdk-surface-elevated);
-  color: var(--assistant-sdk-accent);
+.assistant-sdk-root [data-testid="assistant-panel-status"],
+[data-assistant-sdk-root] [data-testid="assistant-panel-status"] {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.assistant-sdk-root [data-testid="assistant-message-area"],
+[data-assistant-sdk-root] [data-testid="assistant-message-area"] {
+  min-block-size: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--assistant-sdk-message-area-padding, var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4)));
+  background: var(--assistant-sdk-message-area-background, var(--assistant-sdk-default-message-area-background));
 }
 
 .assistant-sdk-root [data-testid="assistant-message-list"],
@@ -175,50 +331,76 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--assistant-sdk-message-list-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 2px;
+  padding: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1));
+}
+
+.assistant-sdk-root .assistant-message-list,
+[data-assistant-sdk-root] .assistant-message-list {
+  display: grid;
+  gap: var(--assistant-sdk-message-list-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .assistant-sdk-root [data-testid="assistant-message-empty"],
-[data-assistant-sdk-root] [data-testid="assistant-message-empty"] {
-  margin: auto;
-  max-inline-size: 28ch;
-  color: var(--assistant-sdk-muted);
+.assistant-sdk-root [data-testid="assistant-message-context-not-ready"],
+[data-assistant-sdk-root] [data-testid="assistant-message-empty"],
+[data-assistant-sdk-root] [data-testid="assistant-message-context-not-ready"] {
+  display: grid;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin: var(--assistant-sdk-space-5, var(--assistant-sdk-default-space-5)) auto;
+  max-inline-size: 32ch;
+  border: 1px solid var(--assistant-sdk-panel-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md));
+  padding: var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4));
+  background: var(--assistant-sdk-message-empty-background, var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated)));
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
   text-align: center;
 }
 
 .assistant-sdk-root [data-testid="assistant-user-message"],
 .assistant-sdk-root [data-testid="assistant-ai-message"],
+.assistant-sdk-root .assistant-message-bubble,
 [data-assistant-sdk-root] [data-testid="assistant-user-message"],
-[data-assistant-sdk-root] [data-testid="assistant-ai-message"] {
-  max-inline-size: 88%;
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: var(--assistant-sdk-surface-elevated);
-  box-shadow: 0 8px 28px color-mix(in srgb, #172033 8%, transparent);
+[data-assistant-sdk-root] [data-testid="assistant-ai-message"],
+[data-assistant-sdk-root] .assistant-message-bubble {
+  max-inline-size: var(--assistant-sdk-message-bubble-max-width, 88%);
+  border: 1px solid var(--assistant-sdk-message-bubble-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-message-bubble-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md)));
+  padding:
+    var(--assistant-sdk-message-bubble-padding-block, calc(var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) + 2px))
+    var(--assistant-sdk-message-bubble-padding-inline, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-message-bubble-background, var(--assistant-sdk-default-message-bubble-background));
+  box-shadow: var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .assistant-sdk-root .assistant-message--user,
-[data-assistant-sdk-root] .assistant-message--user {
+.assistant-sdk-root .assistant-message-bubble--user,
+[data-assistant-sdk-root] .assistant-message--user,
+[data-assistant-sdk-root] .assistant-message-bubble--user {
   align-self: flex-end;
-  border-color: color-mix(in srgb, var(--assistant-sdk-accent) 36%, transparent);
-  background: var(--assistant-sdk-accent);
-  color: var(--assistant-sdk-accent-foreground);
+  margin-inline-start: auto;
+  border-color: var(
+    --assistant-sdk-user-message-border,
+    color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 36%, transparent)
+  );
+  background: var(--assistant-sdk-user-message-background, var(--assistant-sdk-default-user-message-background));
+  color: var(--assistant-sdk-user-message-foreground, var(--assistant-sdk-default-user-message-foreground));
 }
 
 .assistant-sdk-root .assistant-message--assistant,
-[data-assistant-sdk-root] .assistant-message--assistant {
+.assistant-sdk-root .assistant-message-bubble--assistant,
+[data-assistant-sdk-root] .assistant-message--assistant,
+[data-assistant-sdk-root] .assistant-message-bubble--assistant {
   align-self: flex-start;
-}
-
-.assistant-sdk-root [data-testid="assistant-user-message"] p,
-.assistant-sdk-root [data-testid="assistant-ai-message"] p,
-[data-assistant-sdk-root] [data-testid="assistant-user-message"] p,
-[data-assistant-sdk-root] [data-testid="assistant-ai-message"] p {
-  margin: 0;
+  margin-inline-end: auto;
+  background: var(--assistant-sdk-assistant-message-background, var(--assistant-sdk-default-assistant-message-background));
 }
 
 .assistant-sdk-root [data-testid="assistant-streaming-content"],
@@ -227,158 +409,714 @@
 }
 
 .assistant-sdk-root [data-testid="assistant-streaming-status"],
-[data-assistant-sdk-root] [data-testid="assistant-streaming-status"] {
-  margin-block-start: 8px;
-  color: var(--assistant-sdk-muted);
-  font-size: 0.82rem;
+[data-assistant-sdk-root] [data-testid="assistant-streaming-status"],
+.assistant-sdk-root [data-testid="assistant-action-draft-pending-guard"],
+.assistant-sdk-root [data-testid="assistant-action-draft-terminal-status"],
+[data-assistant-sdk-root] [data-testid="assistant-action-draft-pending-guard"],
+[data-assistant-sdk-root] [data-testid="assistant-action-draft-terminal-status"] {
+  margin-block-start: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
 }
 
+.assistant-sdk-root [data-testid="assistant-load-more-history"],
+.assistant-sdk-root [data-testid="assistant-action-draft-confirm"],
+.assistant-sdk-root [data-testid="assistant-action-draft-cancel"],
+.assistant-sdk-root [data-testid="assistant-approval-request-open-detail"],
+[data-assistant-sdk-root] [data-testid="assistant-load-more-history"],
+[data-assistant-sdk-root] [data-testid="assistant-action-draft-confirm"],
+[data-assistant-sdk-root] [data-testid="assistant-action-draft-cancel"],
+[data-assistant-sdk-root] [data-testid="assistant-approval-request-open-detail"] {
+  justify-self: start;
+  border: 1px solid var(--assistant-sdk-button-secondary-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  background: var(--assistant-sdk-button-secondary-background, var(--assistant-sdk-default-button-secondary-background));
+  color: var(--assistant-sdk-button-secondary-foreground, var(--assistant-sdk-default-button-secondary-foreground));
+}
+
+.assistant-sdk-root [data-testid="assistant-chat-cancel"],
 .assistant-sdk-root [data-testid="assistant-cancel-stream"],
+[data-assistant-sdk-root] [data-testid="assistant-chat-cancel"],
 [data-assistant-sdk-root] [data-testid="assistant-cancel-stream"] {
-  margin-block-start: 10px;
-  border: 1px solid color-mix(in srgb, var(--assistant-sdk-danger) 42%, transparent);
-  border-radius: 999px;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--assistant-sdk-danger);
+  border-color: var(--assistant-sdk-button-danger-border, transparent);
+  background: var(--assistant-sdk-button-danger-background, var(--assistant-sdk-default-button-danger-background));
+  color: var(--assistant-sdk-button-danger-foreground, var(--assistant-sdk-default-button-danger-foreground));
 }
 
 .assistant-sdk-root [data-testid="assistant-safe-outcome"],
 [data-assistant-sdk-root] [data-testid="assistant-safe-outcome"] {
   display: grid;
-  gap: 4px;
-  margin-block-start: 8px;
-  border-inline-start: 3px solid var(--assistant-sdk-warning);
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--assistant-sdk-warning) 12%, transparent);
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin-block-start: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  border-inline-start: 3px solid var(--assistant-sdk-safe-outcome-border, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)));
+  border-radius: var(--assistant-sdk-safe-outcome-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  padding: var(--assistant-sdk-safe-outcome-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-safe-outcome-background, var(--assistant-sdk-default-safe-outcome-background));
+  color: var(--assistant-sdk-safe-outcome-foreground, var(--assistant-sdk-default-safe-outcome-foreground));
 }
 
 .assistant-sdk-root [data-testid="assistant-evidence-ref"],
 [data-assistant-sdk-root] [data-testid="assistant-evidence-ref"] {
-  margin-block-start: 8px;
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: color-mix(in srgb, var(--assistant-sdk-accent) 8%, transparent);
-  color: var(--assistant-sdk-foreground);
+  display: grid;
+  gap: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1));
+  margin-block-start: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  border-radius: var(--assistant-sdk-evidence-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  padding: var(--assistant-sdk-evidence-padding, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-evidence-background, var(--assistant-sdk-default-evidence-background));
+  color: var(--assistant-sdk-evidence-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
+  font-size: var(--assistant-sdk-evidence-font-size, 0.84rem);
 }
 
 .assistant-sdk-root [aria-label="回答回饋"],
-[data-assistant-sdk-root] [aria-label="回答回饋"] {
+.assistant-sdk-root [data-testid="assistant-feedback-controls"],
+[data-assistant-sdk-root] [aria-label="回答回饋"],
+[data-assistant-sdk-root] [data-testid="assistant-feedback-controls"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-block-start: 10px;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin-block-start: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
 }
 
 .assistant-sdk-root [data-testid="assistant-feedback-helpful"],
 .assistant-sdk-root [data-testid="assistant-feedback-not-helpful"],
 [data-assistant-sdk-root] [data-testid="assistant-feedback-helpful"],
 [data-assistant-sdk-root] [data-testid="assistant-feedback-not-helpful"] {
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: 999px;
-  padding: 6px 10px;
-  background: var(--assistant-sdk-surface-elevated);
-  color: var(--assistant-sdk-foreground);
+  border: 1px solid var(--assistant-sdk-feedback-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  background: var(--assistant-sdk-feedback-background, var(--assistant-sdk-default-feedback-background));
+  color: var(--assistant-sdk-feedback-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
 }
 
 .assistant-sdk-root [data-testid="assistant-feedback-error"],
 .assistant-sdk-root [data-testid="assistant-approval-request-open-detail-error"],
 [data-assistant-sdk-root] [data-testid="assistant-feedback-error"],
 [data-assistant-sdk-root] [data-testid="assistant-approval-request-open-detail-error"] {
-  color: var(--assistant-sdk-danger);
-  font-size: 0.86rem;
+  color: var(--assistant-sdk-error-foreground, var(--assistant-sdk-default-error-foreground));
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
 }
 
 .assistant-sdk-root [aria-label="操作確認"],
 .assistant-sdk-root [aria-label="審核請求"],
+.assistant-sdk-root [data-testid="assistant-action-draft-bubble"],
+.assistant-sdk-root [data-testid="assistant-approval-request-bubble"],
 [data-assistant-sdk-root] [aria-label="操作確認"],
-[data-assistant-sdk-root] [aria-label="審核請求"] {
+[data-assistant-sdk-root] [aria-label="審核請求"],
+[data-assistant-sdk-root] [data-testid="assistant-action-draft-bubble"],
+[data-assistant-sdk-root] [data-testid="assistant-approval-request-bubble"] {
   display: grid;
-  gap: 8px;
-  margin-block-start: 10px;
-  border-radius: 12px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--assistant-sdk-foreground) 5%, transparent);
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin-block-start: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  border-radius: var(--assistant-sdk-action-draft-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md)));
+  padding: var(--assistant-sdk-action-draft-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-action-draft-background, var(--assistant-sdk-default-action-draft-background));
 }
 
-.assistant-sdk-root [data-testid="assistant-action-draft-confirm"],
-.assistant-sdk-root [data-testid="assistant-action-draft-cancel"],
-.assistant-sdk-root [data-testid="assistant-approval-request-open-detail"],
-[data-assistant-sdk-root] [data-testid="assistant-action-draft-confirm"],
-[data-assistant-sdk-root] [data-testid="assistant-action-draft-cancel"],
-[data-assistant-sdk-root] [data-testid="assistant-approval-request-open-detail"] {
-  justify-self: start;
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: 10px;
-  padding: 7px 11px;
-  background: var(--assistant-sdk-surface-elevated);
-  color: var(--assistant-sdk-accent);
+.assistant-sdk-root [data-testid="assistant-approval-request-bubble"],
+[data-assistant-sdk-root] [data-testid="assistant-approval-request-bubble"] {
+  border-radius: var(--assistant-sdk-approval-request-radius, var(--assistant-sdk-action-draft-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))));
+  padding: var(--assistant-sdk-approval-request-padding, var(--assistant-sdk-action-draft-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3))));
+  background: var(--assistant-sdk-approval-request-background, var(--assistant-sdk-default-approval-request-background));
 }
 
 .assistant-sdk-root [data-testid="assistant-action-draft-confirm"],
 [data-assistant-sdk-root] [data-testid="assistant-action-draft-confirm"] {
-  background: var(--assistant-sdk-accent);
-  color: var(--assistant-sdk-accent-foreground);
+  background: var(--assistant-sdk-button-primary-background, var(--assistant-sdk-default-button-primary-background));
+  color: var(--assistant-sdk-button-primary-foreground, var(--assistant-sdk-default-button-primary-foreground));
 }
 
-.assistant-sdk-root [data-testid="assistant-action-draft-pending-guard"],
-.assistant-sdk-root [data-testid="assistant-action-draft-terminal-status"],
-[data-assistant-sdk-root] [data-testid="assistant-action-draft-pending-guard"],
-[data-assistant-sdk-root] [data-testid="assistant-action-draft-terminal-status"] {
-  color: var(--assistant-sdk-muted);
-  font-size: 0.86rem;
+.assistant-sdk-root [data-testid="assistant-panel-footer"],
+[data-assistant-sdk-root] [data-testid="assistant-panel-footer"] {
+  flex: 0 0 auto;
+  border-block-start: 1px solid var(--assistant-sdk-panel-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  padding: var(--assistant-sdk-panel-footer-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-panel-footer-background, var(--assistant-sdk-background, var(--assistant-sdk-default-background)));
 }
 
-.assistant-sdk-root [data-testid="assistant-runtime-root"] form,
-[data-assistant-sdk-root] [data-testid="assistant-runtime-root"] form {
-  display: grid;
-  gap: 8px;
-  border-block-start: 1px solid var(--assistant-sdk-border);
-  padding-block-start: 12px;
+.assistant-sdk-root [data-testid="assistant-chat-input-bar"],
+[data-assistant-sdk-root] [data-testid="assistant-chat-input-bar"] {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
 }
 
-.assistant-sdk-root [data-testid="assistant-composer-disabled-reason"],
-[data-assistant-sdk-root] [data-testid="assistant-composer-disabled-reason"] {
-  margin: 0;
-  color: var(--assistant-sdk-muted);
-  font-size: 0.84rem;
+.assistant-sdk-root [data-testid="assistant-chat-input"],
+.assistant-sdk-root [data-testid="assistant-composer-input"],
+[data-assistant-sdk-root] [data-testid="assistant-chat-input"],
+[data-assistant-sdk-root] [data-testid="assistant-composer-input"] {
+  min-block-size: var(--assistant-sdk-input-min-height, 42px);
+  flex: 1 1 auto;
+  resize: vertical;
+  border: 1px solid var(--assistant-sdk-input-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-input-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md)));
+  padding: var(--assistant-sdk-input-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-input-background, var(--assistant-sdk-default-input-background));
+  color: var(--assistant-sdk-input-foreground, var(--assistant-sdk-default-input-foreground));
 }
 
 .assistant-sdk-root [data-testid="assistant-composer-input"],
 [data-assistant-sdk-root] [data-testid="assistant-composer-input"] {
-  min-block-size: 78px;
-  resize: vertical;
-  border: 1px solid var(--assistant-sdk-border);
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: var(--assistant-sdk-surface-elevated);
-  color: var(--assistant-sdk-foreground);
+  min-block-size: var(--assistant-sdk-composer-min-height, 78px);
 }
 
+.assistant-sdk-root [data-testid="assistant-chat-input"]:focus,
 .assistant-sdk-root [data-testid="assistant-composer-input"]:focus,
+[data-assistant-sdk-root] [data-testid="assistant-chat-input"]:focus,
 [data-assistant-sdk-root] [data-testid="assistant-composer-input"]:focus {
-  border-color: color-mix(in srgb, var(--assistant-sdk-accent) 72%, transparent);
-  outline: 2px solid color-mix(in srgb, var(--assistant-sdk-accent) 22%, transparent);
-  outline-offset: 2px;
+  border-color: var(--assistant-sdk-focus-border, var(--assistant-sdk-default-focus-border));
 }
 
+.assistant-sdk-root [data-testid="assistant-chat-submit"],
 .assistant-sdk-root [data-testid="assistant-send"],
+[data-assistant-sdk-root] [data-testid="assistant-chat-submit"],
 [data-assistant-sdk-root] [data-testid="assistant-send"] {
-  justify-self: end;
+  inline-size: var(--assistant-sdk-send-button-size, 42px);
+  block-size: var(--assistant-sdk-send-button-size, 42px);
+  flex: 0 0 auto;
   border: 0;
-  border-radius: 999px;
-  padding: 9px 16px;
-  background: var(--assistant-sdk-accent);
-  color: var(--assistant-sdk-accent-foreground);
-  font-weight: 700;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  background: var(--assistant-sdk-button-primary-background, var(--assistant-sdk-default-button-primary-background));
+  color: var(--assistant-sdk-button-primary-foreground, var(--assistant-sdk-default-button-primary-foreground));
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
 }
 
-.assistant-sdk-root .assistant-sdk-launcher:focus-visible,
-.assistant-sdk-root .assistant-sdk-panel:focus-visible,
-[data-assistant-sdk-root] .assistant-sdk-launcher:focus-visible,
-[data-assistant-sdk-root] .assistant-sdk-panel:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 3px;
+.assistant-sdk-root [data-testid="assistant-chat-disabled-reason"],
+.assistant-sdk-root [data-testid="assistant-composer-disabled-reason"],
+[data-assistant-sdk-root] [data-testid="assistant-chat-disabled-reason"],
+[data-assistant-sdk-root] [data-testid="assistant-composer-disabled-reason"] {
+  margin: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) 0 0;
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  font-size: var(--assistant-sdk-helper-font-size, 0.78rem);
+}
+
+/* Icon-only CTAs keep semantic names on the button and use package-owned SVG. */
+.assistant-sdk-root .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-product-icon {
+  inline-size: var(--assistant-sdk-icon-size, 18px);
+  block-size: var(--assistant-sdk-icon-size, 18px);
+  display: block;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.assistant-sdk-root .assistant-sdk-launcher .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-sdk-launcher .assistant-product-icon {
+  inline-size: var(--assistant-sdk-launcher-icon-size, 24px);
+  block-size: var(--assistant-sdk-launcher-icon-size, 24px);
+}
+
+.assistant-sdk-root .assistant-product-icon-button,
+[data-assistant-sdk-root] .assistant-product-icon-button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--assistant-sdk-icon-button-size, 36px);
+  block-size: var(--assistant-sdk-icon-button-size, 36px);
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--assistant-sdk-button-secondary-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  background: var(--assistant-sdk-button-secondary-background, var(--assistant-sdk-default-button-secondary-background));
+  color: var(--assistant-sdk-button-secondary-foreground, var(--assistant-sdk-default-button-secondary-foreground));
+  transition: transform 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.assistant-sdk-root .assistant-product-icon-button:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-product-icon-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--assistant-sdk-icon-button-hover-background, var(--assistant-sdk-surface, var(--assistant-sdk-default-surface)));
+}
+
+.assistant-sdk-root .assistant-product-icon-button--danger,
+[data-assistant-sdk-root] .assistant-product-icon-button--danger {
+  border-color: var(--assistant-sdk-button-danger-border, transparent);
+  background: var(--assistant-sdk-button-danger-background, var(--assistant-sdk-default-button-danger-background));
+  color: var(--assistant-sdk-button-danger-foreground, var(--assistant-sdk-default-button-danger-foreground));
+}
+
+.assistant-sdk-root .assistant-chat-submit.assistant-product-icon-button,
+[data-assistant-sdk-root] .assistant-chat-submit.assistant-product-icon-button {
+  inline-size: var(--assistant-sdk-send-button-size, 42px);
+  block-size: var(--assistant-sdk-send-button-size, 42px);
+  padding: 0;
+}
+
+/* Shared FE001/SDK product shell. Keep all visual values token-backed. */
+.assistant-sdk-root .assistant-product-panel-shell,
+[data-assistant-sdk-root] .assistant-product-panel-shell,
+.assistant-sdk-panel.assistant-product-panel-shell {
+  position: fixed;
+  inset: 0;
+  z-index: var(--assistant-sdk-z-index, var(--assistant-sdk-default-z-index));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--assistant-sdk-panel-mobile-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg))) var(--assistant-sdk-panel-mobile-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg))) 0 0;
+  background: var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background));
+  box-shadow: var(--assistant-sdk-panel-shadow, var(--assistant-sdk-shadow, var(--assistant-sdk-default-shadow)));
+  animation: assistant-sdk-panel-enter var(--assistant-sdk-panel-enter-duration, 300ms) var(--assistant-sdk-panel-enter-easing, ease) both;
+}
+
+.assistant-sdk-root .assistant-product-panel-surface,
+[data-assistant-sdk-root] .assistant-product-panel-surface,
+.assistant-sdk-panel .assistant-product-panel-surface {
+  display: flex;
+  min-block-size: 0;
+  block-size: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background));
+  box-shadow: inset 0 0 0 1px var(--assistant-sdk-panel-ring, color-mix(in srgb, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 10%, transparent));
+}
+
+.assistant-sdk-root .assistant-product-panel-header,
+[data-assistant-sdk-root] .assistant-product-panel-header,
+.assistant-sdk-panel .assistant-product-panel-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  padding: var(--assistant-sdk-panel-header-padding-block, 12px) var(--assistant-sdk-panel-header-padding-inline, var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4)));
+  background: var(--assistant-sdk-panel-header-background, var(--assistant-sdk-default-panel-header-background));
+  color: var(--assistant-sdk-panel-header-foreground, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)));
+}
+
+.assistant-sdk-root .assistant-product-panel-identity,
+.assistant-sdk-root .assistant-product-panel-header-actions,
+[data-assistant-sdk-root] .assistant-product-panel-identity,
+[data-assistant-sdk-root] .assistant-product-panel-header-actions,
+.assistant-sdk-panel .assistant-product-panel-identity,
+.assistant-sdk-panel .assistant-product-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+}
+
+.assistant-sdk-root .assistant-product-panel-avatar,
+[data-assistant-sdk-root] .assistant-product-panel-avatar,
+.assistant-sdk-panel .assistant-product-panel-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--assistant-sdk-panel-avatar-size, 40px);
+  block-size: var(--assistant-sdk-panel-avatar-size, 40px);
+  flex: 0 0 auto;
+  border: 1px solid var(--assistant-sdk-panel-avatar-border, color-mix(in srgb, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)) 20%, transparent));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  background: var(--assistant-sdk-panel-avatar-background, color-mix(in srgb, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)) 15%, transparent));
+  backdrop-filter: blur(var(--assistant-sdk-panel-avatar-blur, 8px));
+}
+
+.assistant-sdk-root .assistant-product-panel-avatar .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-product-panel-avatar .assistant-product-icon,
+.assistant-sdk-panel .assistant-product-panel-avatar .assistant-product-icon {
+  inline-size: var(--assistant-sdk-panel-avatar-icon-size, 19px);
+  block-size: var(--assistant-sdk-panel-avatar-icon-size, 19px);
+}
+
+.assistant-sdk-root .assistant-product-panel-presence,
+[data-assistant-sdk-root] .assistant-product-panel-presence,
+.assistant-sdk-panel .assistant-product-panel-presence {
+  position: absolute;
+  right: calc(var(--assistant-sdk-panel-presence-offset, 1px) * -1);
+  bottom: calc(var(--assistant-sdk-panel-presence-offset, 1px) * -1);
+  inline-size: var(--assistant-sdk-panel-presence-size, 12px);
+  block-size: var(--assistant-sdk-panel-presence-size, 12px);
+  border: var(--assistant-sdk-panel-presence-border-width, 2px) solid var(--assistant-sdk-panel-presence-border, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  background: var(--assistant-sdk-panel-presence-ready, var(--assistant-sdk-success, var(--assistant-sdk-default-success)));
+}
+
+.assistant-sdk-root .assistant-product-panel-presence[data-ready="false"],
+[data-assistant-sdk-root] .assistant-product-panel-presence[data-ready="false"],
+.assistant-sdk-panel .assistant-product-panel-presence[data-ready="false"] {
+  background: var(--assistant-sdk-panel-presence-not-ready, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)));
+}
+
+.assistant-sdk-root .assistant-product-panel-heading,
+[data-assistant-sdk-root] .assistant-product-panel-heading,
+.assistant-sdk-panel .assistant-product-panel-heading {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--assistant-sdk-panel-heading-gap, 1px);
+}
+
+.assistant-sdk-root .assistant-product-panel-heading h2,
+.assistant-sdk-root .assistant-product-panel-heading span,
+[data-assistant-sdk-root] .assistant-product-panel-heading h2,
+[data-assistant-sdk-root] .assistant-product-panel-heading span,
+.assistant-sdk-panel .assistant-product-panel-heading h2,
+.assistant-sdk-panel .assistant-product-panel-heading span {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-sdk-root .assistant-product-panel-heading h2,
+[data-assistant-sdk-root] .assistant-product-panel-heading h2,
+.assistant-sdk-panel .assistant-product-panel-heading h2 {
+  font-size: var(--assistant-sdk-panel-title-font-size, 0.875rem);
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+  letter-spacing: var(--assistant-sdk-panel-title-letter-spacing, 0.025em);
+}
+
+.assistant-sdk-root .assistant-product-panel-heading span,
+[data-assistant-sdk-root] .assistant-product-panel-heading span,
+.assistant-sdk-panel .assistant-product-panel-heading span {
+  color: var(--assistant-sdk-panel-status-foreground, color-mix(in srgb, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)) 70%, transparent));
+  font-size: var(--assistant-sdk-panel-status-font-size, 0.875rem);
+}
+
+.assistant-sdk-root .assistant-product-header-icon,
+[data-assistant-sdk-root] .assistant-product-header-icon,
+.assistant-sdk-panel .assistant-product-header-icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--assistant-sdk-header-icon-button-size, 36px);
+  block-size: var(--assistant-sdk-header-icon-button-size, 36px);
+  border: 0;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: 0;
+  background: var(--assistant-sdk-header-icon-background, transparent);
+  color: inherit;
+}
+
+.assistant-sdk-root .assistant-product-header-icon:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-product-header-icon:hover:not(:disabled),
+.assistant-sdk-panel .assistant-product-header-icon:hover:not(:disabled) {
+  background: var(--assistant-sdk-header-icon-hover-background, color-mix(in srgb, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)) 15%, transparent));
+}
+
+.assistant-sdk-root .assistant-product-panel-main,
+[data-assistant-sdk-root] .assistant-product-panel-main,
+.assistant-sdk-panel .assistant-product-panel-main {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .assistant-sdk-root .assistant-product-panel-shell,
+  [data-assistant-sdk-root] .assistant-product-panel-shell,
+  .assistant-sdk-panel.assistant-product-panel-shell {
+    inset: auto;
+    right: var(--assistant-sdk-panel-right, 20px);
+    bottom: var(--assistant-sdk-panel-bottom, 20px);
+    inline-size: var(--assistant-sdk-panel-width, min(400px, calc(100vw - 40px)));
+    block-size: var(--assistant-sdk-panel-height, min(calc(100dvh - 48px), 720px));
+    border-radius: var(--assistant-sdk-panel-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg)));
+  }
+}
+
+@keyframes assistant-sdk-panel-enter {
+  from { transform: translateY(var(--assistant-sdk-panel-enter-offset, 100%)); opacity: var(--assistant-sdk-panel-enter-opacity, 0); }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-sdk-root .assistant-product-icon-button,
+  [data-assistant-sdk-root] .assistant-product-icon-button {
+    transition: none;
+  }
+}
+
+/* FE001-parity message frame: avatars, bubbles, timestamps, and streaming state. */
+.assistant-sdk-root .assistant-message-frame,
+[data-assistant-sdk-root] .assistant-message-frame {
+  display: flex;
+  inline-size: 100%;
+  align-items: flex-end;
+  gap: var(--assistant-sdk-message-avatar-gap, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
+}
+
+.assistant-sdk-root .assistant-message-frame--user,
+[data-assistant-sdk-root] .assistant-message-frame--user {
+  flex-direction: row-reverse;
+}
+
+.assistant-sdk-root .assistant-message-frame-content,
+[data-assistant-sdk-root] .assistant-message-frame-content {
+  display: flex;
+  min-inline-size: 0;
+  max-inline-size: var(--assistant-sdk-message-bubble-max-width, 78%);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--assistant-sdk-message-metadata-gap, 6px);
+}
+
+.assistant-sdk-root .assistant-message-frame--user .assistant-message-frame-content,
+[data-assistant-sdk-root] .assistant-message-frame--user .assistant-message-frame-content {
+  align-items: flex-end;
+}
+
+.assistant-sdk-root .assistant-message-avatar,
+[data-assistant-sdk-root] .assistant-message-avatar {
+  display: inline-grid;
+  inline-size: var(--assistant-sdk-message-avatar-size, 32px);
+  block-size: var(--assistant-sdk-message-avatar-size, 32px);
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  box-shadow: var(--assistant-sdk-message-avatar-shadow, var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow)));
+  color: var(--assistant-sdk-message-avatar-foreground, var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground)));
+}
+
+.assistant-sdk-root .assistant-message-avatar--assistant,
+[data-assistant-sdk-root] .assistant-message-avatar--assistant {
+  background: var(--assistant-sdk-assistant-avatar-background, var(--assistant-sdk-user-message-background, var(--assistant-sdk-default-user-message-background)));
+}
+
+.assistant-sdk-root .assistant-message-avatar--user,
+[data-assistant-sdk-root] .assistant-message-avatar--user {
+  background: var(--assistant-sdk-user-avatar-background, var(--assistant-sdk-default-user-avatar-background));
+}
+
+.assistant-sdk-root .assistant-message-avatar .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-message-avatar .assistant-product-icon {
+  inline-size: var(--assistant-sdk-message-avatar-icon-size, 16px);
+  block-size: var(--assistant-sdk-message-avatar-icon-size, 16px);
+}
+
+.assistant-sdk-root .assistant-message-timestamp,
+[data-assistant-sdk-root] .assistant-message-timestamp {
+  padding-inline: var(--assistant-sdk-message-timestamp-padding-inline, var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1)));
+  color: var(--assistant-sdk-message-timestamp-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+  font-size: var(--assistant-sdk-message-timestamp-font-size, 0.6875rem);
+}
+
+.assistant-sdk-root .assistant-message-bubble,
+[data-assistant-sdk-root] .assistant-message-bubble {
+  inline-size: fit-content;
+}
+
+.assistant-sdk-root .assistant-typing-indicator,
+[data-assistant-sdk-root] .assistant-typing-indicator {
+  display: flex;
+  block-size: var(--assistant-sdk-typing-indicator-height, 16px);
+  align-items: center;
+  gap: var(--assistant-sdk-typing-dot-gap, 6px);
+}
+
+.assistant-sdk-root .assistant-typing-indicator [data-testid="assistant-typing-dot"],
+[data-assistant-sdk-root] .assistant-typing-indicator [data-testid="assistant-typing-dot"] {
+  inline-size: var(--assistant-sdk-typing-dot-size, 8px);
+  block-size: var(--assistant-sdk-typing-dot-size, 8px);
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  background: var(--assistant-sdk-typing-dot-background, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)));
+  opacity: var(--assistant-sdk-typing-dot-opacity, 0.6);
+  animation: assistant-sdk-typing-bounce var(--assistant-sdk-typing-duration, 900ms) ease-in-out infinite;
+}
+
+.assistant-sdk-root .assistant-typing-indicator [data-testid="assistant-typing-dot"]:nth-child(2),
+[data-assistant-sdk-root] .assistant-typing-indicator [data-testid="assistant-typing-dot"]:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.assistant-sdk-root .assistant-typing-indicator [data-testid="assistant-typing-dot"]:nth-child(3),
+[data-assistant-sdk-root] .assistant-typing-indicator [data-testid="assistant-typing-dot"]:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+.assistant-sdk-root .assistant-streaming-cursor,
+[data-assistant-sdk-root] .assistant-streaming-cursor {
+  display: inline-block;
+  inline-size: 2px;
+  block-size: 1em;
+  margin-inline-start: 2px;
+  background: var(--assistant-sdk-streaming-cursor-background, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+  vertical-align: text-bottom;
+  animation: assistant-sdk-streaming-pulse var(--assistant-sdk-streaming-cursor-duration, 900ms) ease-in-out infinite;
+}
+
+.assistant-sdk-root .assistant-safe-outcome--warning,
+[data-assistant-sdk-root] .assistant-safe-outcome--warning {
+  border-inline-start-color: var(--assistant-sdk-warning, var(--assistant-sdk-default-warning));
+  background: var(--assistant-sdk-warning-surface, color-mix(in srgb, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)) 12%, transparent));
+  color: var(--assistant-sdk-warning-foreground, var(--assistant-sdk-default-warning-foreground));
+}
+
+.assistant-sdk-root .assistant-safe-outcome--error,
+[data-assistant-sdk-root] .assistant-safe-outcome--error {
+  border-inline-start-color: var(--assistant-sdk-danger, var(--assistant-sdk-default-danger));
+  background: var(--assistant-sdk-danger-surface, color-mix(in srgb, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)) 9%, transparent));
+  color: var(--assistant-sdk-danger-foreground, var(--assistant-sdk-default-danger-foreground));
+}
+
+.assistant-sdk-root .assistant-safe-outcome--neutral,
+[data-assistant-sdk-root] .assistant-safe-outcome--neutral {
+  border-inline-start-color: var(--assistant-sdk-border, var(--assistant-sdk-default-border));
+  background: var(--assistant-sdk-neutral-surface, var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated)));
+  color: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+}
+
+/* FE001 safe-state presentation, rebuilt with package-owned tokenized primitives. */
+.assistant-sdk-root .assistant-safe-outcome--info,
+[data-assistant-sdk-root] .assistant-safe-outcome--info {
+  border-inline-start-color: var(--assistant-sdk-info, var(--assistant-sdk-default-info));
+  background: var(--assistant-sdk-info-surface, color-mix(in srgb, var(--assistant-sdk-info, var(--assistant-sdk-default-info)) 9%, transparent));
+  color: var(--assistant-sdk-info-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
+}
+
+.assistant-sdk-root .assistant-product-state-bubble,
+[data-assistant-sdk-root] .assistant-product-state-bubble {
+  display: grid;
+  inline-size: min(100%, var(--assistant-sdk-message-bubble-max-width, 100%));
+  gap: var(--assistant-sdk-state-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  margin: 0;
+  border: 1px solid var(--assistant-sdk-state-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-inline-start-width: var(--assistant-sdk-state-border-start-width, 1px);
+  border-radius: var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-corner-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  padding: var(--assistant-sdk-state-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3))) var(--assistant-sdk-state-padding-inline, calc(var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)) + var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1))));
+  box-shadow: var(--assistant-sdk-state-shadow, var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow)));
+  font-size: var(--assistant-sdk-state-font-size, 0.875rem);
+  line-height: var(--assistant-sdk-state-line-height, 1.625);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.assistant-sdk-root .assistant-product-state-bubble > p,
+[data-assistant-sdk-root] .assistant-product-state-bubble > p {
+  margin: 0;
+}
+
+.assistant-sdk-root .assistant-product-state-badge,
+[data-assistant-sdk-root] .assistant-product-state-badge {
+  justify-self: start;
+  border-radius: var(--assistant-sdk-state-badge-radius, var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill)));
+  padding: var(--assistant-sdk-state-badge-padding-block, 2px) var(--assistant-sdk-state-badge-padding-inline, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
+  font-size: var(--assistant-sdk-state-badge-font-size, 0.75rem);
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+  line-height: var(--assistant-sdk-state-badge-line-height, 1.35);
+}
+
+.assistant-sdk-root .assistant-product-state-badge--warning,
+[data-assistant-sdk-root] .assistant-product-state-badge--warning {
+  background: var(--assistant-sdk-warning-badge-background, color-mix(in srgb, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)) 17%, transparent));
+  color: var(--assistant-sdk-warning-badge-foreground, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)));
+}
+
+.assistant-sdk-root .assistant-product-state-badge--error,
+[data-assistant-sdk-root] .assistant-product-state-badge--error {
+  background: var(--assistant-sdk-danger-badge-background, color-mix(in srgb, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)) 14%, transparent));
+  color: var(--assistant-sdk-danger-badge-foreground, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)));
+}
+
+.assistant-sdk-root .assistant-product-state-badge--neutral,
+[data-assistant-sdk-root] .assistant-product-state-badge--neutral {
+  background: var(--assistant-sdk-neutral-badge-background, color-mix(in srgb, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 8%, transparent));
+  color: var(--assistant-sdk-neutral-badge-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+}
+
+.assistant-sdk-root .assistant-product-state-badge--info,
+[data-assistant-sdk-root] .assistant-product-state-badge--info {
+  background: var(--assistant-sdk-info-badge-background, color-mix(in srgb, var(--assistant-sdk-info, var(--assistant-sdk-default-info)) 13%, transparent));
+  color: var(--assistant-sdk-info-badge-foreground, var(--assistant-sdk-info, var(--assistant-sdk-default-info)));
+}
+
+.assistant-sdk-root .assistant-product-state-hint,
+[data-assistant-sdk-root] .assistant-product-state-hint {
+  color: var(--assistant-sdk-state-hint-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+  font-size: var(--assistant-sdk-state-hint-font-size, 0.75rem);
+  line-height: var(--assistant-sdk-state-hint-line-height, 1.55);
+}
+
+.assistant-sdk-root .assistant-product-state-detail,
+[data-assistant-sdk-root] .assistant-product-state-detail {
+  border: 1px solid var(--assistant-sdk-state-detail-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-state-detail-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  padding: var(--assistant-sdk-state-detail-padding, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2))) var(--assistant-sdk-state-detail-padding-inline, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  background: var(--assistant-sdk-state-detail-background, var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated)));
+  color: var(--assistant-sdk-state-detail-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+  font-size: var(--assistant-sdk-state-detail-font-size, 0.75rem);
+  line-height: var(--assistant-sdk-state-detail-line-height, 1.55);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.assistant-sdk-root .assistant-action-draft-bubble,
+.assistant-sdk-root .assistant-approval-request-bubble,
+[data-assistant-sdk-root] .assistant-action-draft-bubble,
+[data-assistant-sdk-root] .assistant-approval-request-bubble {
+  border: 1px solid var(--assistant-sdk-action-card-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-corner-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  box-shadow: var(--assistant-sdk-action-card-shadow, var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow)));
+}
+
+.assistant-sdk-root .assistant-action-draft-bubble > strong,
+.assistant-sdk-root .assistant-approval-request-bubble > strong,
+[data-assistant-sdk-root] .assistant-action-draft-bubble > strong,
+[data-assistant-sdk-root] .assistant-approval-request-bubble > strong {
+  justify-self: start;
+  border-radius: var(--assistant-sdk-state-badge-radius, var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill)));
+  padding: var(--assistant-sdk-state-badge-padding-block, 2px) var(--assistant-sdk-state-badge-padding-inline, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
+  background: var(--assistant-sdk-warning-badge-background, color-mix(in srgb, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)) 17%, transparent));
+  color: var(--assistant-sdk-warning-badge-foreground, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)));
+  font-size: var(--assistant-sdk-state-badge-font-size, 0.75rem);
+}
+
+.assistant-sdk-root .assistant-approval-request-bubble > strong,
+[data-assistant-sdk-root] .assistant-approval-request-bubble > strong {
+  background: var(--assistant-sdk-danger-badge-background, color-mix(in srgb, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)) 14%, transparent));
+  color: var(--assistant-sdk-danger-badge-foreground, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)));
+}
+
+.assistant-sdk-root .assistant-action-draft-bubble dl,
+.assistant-sdk-root .assistant-approval-request-bubble dl,
+[data-assistant-sdk-root] .assistant-action-draft-bubble dl,
+[data-assistant-sdk-root] .assistant-approval-request-bubble dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: var(--assistant-sdk-summary-row-gap, var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1))) var(--assistant-sdk-summary-column-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  margin: 0;
+  border: 1px solid var(--assistant-sdk-summary-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-summary-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
+  padding: var(--assistant-sdk-summary-padding, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
+  background: var(--assistant-sdk-summary-background, var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated)));
+  font-size: var(--assistant-sdk-summary-font-size, 0.75rem);
+}
+
+.assistant-sdk-root .assistant-action-draft-bubble dt,
+.assistant-sdk-root .assistant-approval-request-bubble dt,
+[data-assistant-sdk-root] .assistant-action-draft-bubble dt,
+[data-assistant-sdk-root] .assistant-approval-request-bubble dt {
+  color: var(--assistant-sdk-summary-label-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+}
+
+.assistant-sdk-root .assistant-action-draft-bubble dd,
+.assistant-sdk-root .assistant-approval-request-bubble dd,
+[data-assistant-sdk-root] .assistant-action-draft-bubble dd,
+[data-assistant-sdk-root] .assistant-approval-request-bubble dd {
+  min-inline-size: 0;
+  margin: 0;
+  color: var(--assistant-sdk-summary-value-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
+  overflow-wrap: anywhere;
+}
+
+@keyframes assistant-sdk-typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+}
+
+@keyframes assistant-sdk-streaming-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-sdk-root .assistant-typing-indicator [data-testid="assistant-typing-dot"],
+  .assistant-sdk-root .assistant-streaming-cursor,
+  [data-assistant-sdk-root] .assistant-typing-indicator [data-testid="assistant-typing-dot"],
+  [data-assistant-sdk-root] .assistant-streaming-cursor {
+    animation: none;
+  }
 }

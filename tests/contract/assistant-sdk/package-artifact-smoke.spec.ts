@@ -84,30 +84,58 @@ describe("Frontend 002 SDK package artifact smoke", () => {
     }
   });
 
-  it("ships a self-contained stylesheet for shell and shared runtime UI selectors", async () => {
+  it("ships a self-contained stylesheet for shell and shared product UI selectors", async () => {
     const stylesheet = await readFile(join(projectRootPath, sdkStylesheet), "utf8");
     const requiredRuntimeStyleMarkers = [
       ".assistant-sdk-root",
       ".assistant-sdk-panel",
-      "[data-testid=\"assistant-runtime-root\"]",
-      "[data-testid=\"assistant-message-list\"]",
+      "[data-testid=\"assistant-product-runtime-panel\"]",
+      "[data-testid=\"assistant-message-area\"]",
+      "[data-testid=\"assistant-panel-footer\"]",
       "[data-testid=\"assistant-user-message\"]",
       "[data-testid=\"assistant-ai-message\"]",
-      ".assistant-message--user",
-      ".assistant-message--assistant",
-      "[data-testid=\"assistant-composer-input\"]",
-      "[data-testid=\"assistant-send\"]",
+      ".assistant-message-bubble--user",
+      ".assistant-message-bubble--assistant",
+      ".assistant-message-frame",
+      ".assistant-message-avatar--assistant",
+      ".assistant-message-avatar--user",
+      ".assistant-message-timestamp",
+      ".assistant-typing-indicator",
+      ".assistant-streaming-cursor",
+      ".assistant-safe-outcome--warning",
+      ".assistant-safe-outcome--error",
+      ".assistant-safe-outcome--neutral",
+      "[data-testid=\"assistant-chat-input\"]",
+      "[data-testid=\"assistant-chat-submit\"]",
       "[data-testid=\"assistant-safe-outcome\"]",
       "[data-testid=\"assistant-evidence-ref\"]",
       "[data-testid=\"assistant-feedback-helpful\"]",
       "[data-testid=\"assistant-action-draft-confirm\"]",
       "[data-testid=\"assistant-approval-request-open-detail\"]",
     ];
+    const requiredThemeTokenMarkers = [
+      "--assistant-sdk-default-accent",
+      "--assistant-sdk-default-surface",
+      "--assistant-sdk-default-radius-md",
+      "--assistant-sdk-default-bubble-shadow",
+      "--assistant-sdk-default-user-avatar-background",
+      "var(--assistant-sdk-accent, var(--assistant-sdk-default-accent))",
+      "var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background))",
+      "var(--assistant-sdk-message-area-background, var(--assistant-sdk-default-message-area-background))",
+      "var(--assistant-sdk-input-background, var(--assistant-sdk-default-input-background))",
+      "var(--assistant-sdk-button-primary-background, var(--assistant-sdk-default-button-primary-background))",
+      "var(--assistant-sdk-focus-ring, var(--assistant-sdk-default-focus-ring))",
+    ];
 
     for (const marker of requiredRuntimeStyleMarkers) {
       expect(stylesheet, `SDK styles.css must include runtime UI marker ${marker}.`).toContain(marker);
     }
 
+    for (const marker of requiredThemeTokenMarkers) {
+      expect(stylesheet, `SDK styles.css must include theme token marker ${marker}.`).toContain(marker);
+    }
+
     expect(stylesheet, "SDK package stylesheet must not delegate runtime UI styling to Tailwind imports.").not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
+    expect(stylesheet, "SDK package stylesheet must not depend on host UI framework selectors.").not.toMatch(/\b(?:UButton|UIcon|UTextarea|UAlert|UEmpty|UBadge|q-btn|q-card|q-input|q-field)\b/);
   });
 });
