@@ -2,9 +2,10 @@
 
 **Feature**: `002-internal-assistant-embedded-sdk-package`  
 **Date**: 2026-07-15  
+**Updated**: 2026-09-01
 **Spec**: `specs/002-internal-assistant-embedded-sdk-package/spec.md`  
 **Design**: `specs/002-internal-assistant-embedded-sdk-package/design.md`  
-**Status**: Canonical Runtime Library-Safe Extraction plan finalized; ready for tasks.md cleanup after human validation
+**Status**: Canonical Runtime Library-Safe Extraction plan finalized; Gateway-v1 authoritative documentation correction appended
 
 ## 1. Overview
 
@@ -67,12 +68,13 @@ Phase 10 closes the artifact release boundary. Phase 11 closes productized SDK r
 
 This plan does not require direct implementation dependency on Backend 002 spec / design / plan / tasks files. Backend 002 alignment is consumed through the accepted Frontend 002 spec/design boundary:
 
-- Backend 001 Compatibility Mode and Backend 002 Mode are frontend integration / request-builder / provider validation modes, not backend request modes.
+- Backend 001 Compatibility Mode、Backend 002 Mode 與 opt-in Gateway-v1 是三個正式 frontend integration / request-builder / provider validation modes；全域預設仍為 Backend 001 Compatibility Mode。
 - No new backend route, backend request envelope, backend SSE event contract, backend AnswerDecision contract, backend EvidenceRef contract, backend approval / feedback / action draft contract.
 - No nested `hostContext`, backend `sessionScope`, mode-specific backend endpoint, mode-specific SSE parser, mode-specific request envelope, or frontend-specific backend proxy.
 - Backend 001 Compatibility Mode does not serialize Frontend 002 Host Context into the request body. Backend 002 / Host Integration paths may send only contract-backed request-scoped Host Context, sanitized PageContext, selectedRows ID / safe summary, host-managed sessionId, authenticated actor handoff metadata, authenticated permission-context handoff metadata, and request correlation metadata as backend-revalidated input.
 - Frontend 002 must not send or derive `sourceSystem`, connector, connectorId, adapter, adapterId, dataSource, candidateTool, candidateTools, toolName, permissionResult, fieldPermissionResult, rowPermissionResult, finalEvidenceSource, rawEvidence, rawConnectorPayload, routing hints, or approval navigation metadata.
 - Backend remains the sole authority for identity validation, organization boundary, role / permission interpretation, connector / tool eligibility, backend-owned source metadata, EvidenceRef normalization / persistence / safe evidence, AnswerDecision, no-answer, permission-denied, tool-failure, and safe outcome.
+- Gateway-v1 uses only four fixed routes and an opaque Host credential resolved once per built-in operation. Its sole credential-bearing channel is the final `Authorization: Bearer <opaque Host credential>` header; this exception does not change Backend 001 or Backend 002 semantics.
 
 ## 3. Current Repository Baseline
 
@@ -396,10 +398,13 @@ Public exports:
 - `AssistantWidget`
 - `mountAssistantWidget`
 - `AssistantHostContextProvider`
+- `AssistantAccessTokenProvider = () => string | null | undefined | Promise<string | null | undefined>`
+- `MountOptions.getAccessToken?: AssistantAccessTokenProvider`
 - `WidgetConfiguration`
 - `HostCallbacks`
 - `HostEvents`
 - Integration mode type
+- `integrationMode: "gateway-v1"` as the third official opt-in value; default remains `backend001-compatibility`
 - Mount options
 - Mount handle
 - Safe error types
@@ -418,6 +423,7 @@ Forbidden exports:
 - `./nuxt`
 - `./runtime`, `./transport`, `./session`, `./context`, `./request`
 - `./fixtures` or `./tests`
+- Access-token resolver and Gateway transport / route / header helpers
 
 Acceptance criteria:
 
@@ -453,11 +459,12 @@ Productized runtime packaging strategy:
 
 ## 10. Provider / Configuration / Callbacks Plan
 
-Three boundaries:
+Four boundaries:
 
 - `AssistantHostContextProvider`: request-scoped, async, resolved before send/retry, fails closed on unavailable context, never reuses stale context.
 - `WidgetConfiguration`: local-only package/widget configuration.
 - `HostCallbacks` / `HostEvents`: local-only event and callback surface.
+- `AssistantAccessTokenProvider`: Gateway-v1-only, request-scoped opaque credential source, resolved once for every built-in Gateway transport operation.
 
 Provider rules:
 
@@ -471,6 +478,7 @@ Acceptance criteria:
 - Provider resolution failure stops request and surfaces `context unavailable` / `integration error`.
 - WidgetConfiguration and HostCallbacks are never serialized into backend request.
 - Retry resolves fresh context before sending.
+- Gateway-v1 resolves a fresh opaque credential for every operation, fails closed on missing/blank/error, and never caches, refreshes, persists, logs, decodes, inspects, infers from, or exposes it.
 
 ## 11. Mode-tiered Request Builder Plan
 
@@ -497,7 +505,18 @@ Request builder modes are frontend integration / request-builder / provider vali
 - Consume backend safe outcomes only.
 - Do not control backend connector / tool selection.
 
-Mode matrix ownership will be implemented in request builder tests and public type tests, but must not introduce a backend request mode, backend endpoint, or mode-specific SSE parser.
+### Gateway-v1 Mode
+
+- Opt-in only through `integrationMode: "gateway-v1"`; no selection preserves `backend001-compatibility`.
+- Use only `POST /api/v1/assistant/sessions`, `GET /api/v1/assistant/sessions/:sessionId`, `GET /api/v1/assistant/sessions/:sessionId/messages`, and `POST /api/v1/assistant/sessions/:sessionId/messages`.
+- Resolve `getAccessToken` once per built-in `createSession`, `loadSession`, `loadHistory`, and `sendMessage` operation.
+- Treat the returned value as an opaque Host credential, not IDX-native、Bridge-canonical、Customer-specific or an Assistant/backend JWT.
+- Put the normalized value only in the final `Authorization: Bearer <opaque Host credential>` header.
+- Do not add proxy discovery、generic routing、routing fallback、arbitrary endpoints、credential refresh or SDK caching.
+- Do not accept or handle `refreshToken`.
+- Do not infer or construct customer/integration/organization/actor IDs、roles、permissions、Entry authority、internal JWTs、connector authority or routing authority.
+
+Mode matrix ownership will be implemented in request builder tests and public type tests. Backend 001 and Backend 002 must not introduce a backend request mode、new endpoint or mode-specific SSE parser; Gateway-v1 is limited to its four explicitly fixed routes and shares canonical SSE/runtime ownership.
 
 ## 12. PageContext Sanitization / Forbidden Fields Plan
 
@@ -517,7 +536,7 @@ Sanitization plan:
 - visibleColumns is hint-only.
 - Frontend validation does not replace backend authorization.
 
-Forbidden fields gate blocks:
+Forbidden fields gate blocks the following from unapproved outgoing surfaces; Gateway-v1 final `Authorization: Bearer <opaque Host credential>` is the sole credential exception:
 
 - `sourceSystem`
 - connector / connectorId
@@ -541,6 +560,8 @@ Forbidden fields gate blocks:
 
 Failure behavior must stop before transport, provide developer-facing diagnostics, and show user-safe errors.
 
+The complete forbidden credential surface matrix is body、PageContext、provider context、metadata、callbacks、URL/query/hash、message/hidden prompt、routing metadata、logs、telemetry and persistence. Other headers remain under the generic no-secret rule. Private ephemeral resolver state such as `{ ok: true, token: normalizedToken }` is permitted and is not itself an outgoing surface; the static guard must target real serialization / assignment sinks while preserving backend-authority protection.
+
 ## 13. Transport Ownership Plan
 
 Transport ownership after extraction:
@@ -548,6 +569,7 @@ Transport ownership after extraction:
 - Shared runtime owns canonical SSE consumption, session/history orchestration, retry/cancel/timeout/interrupted state, and safe outcome state.
 - Frontend 001 Nuxt Adapter owns Nuxt HTTP, auth/header handoff, and app-specific session persistence.
 - Frontend 002 SDK Adapter owns request shape construction, sanitization/mode validation, Compatibility Mode omission, default transport, and injected executor adapters.
+- Frontend 002 SDK Adapter owns the opt-in Gateway-v1 fixed-route transport and final Authorization-header construction.
 
 Default transport and injected authenticated executor are low-level only and cannot:
 
@@ -560,6 +582,8 @@ Default transport and injected authenticated executor are low-level only and can
 - Serialize local-only state
 
 Transport errors return as safe transport results into the canonical assistant error / retry / timeout / interrupted flow migrated to Shared Canonical Assistant Runtime during Phase 11 extraction.
+
+Because the existing runtime forbidden-fields boundary executes before Authorization is added, tests must inspect final constructed Gateway headers. Pre-header request-boundary tests alone are insufficient.
 
 ## 14. Session Ownership / Fallback / Lifecycle Plan
 
@@ -605,7 +629,7 @@ Event rules:
 
 - No raw business data.
 - No raw SSE payload.
-- No token / credential / secret.
+- No token / credential / secret in callback payloads; Gateway-v1 Authorization is transport-only and never an event/callback value.
 - No callback payload serialized to backend request.
 - No Host App navigation URL inference.
 - Callback exceptions are isolated from assistant runtime.
@@ -674,6 +698,8 @@ Use the current Nuxt app as reference consumer / preview harness:
 - Reference consumer smoke tests.
 - Backend 001 Compatibility Mode integration tests.
 - Frontend 001 regression gates.
+- Gateway-v1 provider-per-operation、fixed-route、resolver fail-closed and public export tests.
+- Gateway-v1 final constructed Authorization header and complete forbidden credential surface matrix tests.
 
 ### Package Artifact Validation
 
@@ -1073,6 +1099,8 @@ Final Productized Runtime Gates:
 - No approval navigation URL generation.
 - No raw entity payload.
 - No token / credential storage.
+- Gateway-v1 credential only in final `Authorization: Bearer` header; no credential in any other header or outgoing surface.
+- No refresh token handling and no frontend identity / authorization / routing authority derived from an opaque credential.
 
 ## 24. Risks and Mitigations
 
@@ -1089,7 +1117,9 @@ Final Productized Runtime Gates:
 | selectedRows raw payload leakage | Count raw rows before sanitization, reject >20, accept ID / safe summary only |
 | Forbidden field bypass | Central forbidden fields gate before transport |
 | Injected transport bypass | Run request builder and validation before executor; executor cannot modify envelope |
-| Backend 001 vs Backend 002 mode confusion | Document and test both as frontend modes only |
+| Backend 001 / Backend 002 / Gateway-v1 mode confusion | Document and test all three official frontend modes; keep backend001 as default and Gateway-v1 opt-in |
+| Static guard rejects private ephemeral resolver state | Narrow it to actual outgoing serialization / assignment sinks while retaining the full forbidden-surface and backend-authority protections |
+| Existing runtime boundary misses headers added later | Test final constructed Gateway headers explicitly |
 | CSS leakage | Scope package styles and add style isolation tests |
 | Peer dependency / duplicate Vue runtime risk | Vue stays peer/external; Pinia is regular runtime dependency and not consumer-provided external |
 | Workspace package build complexity | Use Vite library mode aligned with current Nuxt/Vite stack |
@@ -1129,3 +1159,35 @@ Plan decisions made:
 - Reference consumer strategy: current Nuxt app as preview harness.
 - Backend 001 Compatibility Mode readiness gate: independent package readiness smoke.
 - Backend 002 integration-dependent gate: later gated smoke; not readiness blocker.
+
+## 26. Post-original-contract Stage: 2026-09-01 Gateway-v1 Correction
+
+The July plan above remains historical implementation context. Any historical two-mode interpretation is superseded by this dated stage and the current normative sections of `spec.md` and `design.md`.
+
+### Stage A — Authoritative documentation correction (current)
+
+- Modify only `spec.md`、`design.md`、`plan.md` and `tasks.md`.
+- Establish exactly three official integration modes, with Gateway-v1 opt-in and `backend001-compatibility` still the default.
+- Establish the root public `AssistantAccessTokenProvider`、`MountOptions.getAccessToken?` and `"gateway-v1"` contracts while keeping resolver and transport helpers private.
+- Establish fixed routes、per-operation resolution、Authorization-only channel、complete forbidden-surface matrix、no refresh token、no frontend authority and final-header test requirements.
+- Run Spec Kit prerequisite validation、read-only cross-artifact consistency review、targeted term searches、`git diff --check` and restricted-file checksum comparison.
+- Do not run the known-failing security guard in this documentation-only stage.
+
+### Stage B — Security-guard implementation (subsequent)
+
+- T154 defines tests for Gateway-only Authorization、all forbidden credential surfaces、resolver behavior、fixed routes and final constructed headers.
+- T155 narrows the static source guard to real outgoing serialization / assignment sinks while retaining backend-authority protection.
+- T156 runs focused guard、resolver、Gateway transport、request-boundary and public-export validation.
+- This stage may modify only the implementation/test files explicitly required by those future tasks; it is not part of the current documentation correction.
+
+### Stage C — Package validation and repacking (later, out of scope)
+
+- Package build、consumer validation、TGZ regeneration、README updates and release/publish work remain out of scope here.
+- The current tracked TGZ must retain its existing SHA-256 during Stages A and B unless a later separately authorized repack task changes it.
+
+### Gateway-v1 correction validation contract
+
+- Every retained `exactly two`、`只支援兩種` or `Both modes` statement must be explicitly labeled historical and superseded; current normative sections must contain no two-mode conflict.
+- Searches for `gateway-v1`、`getAccessToken` and `Authorization` must demonstrate consistent public API、mode、security and task traceability.
+- Broad token prohibitions must state the sole Gateway-v1 Authorization exception without weakening the generic no-secret rule.
+- Required result: official mode count 3、unresolved specification conflicts 0、clean `git diff --check` and unchanged restricted-file checksums.

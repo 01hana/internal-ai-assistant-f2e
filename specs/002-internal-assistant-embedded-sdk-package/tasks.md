@@ -75,6 +75,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 | Phase 9  | Host Integration-dependent Smoke Gates                                                             | US9                  |
 | Phase 10 | Package Artifact Release Boundary Validation                                                       | US1, US5, US7        |
 | Phase 11 | Canonical Runtime Library-Safe Extraction, Adapter Migration and Productized SDK Publish Readiness | US1, US5, US7, US8   |
+| Phase 12 | 2026-09-01 Gateway-v1 Authoritative Contract Correction and Security Follow-up                  | US10                 |
 
 ## Phase 0: Contract and Architecture Guardrails
 
@@ -183,6 +184,8 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 ### Implementation
 
 - [x] T041 [US2] Implement integration mode types in `packages/assistant-sdk/src/types/integrationMode.ts`; depends on T037-T038; complete when only Backend 001 Compatibility Mode and Backend 002 Mode are formal public modes; validate with mode boundary tests.
+
+> **Superseded historical criterion (2026-09-01)**: T041 records the July two-mode implementation state and remains unchanged as completed history. Its two-mode completion criterion is no longer current authority; FR-062 and T150-T156 establish Gateway-v1 as the third official opt-in mode.
 - [x] T042 [US2] Implement request builder entry in `packages/assistant-sdk/src/transport/requestBuilder.ts`; depends on T041; complete when request builder owns final outgoing request construction before transport; validate with core assistant and host integration request builder tests.
 - [x] T043 [US2] Implement core assistant request contract omission adapter in `packages/assistant-sdk/src/request/coreAssistantRequestAdapter.ts`; depends on T042; complete when Frontend 002-only Host Context fields are omitted from Backend 001 request transport; validate with core assistant request builder tests.
 - [x] T044 [US2] Implement host integration request contract validation adapter in `packages/assistant-sdk/src/request/hostIntegrationRequestAdapter.ts`; depends on T042; complete when required context failures stop request with `context unavailable` / `integration error`; validate with host integration request builder tests.
@@ -454,6 +457,35 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 
 **Checkpoint**: Productized SDK reaches formal publish readiness review without executing real publish or calling external backend services.
 
+## Phase 12: 2026-09-01 Gateway-v1 Authoritative Contract Correction
+
+This phase is appended after the original T001-T149 history. It does not imply Gateway-v1 existed when those tasks were completed. T150-T153 are documentation-only correction work; T154-T156 are the subsequent security-guard implementation and focused validation work. Package validation/repacking remains later and out of scope.
+
+- [x] T150 [US10] Correct the authoritative three-mode contract, root public `AssistantAccessTokenProvider` / `MountOptions.getAccessToken?` surface, FR-062-FR-073, fixed Gateway routes, per-operation credential resolution, security matrix, and measurable success criteria in `specs/002-internal-assistant-embedded-sdk-package/spec.md`; preserve the July two-mode decision only as explicitly superseded history.
+- [x] T151 [US10] Extend the mode-tiered architecture, public/private surface, fixed-route transport, opaque credential rules, Authorization-only channel, ephemeral-state distinction, backend-authority protections, and final-header test requirement in `specs/002-internal-assistant-embedded-sdk-package/design.md` without changing Backend 001 or Backend 002 semantics.
+- [x] T152 [US10] Append the dated post-original-contract sequence separating documentation correction, subsequent security-guard implementation, and later out-of-scope package validation/repacking in `specs/002-internal-assistant-embedded-sdk-package/plan.md`.
+- [x] T153 [US10] Add T150-T156, requirement-to-task traceability, dependency ordering, final documentation checklist, and record successful Spec Kit prerequisite / cross-artifact consistency validation in `specs/002-internal-assistant-embedded-sdk-package/tasks.md`; do not rewrite T001-T149.
+- [ ] T154 [US10] Add tests defining the Gateway-v1-only `Authorization: Bearer <opaque Host credential>` allowance, provider-per-operation behavior, four fixed routes, resolver failure behavior, final constructed headers, `refreshToken` rejection, and the complete forbidden credential surface matrix in the existing assistant-sdk guard, resolver, transport, request-boundary, and public-export test files; Tests First, and do not repack.
+- [ ] T155 [US10] Narrow the static source guard in `tests/unit/assistant-sdk/security/forbidden-outgoing-fields.spec.ts` and its existing fixture to actual outgoing serialization / assignment sinks while preserving protection against body、PageContext、provider context、metadata、callbacks、URL/query/hash、message/hidden prompt、routing metadata、logs、telemetry、persistence and frontend-owned backend authority; permit private ephemeral resolver state such as `{ ok: true, token: normalizedToken }` only when it is not an outgoing sink.
+- [ ] T156 [US10] Run focused security guard、access-token resolver、Gateway transport、request-boundary and public-export validation after T155; verify final Gateway headers directly, preserve Backend 001/002 behavior, run `git diff --check`, and report results without package validation、TGZ regeneration、README changes、external backend calls or real publish.
+
+### Gateway-v1 Requirement-to-Task Traceability
+
+| Traceability key | Requirement | Documentation correction | Subsequent implementation / validation |
+| ---------------- | ----------- | ------------------------ | -------------------------------------- |
+| `GATEWAY_V1_OFFICIAL_MODE` | FR-062 | T150, T151, T152, T153 | T154, T156 |
+| `OPAQUE_ACCESS_TOKEN_PROVIDER` | FR-063 | T150, T151, T152, T153 | T154, T156 |
+| `AUTHORIZATION_BEARER_ALLOWED_CHANNEL` | FR-064 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_BODY` | FR-065 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_PAGE_CONTEXT` | FR-066 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_METADATA` | FR-067 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_URL` | FR-068 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_LOGGING` | FR-069 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_CREDENTIAL_PERSISTENCE` | FR-070 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_REFRESH_TOKEN_GATEWAY` | FR-071 | T150, T151, T152, T153 | T154, T155, T156 |
+| `NO_FRONTEND_IDENTITY_AUTHORITY` | FR-072 | T150, T151, T152, T153 | T154, T155, T156 |
+| `FINAL_GATEWAY_HEADER_SECURITY_TEST` | FR-073 | T150, T151, T152, T153 | T154, T156 |
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -470,6 +502,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **Phase 9**: Depends on Phase 4/5 safe request and transport behavior plus an external Host Integration environment; does not block package readiness.
 - **Phase 10**: Depends on Phase 7 reference consumer integration, Phase 8 package readiness smoke, and historical Phase 2 runtime reuse boundaries; includes tests first plus build / pack / install artifact closeout tasks, with T088 package build support required before final artifact validation. Phase 10 does not prove library-safe canonical runtime extraction.
 - **Phase 11**: Depends on Phase 10 real build / pack / install artifact closeout, Phase 8 Compatibility Mode smoke, and Phase 0 architecture guardrails; preserves T092-T096 as existing productized Tests First guardrails, then executes Canonical Runtime Library-Safe Extraction T097-T143, productized SDK runtime T144-T146, and publish readiness T147-T149 without real publish.
+- **Phase 12**: T150-T153 are the completed 2026-09-01 authoritative documentation correction. T154 depends on T153; T155 depends on the failing tests established by T154; T156 depends on T155. Package validation/repacking remains a later separately authorized stage.
 
 **Architecture Dependency Clarification**: Phase 2 and Phase 5 remain historical prerequisites, but their app-source ownership does not represent the final Phase 11 architecture. Phase 11 implementation graph must converge to Frontend 001 Nuxt Adapter -> Shared Canonical Assistant Runtime <- Frontend 002 SDK Adapter.
 
@@ -484,6 +517,7 @@ Packaging boundary 的意思是：SDK package artifact must be installable by co
 - **US7 安裝到 Nuxt 4 Reference Host App (P2)**: Depends on Phase 7 and Phase 8.
 - **US8 保護隱私、隔離與 Host Boundaries (P1)**: Cross-cutting across Phases 0, 3, 4, 5, 6.
 - **US9 驗證 Host Integration Contract Compatibility (P3)**: Depends on Phase 9 and external Host Integration environment; not required for Independent Package Readiness.
+- **US10 使用 Gateway-v1 Request-scoped Opaque Credential (P1)**: Documentation authority is established by T150-T153; security implementation follows T154 -> T155 -> T156.
 
 ### MVP Scope
 
@@ -523,6 +557,7 @@ Formal Productized SDK Release Readiness additionally requires Phase 11 extracti
 - T143 depends on package artifact/temporary consumer closure T142 and must run before productized SDK runtime tasks.
 - T144-T146 run sequentially after T143 for productized `AssistantWidget`, `mountAssistantWidget`, and bundling stabilization.
 - T147-T149 run sequentially after T146 for metadata, README, and final readiness.
+- T150-T153 are the completed sequential documentation correction; T154-T156 must run sequentially because tests define the boundary before guard implementation and focused validation.
 
 ## Parallel Examples
 
@@ -607,11 +642,11 @@ These tests are later / gated / optional integration-dependent validation:
 
 - [ ] `specs/002-internal-assistant-embedded-sdk-package/tasks.md` is the primary long-term task artifact for Frontend 002 implementation planning.
 - [ ] No extra Spec Kit documentation artifacts are required for this feature beyond `spec.md`, `design.md`, `plan.md`, `tasks.md`, and the Phase 11 `runtime-extraction-inventory.md`; `packages/assistant-sdk/README.md` is allowed only as a Phase 11 package artifact / product documentation task.
-- [ ] No changes to `spec.md`, `design.md`, `plan.md`, Frontend 001 docs, Backend 001 docs, production code, tests, package config, README, or other artifacts during tasks generation.
-- [ ] Task IDs are sequential from T001 to T149.
+- [x] The 2026-09-01 correction changes only `spec.md`, `design.md`, `plan.md`, and `tasks.md`; it does not change Frontend 001 docs, Backend docs, production code, tests, fixtures, package config, README, TGZ, customer repositories, or unrelated dirty files.
+- [x] Task IDs are sequential from T001 to T156, with T001-T149 preserved as historical tasks.
 - [ ] Every task follows `- [ ] T### [P?] [US?] Description with exact primary file path`.
 - [ ] No implementation task creates auxiliary Spec Kit documentation artifacts outside the Spec Kit four-file set except the single Phase 11 runtime extraction inventory.
-- [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path.
+- [ ] No implementation task uses `specs/002-internal-assistant-embedded-sdk-package/tasks.md` as its primary path; documentation-only T153 is the explicit correction-stage exception.
 - [ ] Every functional phase lists tests before implementation tasks.
 - [ ] Host Integration-dependent tests are explicitly gated and non-blocking for Independent Package Readiness.
 - [ ] Phase 11 does not duplicate completed Phase 0-10 work.
@@ -636,3 +671,9 @@ These tests are later / gated / optional integration-dependent validation:
 - [ ] Complete component behavior is validated by T144, and complete imperative `createPinia()` mount lifecycle is validated by T145.
 - [ ] The T097-T149 dependency graph contains no missing dependency, forward/self dependency, or cycle.
 - [ ] No task plans a second ChatWidget, assistant API client, SSE parser, session/history runtime, AnswerDecision mapper, EvidenceRef renderer, frontend-owned permission/source/connector/evidence authority, DataAdapter runtime, HostApp Registry copy, backend request mode, nested `hostContext`, backend `sessionScope`, iframe, Shadow DOM, framework-agnostic SDK, package backend proxy, production connector implementation, approval navigation URL generation, hidden prompt context injection, or message text context injection.
+- [x] Exactly three official integration modes are documented; Gateway-v1 is opt-in and `backend001-compatibility` remains the default.
+- [x] Every retained July two-mode statement is explicitly historical and superseded; no current normative two-mode conflict remains.
+- [x] FR-062-FR-073 map one-to-one to every named Gateway-v1 traceability key and to T150-T156.
+- [x] Gateway-v1 permits credential material only in final `Authorization: Bearer <opaque Host credential>`; all other headers and forbidden surfaces retain the generic no-secret rule.
+- [x] The current correction requires no optional Spec Kit agent-context hook because the feature directory and active plan are unchanged.
+- [x] The known failing static guard is not rerun during the documentation-only correction; T154-T156 own its subsequent correction and focused validation.

@@ -2,7 +2,8 @@
 
 **Feature**: `002-internal-assistant-embedded-sdk-package`  
 **Spec**: `specs/002-internal-assistant-embedded-sdk-package/spec.md`  
-**Status**: 已加入 Canonical Runtime Library-Safe Extraction 架構 cleanup
+**Status**: 已加入 Canonical Runtime Library-Safe Extraction 架構 cleanup 與 Gateway-v1 authoritative correction
+**Gateway-v1 Contract Correction**: 2026-09-01
 
 ## 1. Overview
 
@@ -25,7 +26,7 @@ Frontend 002 不是新的聊天產品，也不是 Frontend 001 的重寫。它�
 
 SDK 必須包含可運作的完整 Assistant Chat Widget。SDK runtime source 必須源自 Frontend 001 canonical implementation，但 Host App 不需要知道 Frontend 001 的 `app/features/**`、`app/services/**`、`app/stores/**` 或 `app/utils/**` repo layout。
 
-Frontend 002 不改 Backend 001 / Backend 002 public API。Backend 001 Compatibility Mode 是 Independent Package Readiness 的主要基線；Backend 002 Host Integration 是後續 gated acceptance path，不是 publish prerequisite。Public package exports 只允許 root entry 與 `./styles.css`，Vue 是 peer dependency，Nuxt 不應是一般 SDK consumer 的必要執行環境。
+Frontend 002 不改 Backend 001 / Backend 002 public API。Backend 001 Compatibility Mode 是 Independent Package Readiness 的主要基線與全域預設；Backend 002 Host Integration 是後續 gated acceptance path，不是 publish prerequisite；Gateway-v1 是第三個正式、明確 opt-in 的固定路由 integration mode。Public package exports 只允許 root entry 與 `./styles.css`，Vue 是 peer dependency，Nuxt 不應是一般 SDK consumer 的必要執行環境。
 
 ## 2. Source Documents and Fixed Decisions
 
@@ -69,9 +70,12 @@ Backend 002 fixed input:
 - Fallback session: `sessionStorage` when safe; otherwise same-runtime memory-only fallback.
 - Frontend 002 and Frontend 001 runtime use same-version track.
 - Delivery target: repo-internal workspace package.
-- Backend 001 Compatibility Mode and Backend 002 Mode are frontend integration / request-builder / provider validation modes, not backend request modes.
+- Backend 001 Compatibility Mode、Backend 002 Mode 與 Gateway-v1 是三個正式 frontend integration / request-builder / provider validation modes；全域預設仍是 Backend 001 Compatibility Mode。
+- Gateway-v1 credential 由 `AssistantAccessTokenProvider` request-scoped 提供；SDK 每個 built-in Gateway operation 都重新呼叫一次，不 cache、refresh、persist、log 或 expose credential。
+- Gateway-v1 唯一核准的 credential-bearing outgoing channel 是 `Authorization: Bearer <opaque Host credential>`；`refreshToken` 永不接受或處理。
 - Injected authenticated transport executor is low-level only.
 - Backend remains the only owner of `sourceSystem`、connector、adapter、permission result、EvidenceRef authority、routing hints 與 approval navigation authority.
+- Opaque Host credential 不賦予 frontend 建構 customer、integration、organization、actor IDs、roles、permissions、Entry authority、internal JWTs、connector authority 或 routing authority 的權限。
 
 ## 3. Repository Baseline
 
@@ -279,7 +283,9 @@ Public exports:
 
 - `AssistantWidget`
 - `mountAssistantWidget`
-- Public types for `AssistantHostContextProvider`, `WidgetConfiguration`, `HostCallbacks`, `HostEvents`, integration mode, mount options, mount handle, page context input, sanitized context result, and safe errors.
+- `AssistantAccessTokenProvider = () => string | null | undefined | Promise<string | null | undefined>`.
+- `MountOptions.getAccessToken?: AssistantAccessTokenProvider`.
+- Public types for `AssistantHostContextProvider`, `AssistantAccessTokenProvider`, `WidgetConfiguration`, `HostCallbacks`, `HostEvents`, the three-value integration mode including `"gateway-v1"`, mount options, mount handle, page context input, sanitized context result, and safe errors.
 - Public style entry: `@ideaxpress/assistant-sdk/styles.css`
 
 Forbidden public exports:
@@ -293,6 +299,7 @@ Forbidden public exports:
 - Shared runtime internal paths.
 - Undocumented deep imports.
 - `./nuxt`.
+- Access-token resolver、Gateway transport helper、route builder、header builder 與其他 Gateway implementation internals。
 
 Public declarations 必須來自 `packages/assistant-sdk/src/types/**` facade declarations 或等效 SDK public barrels。Public declarations 不得暴露 `packages/assistant-runtime/**` 或 `app/**`。
 
@@ -352,6 +359,16 @@ Frontend 002 provides:
 - SDK request builder and forbidden outgoing fields gate
 - Compatibility Mode request boundary
 - Host Integration fail-closed request boundary
+- Gateway-v1 built-in transport adapter，僅可使用四個固定 routes，且在每個 operation 的 final headers 建構時加入核准的 Authorization header
+
+Gateway-v1 fixed routes:
+
+- `POST /api/v1/assistant/sessions`
+- `GET /api/v1/assistant/sessions/:sessionId`
+- `GET /api/v1/assistant/sessions/:sessionId/messages`
+- `POST /api/v1/assistant/sessions/:sessionId/messages`
+
+Gateway-v1 不提供 proxy discovery、generic routing、routing fallback、arbitrary endpoint 或 credential refresh。Host 可以在不同 provider calls 回傳同一 credential value，但 SDK 仍須每個 built-in Gateway transport operation 各呼叫 provider 一次。
 
 Ownership split:
 
@@ -464,9 +481,9 @@ Provider must not include:
 
 ## 14. Mode-tiered Request Builder Design
 
-These are frontend integration / request-builder / provider validation modes. They are not backend request modes.
+These are frontend integration / request-builder / provider validation modes. They are not backend identity or authorization authority.
 
-Both modes share the same assistant session / message / SSE transport ownership. Neither mode changes backend route, request envelope, SSE event contract, AnswerDecision contract, or public assistant API.
+三個 modes 共用 canonical assistant session / message / SSE ownership、AnswerDecision contract 與 public assistant behavior。Backend 001 與 Backend 002 的既有 route、request envelope 與語意保持不變；Gateway-v1 則使用下列固定 Gateway routes，不得改成 generic routing。
 
 ### Backend 001 Compatibility Mode
 
@@ -488,23 +505,34 @@ Both modes share the same assistant session / message / SSE transport ownership.
 - Do not send frontend-provided `sourceSystem`, connector, adapter, data source, candidate tool, permission result, final evidence source, or approval navigation metadata.
 - Consume backend-returned host-aware clarification, permission_denied, tool_failure, permission-safe evidence, backend-derived source metadata, and SSE final safe outcome.
 
-| Field | Backend 001 Compatibility Mode | Backend 002 Mode | Notes |
-| ----- | ------------------------------ | ---------------- | ----- |
-| `hostApp` | Use only if required by Backend 001 identity headers / transport contract | Required when Backend 002 contract requires host app context | Not a frontend authority source |
-| organization identifier | Required in final Backend 001 identity contract | Required; missing value fails closed | Not guessed from route/storage |
-| actor handoff metadata | Required in final Backend 001 identity contract | Required by Backend 002 identity boundary | May be supplied by trusted transport |
-| permission-context handoff metadata | Optional if Backend 001 contract allows | Backend-revalidated input; missing required context fails closed | Frontend never computes permission |
-| sanitized PageContext | Omitted from Compatibility Mode request body | Sent only in contract-allowed shape | No raw entity payload |
-| selectedRows | Omitted from Compatibility Mode request body | IDs / safe summary only, max 20 | Frontend validation does not replace backend authorization |
-| `entityType` / `entityId` | Omitted from Compatibility Mode request body | Sent only when contract-allowed and sanitized | Not identity proof |
-| host-managed sessionId | Existing session ownership / resume hint | Existing session ownership / resume hint | Not identity proof |
-| `sessionScope` | Local-only, not transported | Local-only, not transported | Namespace / fallback only |
-| `WidgetConfiguration` | Local-only | Local-only | Never serialized |
-| `HostCallbacks` | Local-only | Local-only | Never serialized |
-| `sourceSystem` | Forbidden | Forbidden | Backend-owned metadata |
-| connector / adapter | Forbidden | Forbidden | Backend-owned selection |
-| `permissionResult` | Forbidden | Forbidden | Backend-owned decision |
-| token / credential | Forbidden | Forbidden | Never provider/config/callback/storage/log |
+### Gateway-v1 Mode
+
+- 必須由 Host 明確選擇 `integrationMode: "gateway-v1"`；未選擇時仍使用 `backend001-compatibility`。
+- `getAccessToken` 的 credential 是 opaque Host credential；不是 IDX-native、Bridge-canonical、Customer-specific 或 Assistant/backend JWT。
+- SDK 不得 decode、inspect、infer from、cache、persist、log 或 expose credential。
+- 每個 `createSession`、`getSession`、`loadHistory` 與 `streamMessage` built-in Gateway operation 都必須 fresh resolve provider，並將 normalized value 僅放入 final `Authorization: Bearer <opaque Host credential>` header。
+- Missing、blank 或 provider failure 必須在 transport 前 fail closed；不得 fallback 到 stale credential。
+- Credential lifecycle 完全由 Host 擁有；SDK 不接受或處理 `refreshToken`。
+- Credential 不得成為 identity、permission、Entry、connector、source 或 routing authority。
+
+| Field | Backend 001 Compatibility Mode | Backend 002 Mode | Gateway-v1 | Notes |
+| ----- | ------------------------------ | ---------------- | ---------- | ----- |
+| `hostApp` | Use only if required by Backend 001 identity headers / transport contract | Required when Backend 002 contract requires host app context | Local/integration context only; not derived from credential | Not a frontend authority source |
+| organization identifier | Required in final Backend 001 identity contract | Required; missing value fails closed | Never constructed or inferred from credential | Not guessed from route/storage |
+| actor handoff metadata | Required in final Backend 001 identity contract | Required by Backend 002 identity boundary | Never constructed or inferred from credential | May be supplied by a separate trusted backend contract |
+| permission-context handoff metadata | Optional if Backend 001 contract allows | Backend-revalidated input; missing required context fails closed | Never constructed or inferred from credential | Frontend never computes permission |
+| sanitized PageContext | Omitted from Compatibility Mode request body | Sent only in contract-allowed shape | Sent only where the fixed Gateway request contract permits | No raw entity payload or credential |
+| selectedRows | Omitted from Compatibility Mode request body | IDs / safe summary only, max 20 | IDs / safe summary only when permitted in PageContext, max 20 | Frontend validation does not replace backend authorization |
+| `entityType` / `entityId` | Omitted from Compatibility Mode request body | Sent only when contract-allowed and sanitized | Sent only when contract-allowed and sanitized | Not identity proof |
+| host-managed sessionId | Existing session ownership / resume hint | Existing session ownership / resume hint | Fixed-route path/resume input only | Not identity proof |
+| `sessionScope` | Local-only, not transported | Local-only, not transported | Local-only, not transported | Namespace / fallback only |
+| `WidgetConfiguration` | Local-only | Local-only | Local-only | Never serialized |
+| `HostCallbacks` | Local-only | Local-only | Local-only | Never serialized |
+| `sourceSystem` | Forbidden | Forbidden | Forbidden | Backend-owned metadata |
+| connector / adapter | Forbidden | Forbidden | Forbidden | Backend-owned selection |
+| `permissionResult` | Forbidden | Forbidden | Forbidden | Backend-owned decision |
+| access token / credential | Forbidden from Host Context and unapproved outgoing surfaces | Forbidden from Host Context and unapproved outgoing surfaces | Opaque provider value allowed only in final `Authorization: Bearer` header | Never body/context/metadata/callback/URL/message/routing/log/telemetry/persistence |
+| `refreshToken` | Forbidden | Forbidden | Forbidden | SDK never accepts or handles it |
 
 ## 15. PageContext Sanitization Design
 
@@ -526,7 +554,7 @@ Frontend sanitization does not replace Backend 002 HostApp-specific allowlists, 
 
 ## 16. Forbidden Outgoing Request Fields
 
-Request builder must include a forbidden-fields gate before sending any backend request. The gate blocks:
+Request builder must include a forbidden-fields gate before sending any backend request. The gate blocks the following from all unapproved outgoing serialization and assignment sinks. Gateway-v1 final `Authorization: Bearer <opaque Host credential>` is the sole credential exception:
 
 - `sourceSystem`
 - `connector`
@@ -553,6 +581,10 @@ Request builder must include a forbidden-fields gate before sending any backend 
 - `HostCallbacks`
 - Callback functions
 - Raw business payload
+
+`{ ok: true, token: normalizedToken }` 可作為 resolver 內部、ephemeral、不可觀察的短生命週期 state；它本身不是 outgoing surface。Body、PageContext、provider context、metadata、callbacks、URL/query/hash、message/hidden prompt、routing metadata、logs、telemetry 與 persistence 仍全部禁止 credential。Static source guard 應聚焦實際 outgoing serialization / assignment sinks，同時維持 backend-authority protections，不得僅因 private resolver 的 local property name `token` 而誤判。
+
+既有 runtime forbidden-fields boundary 發生在 Authorization headers 加入前，因此 Gateway security tests 必須另行檢查 final constructed headers；只測 pre-header request boundary 不足以證明 credential channel 正確。
 
 Failure behavior:
 
@@ -834,6 +866,10 @@ Test fetch fixture 必須 method/path-aware:
 - imperative lifecycle tests
 - package consumer tests
 - public export tests
+- Gateway-v1 provider-per-operation resolver tests
+- Gateway-v1 fixed-route transport tests
+- final constructed headers tests，證明只有 Gateway-v1 的 `Authorization: Bearer <opaque Host credential>` 被允許
+- complete forbidden-surface matrix tests，涵蓋 body、PageContext、provider context、metadata、callbacks、URL/query/hash、message/hidden prompt、routing metadata、logs、telemetry、persistence 與 `refreshToken`
 
 ### Cross-boundary Tests
 
@@ -853,7 +889,9 @@ Test fetch fixture 必須 method/path-aware:
 Security boundaries:
 
 - No raw business payload in request, storage, logs, telemetry, or events.
-- No token / credential / secret storage.
+- No token / credential / secret in body、PageContext、provider context、metadata、callbacks、URL/query/hash、message/hidden prompt、routing metadata、logs、telemetry 或 persistence。
+- Gateway-v1 唯一 credential-bearing channel 是 final `Authorization: Bearer <opaque Host credential>` header；其他 headers 仍受 generic no-secret rule 約束。
+- Opaque credential 不得被 decode、inspect、infer from、cache、persist、log 或 expose，且 SDK 不處理 refresh token。
 - No raw PageContext in storage/log/event.
 - No cross-host session contamination.
 - No cross-organization fallback session contamination.
@@ -862,6 +900,7 @@ Security boundaries:
 - No frontend-derived permission/source/connector authority.
 - No approval navigation metadata in outgoing request.
 - No package-specific backend proxy.
+- No frontend construction of customer / integration / organization / actor IDs、roles、permissions、Entry authority、internal JWTs、connector authority 或 routing authority from the credential.
 
 ## 30. Risks and Mitigations
 
@@ -874,7 +913,9 @@ Security boundaries:
 | Unsafe fallback session | Namespace by package、host、organization、scope、page/entity；缺 organization 時拒絕 persistent fallback |
 | selectedRows raw payload leakage | Validate raw count，拒絕 >20，只接受 ID / safe summary |
 | Injected transport bypass | Executor 前必須完成 sanitization / mode validation，且禁止 request envelope mutation |
-| Backend 001 vs Backend 002 mode confusion | 將 modes 記錄為 frontend integration modes，而不是 backend request modes |
+| Backend 001 / Backend 002 / Gateway-v1 mode confusion | 明列三個正式 integration modes、維持 backend001 default，並禁止由 credential 推導 backend authority |
+| Static guard 誤判 ephemeral resolver state | Guard 聚焦 outgoing serialization / assignment sinks，並以完整 forbidden-surface matrix 維持保護 |
+| Authorization 在既有 runtime boundary 後加入 | 對 final constructed Gateway headers 建立專門 security tests |
 | CSS leakage | Styles scope 到 package root；禁止 global reset；測試 reference consumer computed styles |
 | Frontend 001 runtime contract drift | Same-version track 與 Frontend 001 regression gate |
 | Backend 002 availability not ready | 保留 Backend 001 Compatibility Mode independent package readiness path |
@@ -895,3 +936,9 @@ Non-blocking follow-ups for implementation planning:
 - Exact `packages/assistant-runtime` workspace manifest shape.
 - Exact library-safe replacement strategy for each current Nuxt UI primitive.
 - Exact split between shared runtime transport port and SDK request builder implementation files.
+
+## 33. 2026-09-01 Gateway-v1 Authoritative Contract Correction
+
+本節是原始 contract 後的 authoritative correction。2026-07-14 所記錄的 two-mode decision 保留為歷史證據，但已被本節與更新後的 current normative sections supersede；不得再用來否定 Gateway-v1 的正式 mode status。
+
+本 correction stage 僅修改 `spec.md`、`design.md`、`plan.md` 與 `tasks.md`。後續 security-guard implementation 才會新增 final-header tests、完整 forbidden-surface matrix 並縮窄 static source guard；更晚的 package validation / repacking 仍不屬於本 stage。

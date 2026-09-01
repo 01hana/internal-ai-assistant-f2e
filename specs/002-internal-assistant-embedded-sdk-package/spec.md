@@ -4,6 +4,8 @@
 
 **Created**: 2026-07-13
 
+**Gateway-v1 Contract Correction**: 2026-09-01
+
 **Status**: Draft
 
 **Input**: User description: "將 Frontend 001 已存在的 Internal Assistant Embedded Chat Panel 封裝為可由不同 Vue 3／Nuxt 4 Host App 安裝、初始化、掛載、卸載與提供最新 Host Context 的 npm package／SDK。"
@@ -16,17 +18,18 @@
 
 Frontend 002 的發布產物必須是其他 Vue 3／Nuxt 4 Host App 可安裝並使用的 SDK package。Consuming app 只能依賴 `@ideaxpress/assistant-sdk` root public entry 與 `@ideaxpress/assistant-sdk/styles.css` stylesheet entry；不得需要 Frontend 001 repo layout、不得 deep-import `app/features`、`app/services`、`app/stores` 或 `app/utils` 等 Frontend 001 internal path。
 
-Frontend 002 的 public responsibility 必須拆分為三個彼此獨立的概念：
+Frontend 002 的 public responsibility 必須拆分為四個彼此獨立的概念：
 
 - **AssistantHostContextProvider**：只負責每次 assistant request 前重新提供最新、request-scoped 的 host context。
 - **WidgetConfiguration**：只負責較穩定的 widget / package 設定，不進入 backend request payload。
 - **HostCallbacks / HostEvents**：只負責 host integration callbacks 與 event payload，不進入 PageContext 或 backend transport。
+- **AssistantAccessTokenProvider**：只在 opt-in `gateway-v1` mode 中，於每個 Gateway operation 前解析 opaque Host credential；credential 只可進入 Gateway-v1 `Authorization: Bearer` header。
 
 Frontend 002 也必須清楚區分三個資料層次：
 
 - **AssistantHostContextProvider**：提供 request-scoped host context，例如 `hostApp`、organization identifier、sanitized `PageContext`、host-managed `sessionId`、actor handoff metadata、permission-context handoff metadata 與 request correlation metadata；若提供 `sessionScope`，也只可作為 Frontend 002 local session ownership / namespace input，而不是 backend public request contract。
 - **Frontend 002 local-only state**：例如 `sessionScope`、fallback session namespace、memory-only session pointer、widget lifecycle state、`WidgetConfiguration`、`HostCallbacks`、callback functions、UI state 與 internal retry / loading state；這些資料不得進入最終送往 backend 的 outgoing request。
-- **最終送往 backend 的 outgoing request**：由 provider 提供且符合 contract 的 request-scoped context、package request builder、預設或注入的 authenticated transport，以及 Backend 001 / Backend 002 現有 public contract 所要求的 identity、permission 與 request metadata 共同形成。
+- **最終送往 backend / Gateway 的 outgoing request**：由 provider 提供且符合 contract 的 request-scoped context、package request builder、預設或注入的 authenticated transport，以及對應 mode public contract 所要求的 identity、permission 與 request metadata 共同形成。Gateway-v1 唯一可攜帶 credential 的 outgoing channel 是 `Authorization: Bearer <opaque Host credential>`；此例外不使 credential 成為 body、PageContext、provider context、transport metadata 或其他通用 request data。
 
 Provider 中不存在某欄位，不必然代表最終送往 backend 的 outgoing request 不存在該欄位，因為可信的 authenticated transport 可能補入 backend contract 要求的 identity / permission metadata。相對地，Frontend 002 local-only state 中存在某資料，也不代表該資料可以進入最終 outgoing request。
 
@@ -53,7 +56,7 @@ Frontend 002
 
 因此 Frontend 002 的產品價值不在於新增聊天能力，而在於讓既有聊天能力可被不同內部 Host App 一致、可控且安全地安裝與使用。Frontend 002 必須承接現有 internal-only、backend-source-of-truth、secure-by-default 與 SSE-first 原則，不得把 backend permission responsibility、connector / adapter authority 或 backend-owned `sourceSystem` authority 帶到 frontend，也不得把 provider、authenticated transport 與 local-only state 的責任混為同一層。
 
-Frontend 002 的 Backend 001 Compatibility Mode 與 Backend 002 Mode 只是 package request builder、provider validation 與 integration strictness mode。它們不是 backend request mode，也不得改變 Backend 001 / Backend 002 既有 public API、route、SSE event contract、request envelope 或 AnswerDecision contract。兩種 mode 都必須沿用同一套 assistant session / message / SSE transport ownership；Backend 001 Compatibility Mode 中，Frontend 002 專屬 Host Context 欄位必須由 package request builder / transport adapter 明確省略，不得塞入未知 backend request 欄位、hidden prompt、message text 或 metadata。
+Frontend 002 的 Backend 001 Compatibility Mode、Backend 002 Mode 與 opt-in Gateway-v1 Mode 是 package request builder、provider validation、transport selection 與 integration strictness mode。它們不是 backend request mode，也不得改變既有 SSE event contract、AnswerDecision contract 或 canonical runtime ownership。三種 mode 都必須沿用同一套 assistant session / message / SSE runtime ownership；Backend 001 Compatibility Mode 中，Frontend 002 專屬 Host Context 欄位必須由 package request builder / transport adapter 明確省略，不得塞入未知 backend request 欄位、hidden prompt、message text 或 metadata。全域預設 mode 維持 `backend001-compatibility`。
 
 本 feature 同時受以下固定產品決策約束：
 
@@ -63,13 +66,14 @@ Frontend 002 的 Backend 001 Compatibility Mode 與 Backend 002 Mode 只是 pack
 - Web Component、iframe mode 與 Shadow DOM 不在本 feature。
 - package 必須 SSR import-safe，但 widget 實際只在 client side mount。
 - `AssistantHostContextProvider` 必須能在每次 request 前提供最新 context，且支援 async resolution。
+- `AssistantAccessTokenProvider` 是 Gateway-v1 專用的 request-scoped opaque Host credential public contract；SDK 每個 Gateway operation 都必須重新呼叫 provider，且不得自行 refresh、cache 或 persist credential。
 - v1 預設一個 Host App page 只啟用一個 assistant widget instance。
 - fallback session persistence 使用 package-scoped、host-scoped 的 `sessionStorage`，不得跨 Host App 或跨 organization 共用。
 - Frontend 002 以目前 repo 內的 workspace package 交付，Frontend 001 runtime 以可重用 runtime 單元被 Frontend 002 引用；consumer 對外只安裝 Frontend 002 public package，不得 deep-import Frontend 001 internal path。
 - Frontend 002 MAY 在 monorepo source-time 與 package build 階段重用 Frontend 001 canonical source；但 published / installed SDK package artifact MUST 只透過 SDK public entries 對 consumer 暴露能力，不得留下 unresolved `app/features`、`app/services`、`app/stores` 或 `app/utils` import 給 consuming app 解析，也不得為了可攜性而手寫第二套 runtime。
 - theme v1 僅提供有限 CSS variables、design tokens、light / dark / system mode 與基本 panel position / size 設定；正式 stylesheet entry 為 `@ideaxpress/assistant-sdk/styles.css`，由 consumer 主動 import。
 - Backend 002 未完成時，Frontend 002 仍必須可 build、install、mount、提供 Host Context，並透過 Backend 001 Compatibility Mode 驗證一般聊天流程；測試可使用對齊正式 contract 的 deterministic test doubles，但這不是正式 integration mode。
-- 本 feature 不定義新的 frontend authentication system；package 提供 Frontend 001 相容的預設 transport，Host App 也可注入符合固定 contract 的 low-level authenticated transport executor，但兩者都必須維持同一套最終送出的 Backend 001 / Backend 002 request 與 SSE contract，且不得形成第二套 assistant API client。Injected executor 不得改寫 assistant API route、建立第二套 SSE parser、改變 public request envelope，或繞過 package sanitization / mode validation。
+- 本 feature 不定義新的 frontend authentication system；package 提供 Frontend 001 相容的預設 transport、opt-in Gateway-v1 built-in transport，Host App 也可注入符合固定 contract 的 low-level authenticated transport executor。這些 transport 都不得形成第二套 assistant API client。Injected executor 不得改寫 assistant API route、建立第二套 SSE parser、改變 public request envelope，或繞過 package sanitization / mode validation。Gateway-v1 credential transport 只允許固定 Gateway route 的 `Authorization: Bearer` channel，不得形成 generic proxy、routing 或 arbitrary-header capability。
 - v1 package 名稱固定為 `@ideaxpress/assistant-sdk`，主要 component export 為 `AssistantWidget`，imperative helper 為 `mountAssistantWidget`，v1 正式保證 locale 為 `zh-TW`。
 
 ## Clarifications
@@ -85,7 +89,7 @@ Frontend 002 的 Backend 001 Compatibility Mode 與 Backend 002 Mode 只是 pack
 ### Session 2026-07-14
 
 - Q: authenticated transport ownership 應採哪種模式？ → A: 採 Hybrid，由 package 提供 Frontend 001 相容的預設 transport，同時允許 Host App 注入符合固定 contract 的 authenticated transport executor。
-- Q: 正式 integration mode 的 provider strictness 應如何區分？ → A: 採 mode-tiered strictness，正式只保留 Backend 001 Compatibility Mode 與 Backend 002 Mode；測試 doubles 不得形成第三套 provider contract。
+- Q: 正式 integration mode 的 provider strictness 應如何區分？ → A: 2026-07-14 原決策為只保留 Backend 001 Compatibility Mode 與 Backend 002 Mode；此歷史決策已由 2026-09-01 Gateway-v1 contract correction 明確 supersede，不再是現行 mode-count authority。測試 doubles 仍不得形成額外正式 mode。
 - Q: organization identifier 缺失時的安全行為應如何定義？ → A: 採 Allow B001, strict B002；Backend 001 Compatibility Mode 中，provider 缺少 organization identifier 時不得建立 organization-scoped persistent fallback，可使用 host-managed sessionId 或 same-runtime-only memory continuity 作為 frontend continuity，但最終 outgoing request 仍必須由可信 authenticated transport 滿足 Backend 001 required identity contract；Backend 002 缺 required organization / identity context 一律 fail closed。
 - Q: Frontend 001 runtime 與 Frontend 002 package 的交付關係應如何定義？ → A: 採 repo workspace package；Frontend 002 在目前 repo 內以獨立 workspace package 交付，與 Frontend 001 runtime 維持同一 release train。
 - Q: Frontend 002 v1 的 approval detail callback 應包含哪些欄位？ → A: 只包含 `approvalRequestId`、`sessionId`、`messageId`。Frontend 002 不提供任何 approval detail 導航目標，Host App 依自己的 routing 與 navigation 規則處理 approval detail。
@@ -93,6 +97,14 @@ Frontend 002 的 Backend 001 Compatibility Mode 與 Backend 002 Mode 只是 pack
 - Q: injected authenticated transport executor 的 public contract 應停在哪一層？ → A: 採 low-level executor，由 package 保有 endpoint、request shape、SSE parser、retry / cancel / error flow ownership。
 - Q: v1 package delivery profile 應採哪一組決策？ → A: 採 lean mono-profile，使用 repo 內 workspace package、專用 library build、explicit stylesheet entry、現有 Nuxt app 作為 reference consumer / preview harness，並正式保證 `zh-TW`。
 - Q: v1 public naming 應採哪一組名稱？ → A: 採 Assistant SDK naming，package 為 `@ideaxpress/assistant-sdk`、component export 為 `AssistantWidget`、imperative helper 為 `mountAssistantWidget`。
+
+### Session 2026-09-01 — Gateway-v1 Contract Correction
+
+- Q: Gateway-v1 是否為正式 integration mode？ → A: 是。正式 mode 為 `backend001-compatibility`、`backend002`、`gateway-v1`；Gateway-v1 為 opt-in，全域預設仍為 `backend001-compatibility`。
+- Q: Gateway-v1 credential 的 SDK contract 是什麼？ → A: `AssistantAccessTokenProvider` / `MountOptions.getAccessToken` 回傳 opaque Host credential。SDK 不宣稱它是 IDX native AccessToken、Identity Bridge canonical JWT、Customer-specific token 或 backend internal JWT。
+- Q: credential 可進入哪個 outgoing channel？ → A: 只允許 Gateway-v1 fixed-route built-in transport 的 `Authorization: Bearer <opaque Host credential>` header。JSON body、PageContext、provider context、generic headers、transport metadata、callback payload、URL/query/hash、message text、hidden prompt、routing metadata、logs、telemetry 與 browser/SDK persistence 一律禁止。
+- Q: SDK 是否處理 credential lifecycle？ → A: 否。SDK 每個 Gateway operation 重新呼叫 provider，不 decode、不讀 claims、不推導 authority、不 refresh、不跨 operation cache、不 persist、不 log；Host 可依自己的 lifecycle policy 回傳相同 credential。
+- Q: `refreshToken` 是否可由 Gateway-v1 SDK 處理？ → A: 不可。Gateway-v1 永遠不得接受、解析、保存或傳送 `refreshToken`。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -173,11 +185,11 @@ Host App 能安全管理 widget 的 initialize、mount、open、close、unmount�
 
 ### User Story 5 - 重用 Frontend 001 Chat Runtime (Priority: P1)
 
-Package 內的 assistant widget 直接重用 Frontend 001 已存在的 chat runtime，並在 Backend 001 Compatibility Mode 與 Backend 002 Mode 下維持一致的 frontend runtime 邊界。
+Package 內的 assistant widget 直接重用 Frontend 001 已存在的 chat runtime，並在 Backend 001 Compatibility Mode、Backend 002 Mode 與 Gateway-v1 Mode 下維持一致的 frontend runtime 邊界。
 
 **Why this priority**: 這是 Frontend 002 與「重做一套聊天功能」的根本差異；若無法證明 reuse boundary，Frontend 002 的產品定位就會偏離。
 
-**Independent Test**: 可分別在 Backend 001 Compatibility Mode 與 Backend 002 Mode 驗證 session / message / SSE / history / evidence / feedback / error / retry 行為、provider strictness 與 transport ownership，並確認不存在第二套 runtime；unit / component / integration tests MAY 使用對齊正式 contract 的 fake provider、stub transport、deterministic SSE fixture 與 backend response fixture。
+**Independent Test**: 可分別在 Backend 001 Compatibility Mode、Backend 002 Mode 與 Gateway-v1 Mode 驗證 session / message / SSE / history / evidence / feedback / error / retry 行為、provider strictness 與 transport ownership，並確認不存在第二套 runtime；unit / component / integration tests MAY 使用對齊正式 contract 的 fake provider、stub transport、deterministic SSE fixture 與 backend response fixture。
 
 **Acceptance Scenarios**:
 
@@ -253,6 +265,33 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 
 > 此 story 的 end-to-end execution 依賴 Backend 002，但不阻塞 Frontend 002 的 Independent Package Readiness。
 
+### User Story 10 - 使用 Gateway-v1 Request-scoped Opaque Credential (Priority: P1)
+
+Host App 工程師可以選擇 `gateway-v1` mode，透過穩定 root public API 提供 request-scoped opaque Host credential，讓 SDK 對固定 Gateway-v1 HTTP operations 使用唯一允許的 Authorization Bearer channel，同時維持所有 payload、context、authority 與 persistence 安全邊界。
+
+**Why this priority**: Gateway-v1 已成為正式 opt-in SDK integration mode；若 credential channel、public API 與禁止 surface 沒有 authoritative contract，安全 guard 無法正確區分 internal ephemeral state 與真正的 outgoing leak。
+
+**Independent Test**: 可對四個固定 Gateway-v1 operations 驗證每次 operation 都重新解析 credential，final request 只在 `Authorization` header 帶入 Bearer credential，body / PageContext / metadata / URL / log / persistence 均不含 credential，且 `refreshToken` 與 frontend-derived authority 一律 fail closed。
+
+**Acceptance Scenarios**:
+
+1. **Given** Host App 以 root public API 提供 `getAccessToken` 並 opt in `gateway-v1`，**When** SDK 執行 create session、get session、load history 或 stream message，**Then** 每個 operation 都必須重新呼叫 provider，且只在 final Gateway request 的 `Authorization: Bearer` header 使用 normalized opaque credential。
+2. **Given** credential provider 回傳空值或失敗，**When** Gateway operation 準備執行，**Then** SDK 必須在 fetch 前 fail closed，且不得暴露 raw credential error 或沿用先前 operation credential。
+3. **Given** credential 或 `refreshToken` 出現在 JSON body、PageContext、Host Context、generic header/metadata、callback、URL/query/hash、message/hidden prompt、routing metadata、log、telemetry 或 persistence，**When** security boundary 驗證 request，**Then** 必須拒絕該 surface；Gateway-v1 Authorization Bearer 是唯一例外。
+4. **Given** Gateway-v1 credential 已取得，**When** SDK 建構 outgoing request，**Then** SDK 不得由 credential 或 Host Context 建構 `customerId`、`integrationId`、`organizationId`、`actorId`、roles、permission scopes、Customer、Entry authority、backend internal JWT、connector authority 或 backend routing authority。
+5. **Given** internal resolver 暫時持有 `{ ok: true, token: normalizedToken }`，**When** static/security guard 分析 source，**Then** 此 ephemeral internal state 本身不得被判定為 outgoing leak；guard 必須以實際 serialization/assignment sink 與 outgoing surface 判定。
+
+**Gateway-v1 Fixed HTTP Contract**:
+
+- `POST /api/v1/assistant/sessions`
+- `GET /api/v1/assistant/sessions/:sessionId`
+- `GET /api/v1/assistant/sessions/:sessionId/messages`
+- `POST /api/v1/assistant/sessions/:sessionId/messages`
+
+四個 operations 都必須使用 per-operation opaque Host credential 的 Gateway-v1 Authorization Bearer channel，並維持既有 sanitized body / PageContext boundary。Frontend 002 不得據此新增 generic proxy、route discovery、routing fallback 或任意 endpoint contract。
+
+---
+
 ### Edge Cases
 
 - package 在 SSR build 階段被 import，但不應直接存取 browser globals。
@@ -265,6 +304,9 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - route change 後 widget 仍持有舊 entity，或 entityId 與 selectedRows 衝突。
 - `selectedRows` 超過 20 筆、含 raw row payload、含 class instance / DOM node / function / circular structure，或 activeFilters / visibleColumns 含敏感欄位。
 - Host App 嘗試傳入 connector、adapter、`sourceSystem`、access token、refresh token，或把 callback / WidgetConfiguration 序列化進 request context。
+- Gateway-v1 credential 被放入 Authorization 以外的 generic header、request body、PageContext、metadata、URL/query/hash、message/hidden prompt、routing metadata、log、telemetry 或 persistence。
+- Gateway-v1 credential provider 回傳空值、丟出例外，或 Host 嘗試把 `refreshToken` 當成 access credential。
+- static guard 把 ephemeral internal credential resolution state 誤判成 outgoing payload，或未檢查 final Gateway Authorization headers。
 - Host App 注入 authenticated transport executor，但其 request / SSE 處理與 package 預設 transport contract 不一致，或嘗試透過 executor 改寫 assistant API route、建立第二套 SSE parser、改變 public request envelope、繞過 package sanitization / mode validation。
 - `sessionScope` 被序列化進 backend request body、headers、PageContext、hidden prompt、message text、transport metadata 或 HostCallbacks payload。
 - provider、WidgetConfiguration、HostCallbacks 或 local-only state 嘗試把 `sourceSystem`、connector / adapter / data source、candidate tool、permission result、final evidence source、raw evidence、raw connector payload、routing hints 或 approval navigation metadata 放入最終 outgoing request。
@@ -324,9 +366,10 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-035**: 不同 Host App、不同 organization、不同 entity 或不同 session scope MUST NOT 共用同一 fallback session；organization 切換時，系統 MUST 終止舊 session context、SSE 與 history loading，再進入新 namespace。
 - **FR-036**: 若 `sessionStorage` 在當前環境不可用，package MUST NOT 建立 persistent browser fallback；v1 必須改採 same-runtime-only memory-only fallback，且不得靜默改用 `localStorage` 或 cookie。若 provider 無法提供建立安全 fallback 所需的 organization identifier，則 Frontend 002 只可退回 host-managed sessionId 或 memory-only continuity；這只影響 frontend session continuity，不代表 Backend 001 / Backend 002 identity requirement 已被滿足。Backend 002 Mode 仍 MUST fail closed，且 host-managed sessionId 不得被視為 organization proof。
 - **FR-037**: package MUST 重用 Frontend 001 的 session API、message API、history loading、cursor pagination、SSE parsing、sequence handling、cancel / timeout / retry、AnswerDecision rendering、EvidenceRef rendering、feedback API、ActionDraft confirmation、ApprovalRequest display 與 interrupted / no-answer / clarification / permission-denied / tool-failure UI。Source-time adapter imports MAY reference canonical Frontend 001 source inside this monorepo, but built / installed package artifacts MUST NOT require consuming apps to resolve Frontend 001 internal app paths.
-- **FR-038**: package MUST 只支援兩種正式 Frontend 002 integration / request-builder / provider validation mode，且這些 mode 不是 backend request mode，也不得改變 Backend 001 / Backend 002 既有 public API、route、SSE event contract、request envelope 或 AnswerDecision contract：
+- **FR-038**: package MUST 支援三種正式 Frontend 002 integration / request-builder / provider validation mode，且這些 mode 不是 backend request mode，也不得改變 canonical SSE event contract、AnswerDecision contract 或 shared runtime ownership；預設 mode MUST 維持 `backend001-compatibility`：
   - Backend 001 Compatibility Mode：沿用 Frontend 001 / Backend 001 既有 request shape 與 public contract，並由 transport adapter 明確省略 Backend 002 專屬 Host Integration 欄位。
   - Backend 002 Mode：驗證 package 可送出符合 contract 的 sanitized context，並正確消費 backend 回傳的 host-aware clarification、permission_denied、tool_failure、backend-derived source metadata、permission-safe evidence 與 safe outcomes。
+  - Gateway-v1 Mode：opt-in 使用固定 Gateway-v1 routes，對每個 operation 重新解析 opaque Host credential，且 credential 只可進入 final `Authorization: Bearer` header。
 - **FR-039**: Backend 001 Compatibility Mode 的 provider / outgoing request contract 分類 MUST 以 Backend 001 現有 public contract 為唯一來源：`x-actor-id`、`x-organization-id`、`x-host-app` 與 `x-role` 為 required by Backend 001；`x-permission-scopes`、`pageContext` 與 frontend-generated `x-request-id` 為 optional by Backend 001；`WidgetConfiguration`、`HostCallbacks`、fallback session namespace data 與 memory-only continuity state 為 Frontend 002 local-only；Backend 002 專屬 host-aware 欄位必須 omission；token、credential、secret、callback object、WidgetConfiguration data 與 raw business payload 為 invalid。Provider 中缺少某欄位，不必然代表最終 outgoing request 缺少該欄位，因為可信 authenticated transport 可能補入 Backend 001 contract 要求的 metadata。
 - **FR-040**: Backend 001 Compatibility Mode 中，Frontend 002 MUST NOT 把 Backend 001 既有 required identity context 降級成 optional、不得新增 Backend 001 不認得的 required 欄位、不得繞過既有 identity validation，也不得讓 host-managed sessionId 或 memory-only session 取代 Backend 001 的 identity requirement。若 provider 缺少 organization identifier，Frontend 002 只可停止 organization-scoped persistent fallback；若最終 outgoing request 也缺少 Backend 001 required organization identity，package MUST 不送出或 MUST 依既有 integration / identity error flow 失敗。
 - **FR-041**: Backend 002 Mode 中，authenticated permission-context handoff metadata 不一定必須由 `AssistantHostContextProvider` 提供；它可以由符合 Backend 002 public contract 的可信 authenticated transport 提供。Frontend 002 不得自行生成、修改或降級 permission context。最終送往 Backend 002 的 outgoing request MUST 符合 Backend 002 既有 required identity / permission contract；缺少必要資料時，package 不得假裝完成 host-aware request，並 MUST 依既有 safe error / fail-closed flow 處理。backend 仍 MUST 是 identity、organization boundary、role / permission、connector / tool eligibility、backend-owned `sourceSystem`、source metadata 與 permission-safe evidence 的唯一 authority。
@@ -338,7 +381,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-047**: package MUST 維持基本 accessibility 要求，包括鍵盤操作、focus 行為與可理解的狀態呈現。
 - **FR-048**: 系統 MUST 提供至少一個 Nuxt 4 reference consumer integration acceptance，用於驗證 `@ideaxpress/assistant-sdk` install、`AssistantWidget` 或 `mountAssistantWidget` integration、provider registration、WidgetConfiguration、HostCallbacks、widget mount / unmount、route / entity / selectedRows update、sessionId handoff、approval detail callback，以及 Backend 001 Compatibility Mode flow；目前 repo 的 Nuxt app 為 v1 reference consumer / preview harness。
 - **FR-049**: 這個 reference consumer acceptance MUST 能在 Backend 002 未完成時獨立通過，且 reference consumer MUST 只使用 package 的正式公開 entry，不得 import package 內部 source path、`./runtime` deep import 或 Frontend 001 internal app path。
-- **FR-050**: package MUST 避免 raw、unsanitized、contract-disallowed business payload 以及 token、credential、secret、raw PageContext 出現在最終送往 backend 的 outgoing request、browser storage、一般 log、telemetry、`sessionStorage` 或 host event payload 中。Forbidden outgoing request fields 包含但不限於 frontend-provided `sourceSystem`、`connector`、`connectorId`、`adapter`、`adapterId`、`dataSource`、`candidateTool`、`candidateTools`、`toolName`、`permissionResult`、`fieldPermissionResult`、`rowPermissionResult`、`finalEvidenceSource`、`rawEvidence`、`rawConnectorPayload`、routing hints、approval navigation metadata、token、credential、secret 與 connection detail。
+- **FR-050**: package MUST 避免 raw、unsanitized、contract-disallowed business payload 以及 token、credential、secret、raw PageContext 出現在任何未核准 outgoing surface、browser storage、一般 log、telemetry、`sessionStorage` 或 host event payload 中。Forbidden outgoing request fields 包含但不限於 frontend-provided `sourceSystem`、`connector`、`connectorId`、`adapter`、`adapterId`、`dataSource`、`candidateTool`、`candidateTools`、`toolName`、`permissionResult`、`fieldPermissionResult`、`rowPermissionResult`、`finalEvidenceSource`、`rawEvidence`、`rawConnectorPayload`、routing hints、approval navigation metadata、token、credential、secret 與 connection detail。唯一 credential-bearing outgoing exception 是 FR-064 定義的 Gateway-v1 Authorization Bearer channel；此例外不放寬其他欄位或 surface。
 - **FR-051**: frontend MUST NOT 擁有 `sourceSystem`、connector、adapter、organization authorization、row / field / operation permission decision authority，也 MUST NOT 自行生成、提升、降低、合併或推導 role / permission scopes；Frontend 002 只可轉送符合 contract 的 sanitized PageContext 與 handoff metadata，Backend 002 仍是 permission enforcement、connector / tool selection、source metadata 與 evidence/source handling 的唯一 source of truth。
 - **FR-052**: Frontend 002 Independent Package Readiness MUST 可在 Backend 002 未完成時完成 build、install、mount、provider / configuration / callbacks integration、session / lifecycle 驗證與 Backend 001 Compatibility Mode flow 驗證；unit / component / integration tests MAY 使用 deterministic test doubles，但 test doubles MUST 對齊被模擬的正式 contract，且 MUST NOT 成為正式 public API。
 - **FR-053**: Backend 002 integration tests MUST 被視為 integration-dependent acceptance，而不是 Frontend 002 package readiness 的阻塞條件；只有 Backend 002 Mode 可宣告 host-aware integration validation。
@@ -350,6 +393,18 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **FR-059**: 現有 repo 的 Nuxt app MUST 作為 v1 Nuxt 4 reference consumer / preview harness 交付形態。
 - **FR-060**: package artifact MUST be installable and usable by a consuming Vue 3 / Nuxt 4 Host App without requiring that app to contain Frontend 001 internal source paths such as `app/features`, `app/services`, `app/stores`, or `app/utils`.
 - **FR-061**: package public exports MUST NOT expose `./runtime`, `./runtime/*`, adapter internals, Frontend 001 internal paths, unresolved monorepo-relative `app/**` imports, or any private runtime bridge; package consumers MUST use only documented SDK public entries.
+- **FR-062 — GATEWAY_V1_OFFICIAL_MODE**: package MUST 將 `gateway-v1` 定義為 opt-in 第三個正式 integration mode，正式 mode count MUST 為 3，且 global/default mode MUST 維持 `backend001-compatibility`。
+- **FR-063 — OPAQUE_ACCESS_TOKEN_PROVIDER**: package root public contract MUST 提供 `AssistantAccessTokenProvider = () => string | null | undefined | Promise<string | null | undefined>`、`MountOptions.getAccessToken?: AssistantAccessTokenProvider` 與 `integrationMode: "gateway-v1"`；SDK MUST 只把 provider value 視為 opaque Host credential，MUST NOT public-export `resolveAccessToken`、`accessTokenResolver`、Gateway internal transport helpers 或 credential internals。
+- **FR-064 — AUTHORIZATION_BEARER_ALLOWED_CHANNEL**: Gateway-v1 對四個固定 built-in HTTP operations MUST 在每個 operation 前重新解析 opaque Host credential，且唯一允許的 credential-bearing outgoing channel MUST 是 server-owned Gateway-v1 transport 建構的 `Authorization: Bearer <opaque Host credential>` header；credential MUST NOT 出現在 generic arbitrary headers。
+- **FR-065 — NO_CREDENTIAL_BODY**: token、credential、secret 與 `refreshToken` MUST NOT 進入任何 Gateway-v1 或其他 mode 的 JSON/request body。
+- **FR-066 — NO_CREDENTIAL_PAGE_CONTEXT**: token、credential、secret 與 `refreshToken` MUST NOT 進入 `PageContext`、selected rows、Host Context 或 provider context。
+- **FR-067 — NO_CREDENTIAL_METADATA**: token、credential、secret 與 `refreshToken` MUST NOT 進入 transport metadata、callback payload、request routing metadata、host events 或 generic header maps。
+- **FR-068 — NO_CREDENTIAL_URL**: token、credential、secret 與 `refreshToken` MUST NOT 進入 URL、path、query 或 hash。
+- **FR-069 — NO_CREDENTIAL_LOGGING**: SDK MUST NOT 將 opaque Host credential、`refreshToken` 或 credential provider raw error 寫入 log、console、analytics、telemetry、diagnostic 或 user-safe error output。
+- **FR-070 — NO_CREDENTIAL_PERSISTENCE**: SDK MUST NOT 將 opaque Host credential 或 `refreshToken` 保存於 browser storage、cookie、IndexedDB、session fallback、SDK state persistence 或跨 transport-operation cache；Host credential lifecycle policy remains outside the SDK。
+- **FR-071 — NO_REFRESH_TOKEN_GATEWAY**: Gateway-v1 SDK MUST NEVER accept, resolve, refresh, inspect, persist, log or transmit a `refreshToken`。
+- **FR-072 — NO_FRONTEND_IDENTITY_AUTHORITY**: Gateway-v1 credential transport MUST NOT authorize frontend/SDK to construct or infer `customerId`、`integrationId`、`organizationId`、`actorId`、roles、permission scopes、Customer、Entry authority、backend internal JWT、connector authority 或 backend routing authority；Gateway retains upstream identity verification and the server-side trust chain。
+- **FR-073 — FINAL_GATEWAY_HEADER_SECURITY_TEST**: security validation MUST inspect final constructed Gateway-v1 headers after credential resolution, MUST prove Authorization Bearer is allowed only for Gateway-v1, and MUST separately prove every FR-065–FR-072 forbidden surface remains blocked。Static/source guards MUST distinguish ephemeral internal credential state from actual outgoing serialization/assignment sinks。
 
 ### Key Entities *(include if feature involves data)*
 
@@ -361,9 +416,11 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **Session Scope**: 用於區分 `global`、`page`、`entity` 三種 session ownership 與 fallback namespace 行為的 Frontend 002 local-only 範圍模型；`sessionScope` 不得序列化進 backend request body、headers、PageContext、hidden prompt、message text、transport metadata 或 HostCallbacks payload。
 - **Host-managed Session**: 由 Host App 明確提供與切換的 sessionId，優先於 package fallback session；它只可作為既有 assistant session ownership / resume hint，不是 backend identity、permission、organization 或 capability authority。
 - **Package Fallback Session**: 當 Host App 沒有提供 sessionId，且 mode / namespace / storage 條件符合時，由 package 在 `sessionStorage` 中以 package namespace、host、organization、scope 與 page/entity identity 隔離保存的 session pointer；若 provider 缺少 organization identifier，package 不得建立 organization-scoped persistent fallback；若 `sessionStorage` 不可用，僅允許 same-runtime memory-only continuity。這些都只屬於 frontend continuity，不得被當作 Backend 001 / 002 identity proof。
-- **Mode-tiered Provider Matrix**: Frontend 002 依 Backend 001 Compatibility Mode 與 Backend 002 Mode 定義不同 required / optional / local-only / omitted / invalid 欄位的模式矩陣；測試 doubles 不得形成第三套 provider contract。
+- **Mode-tiered Provider Matrix**: Frontend 002 依 Backend 001 Compatibility Mode、Backend 002 Mode 與 Gateway-v1 Mode 定義不同 required / optional / local-only / omitted / invalid 欄位的模式矩陣；測試 doubles 不得形成第四套 provider contract。
 - **Backend 001 Compatibility Mode**: Frontend 002 integration / request-builder / provider validation mode，不要求 backend 新增 Host Integration 欄位，用於 package readiness 與既有聊天流程驗證；它不是 backend request mode。
 - **Backend 002 Mode**: Frontend 002 integration / request-builder / provider validation mode，用於 integration-dependent 驗證 package 可送出符合 contract 的 sanitized context，並消費 backend 回傳的 host-aware clarification、permission-safe evidence、backend-derived source metadata 與 safe outcomes；它不是 backend request mode。
+- **Gateway-v1 Mode**: opt-in Frontend 002 integration / request-builder / transport mode，僅使用四個固定 Gateway routes，並以 per-operation opaque Host credential 建構唯一允許的 Authorization Bearer channel；它不建立 frontend identity authority 或 generic proxy。
+- **AssistantAccessTokenProvider**: Gateway-v1 root public contract；每個 Gateway operation 前重新解析 string/null/undefined 或其 Promise。SDK 不 decode、不 inspect claims、不 infer authority、不 refresh、不 cache、不 persist、不 log。
 - **Package Readiness**: 不依賴 Backend 002 也能完成的前端 package 層級整合狀態，包含 build、install、mount、provider / configuration / callbacks、session、Backend 001 Compatibility Mode smoke 與 cleanup 驗證。
 - **Full Host-aware Integration**: 依賴 Backend 002 的 host-aware end-to-end 整合狀態，包含 context normalization、capability governance、PageContext policy、permission boundary、permission-safe evidence、backend-derived source metadata 與 safe outcomes。
 
@@ -377,7 +434,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **SC-004**: 在 Host App 提供 host-managed sessionId 與未提供 sessionId 兩種模式下，widget 都能以可預期方式建立、切換或還原 session；若 provider 缺少安全 fallback 所需的 organization identifier，package 會停止建立不安全的 persistent fallback，但這只影響 frontend continuity，不代表 Backend 001 required identity context 已被滿足。
 - **SC-005**: package fallback session 在不同 Host App、不同 organization、不同 scope 與不同 entity 間不會交叉污染，且 organization 切換不會恢復舊 organization 的 session pointer；符合 fallback 前提時會使用 `sessionStorage` fallback，不符合前提時不會建立 persistent fallback；Backend 001 Compatibility Mode 缺少 provider-level organization identifier 時不會建立 persistent fallback，但若最終 outgoing request 缺少 Backend 001 required organization identity，request 也不會被送出；Backend 002 Mode 缺少 required identity / permission context 時會直接 fail closed。
 - **SC-006**: widget unmount、destroy 或 organization 切換後，不會留下可觀察的 SSE、listener、timer、observer 或 post-unmount state update。
-- **SC-007**: raw、unsanitized、contract-disallowed business payload，以及 token、credential、secret、raw PageContext，不會出現在最終送往 backend 的 outgoing request、browser storage、一般 log 或 host event payload 中；Frontend 002 也不會由 route、visibleColumns、selectedRows 或 PageContext 自行生成或推導 permission scopes。
+- **SC-007**: raw、unsanitized、contract-disallowed business payload，以及 token、credential、secret、raw PageContext，不會出現在任何未核准 outgoing surface、browser storage、一般 log 或 host event payload 中；唯一例外是 Gateway-v1 final request 的 Authorization Bearer opaque Host credential。Frontend 002 也不會由 route、visibleColumns、selectedRows、PageContext 或 credential 自行生成或推導 identity / permission authority。
 - **SC-008**: 透過 Backend 001 Compatibility Mode，Host App 可獨立驗證 session、message、history、SSE、AnswerDecision、EvidenceRef、feedback 與 error / retry / interrupted flow，而不需 Backend 002 已完成；若使用 test doubles，仍必須對齊正式 contract。
 - **SC-009**: Frontend 001 的 session、SSE、history、EvidenceRef、feedback 與 risk-state runtime 行為沒有被 Frontend 002 package 化重新發明或破壞。
 - **SC-010**: package readiness 與 full host-aware integration 的完成狀態可被明確區分，且 Backend 002 未完成時仍能宣告 package 層級的整合 readiness。
@@ -389,6 +446,9 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - **SC-016**: `sessionStorage` 不可用時，package 會改採 same-runtime-only memory-only fallback，不會靜默改用 `localStorage` 或 cookie；full reload、新 tab 或新 runtime 不會延續舊 continuity。
 - **SC-017**: approval detail callback 只會暴露 `approvalRequestId`、`sessionId`、`messageId`；不會暴露完整 ApprovalRequest internal object、raw business data、token、credential、raw SSE payload、approval detail 導航目標或 package 推導的 Host App navigation data。
 - **SC-018**: Frontend 002 以 repo workspace package 交付時，reference consumer 仍只會透過 Frontend 002 public entry 整合 assistant widget，不需要也不能依賴 Frontend 001 internal path。
+- **SC-019**: root public contract 可辨識 3 個且僅 3 個正式 integration modes，`gateway-v1` 必須 opt-in，省略 mode 時 100% 維持 `backend001-compatibility`；`AssistantAccessTokenProvider` 與 `MountOptions.getAccessToken` 可由 root type entry 使用，但 resolver / Gateway helpers 無法由 public entry import。
+- **SC-020**: 對 create session、get session、load history、stream message 四個 Gateway-v1 operations 的驗證中，credential provider call count 必須等於實際 operation count，且 100% credential-bearing request 只在 final `Authorization: Bearer` header 出現；body、PageContext、provider context、metadata、callback、URL/query/hash、message/hidden prompt、routing metadata、log、telemetry 與 persistence 的 credential occurrence 必須為 0。
+- **SC-021**: Gateway-v1 security validation 必須涵蓋 final constructed headers、provider unavailable/error、`refreshToken` rejection、ephemeral internal resolver state allowance與 backend-authority field rejection；任何非 Gateway-v1 Authorization credential channel 都必須 fail closed。
 
 ## Open Clarifications
 
@@ -422,6 +482,7 @@ Package 不得造成敏感 context、session、listener、SSE 或 CSS 在不同 
 - npm-compatible package artifact。
 - installable package artifact boundary。
 - package public exports 與 public types。
+- opt-in Gateway-v1 integration mode、`AssistantAccessTokenProvider`、`MountOptions.getAccessToken` 與固定 Gateway-v1 HTTP contract。
 - public / internal export boundary。
 - Vue 3 component exports。
 - Nuxt 4 consumer compatibility。
