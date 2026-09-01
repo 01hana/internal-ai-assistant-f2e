@@ -298,7 +298,7 @@ describe("Frontend 002 AssistantWidget session bootstrap parity", () => {
     expect(globalThis.sessionStorage.getItem(namespace.namespace)).toBe("session-fresh-001");
   });
 
-  it("fails closed for an invalid host candidate, but replaces an invalid storage candidate", async () => {
+  it("fails closed for invalid host and storage candidates unless storage is conclusively missing", async () => {
     const getSession = vi.fn(async () => ({
       ok: false as const,
       error: { code: "transport_execution_failed", userMessage: "integration error" },
@@ -354,10 +354,47 @@ describe("Frontend 002 AssistantWidget session bootstrap parity", () => {
       transport,
     });
 
-    await expect(storageAdapter.bootstrapSession()).resolves.toEqual({ ok: true, sessionId: "session-replacement-001" });
+    await expect(storageAdapter.bootstrapSession()).resolves.toEqual({
+      error: {
+        code: "session_restore_failed",
+        safeMessage: "目前無法還原指定的助理對話，請稍後再試。",
+      },
+      ok: false,
+    });
     expect(getSession).toHaveBeenLastCalledWith({ sessionId: "storage-stale-001" });
-    expect(createSession).toHaveBeenCalledTimes(1);
-    expect(globalThis.sessionStorage.getItem(namespace.namespace)).toBe("session-replacement-001");
+    expect(createSession).not.toHaveBeenCalled();
+    expect(globalThis.sessionStorage.getItem(namespace.namespace)).toBe("storage-stale-001");
+  });
+
+  it("keeps a validated restored session ready when history loading fails", async () => {
+    const getSession = vi.fn(async () => ({
+      ok: true as const,
+      value: { sessionId: "session-history-available-001", status: "active" },
+    }));
+    const loadHistory = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: "transport_execution_failed", userMessage: "integration error" },
+    }));
+    const transport = {
+      ...createDefaultTransport({ integrationMode: "backend001-compatibility" }),
+      getSession,
+      loadHistory,
+    };
+    const adapter = createSdkRuntimeAdapter({
+      pinia: createPinia(),
+      provider: async () => ({ hostApp: "sdk-history-failure", sessionId: "session-history-available-001" }),
+      runtimeScope: "sdk-bootstrap:history-failure",
+      transport,
+    });
+
+    await expect(adapter.bootstrapSession()).resolves.toEqual({ ok: true, sessionId: "session-history-available-001" });
+    expect(adapter.controller.stores.session.status.value).toBe("ready");
+    expect(adapter.controller.stores.session.lastError.value).toEqual({
+      code: "history_unavailable",
+      safeMessage: "對話紀錄暫時無法載入。",
+    });
+    expect(getSession).toHaveBeenCalledWith({ sessionId: "session-history-available-001" });
+    expect(loadHistory).toHaveBeenCalledWith({ sessionId: "session-history-available-001" }, expect.any(Object));
   });
 
   it("uses one provider snapshot for create request context", async () => {

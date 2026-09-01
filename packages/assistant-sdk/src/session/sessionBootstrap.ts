@@ -158,7 +158,7 @@ export function createSdkSessionBootstrap(options: SessionBootstrapOptions) {
         const response = await options.transport.getSession({ sessionId: candidate.sessionId });
 
         if (!response.ok || !isUsableSession(response.value)) {
-          if (candidate.source === "storage") {
+          if (candidate.source === "storage" && !response.ok && response.error.code === "session_not_found") {
             storedSession?.storage.clear({ namespace: storedSession.namespace });
             continue;
           }

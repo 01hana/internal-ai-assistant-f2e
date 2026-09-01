@@ -173,6 +173,73 @@ Authenticated identity headers、organization / actor handoff、request correlat
 
 `backend002` / Host Integration Mode 是 gated acceptance path。若缺少正式 contract-backed integration capability，SDK 會 fail closed，不會把 Compatibility Mode 改成模糊的 host-aware request body，也不會自行推論 tenant、permission、connector 或 backend authority。
 
+## Gateway-v1 integration
+
+`gateway-v1` 是 opt-in 的 Gateway integration mode。它使用同一個 `apiBaseUrl` 設定，並由 host 提供 request-scoped 的 upstream access token；全域預設仍是 `backend001-compatibility`。
+
+```ts
+import { mountAssistantWidget } from "@ideaxpress/assistant-sdk";
+import "@ideaxpress/assistant-sdk/styles.css";
+
+const assistant = mountAssistantWidget({
+  target: "#assistant-root",
+  provider: async () => ({
+    hostApp: "customer-host",
+    pageContext: {
+      route: window.location.pathname,
+      entityType: "order",
+      entityId: currentOrderId,
+    },
+  }),
+  getAccessToken: async () => hostAuthStore.accessToken,
+  configuration: {
+    integrationMode: "gateway-v1",
+    apiBaseUrl: "/api/v1",
+    sessionScope: "entity",
+  },
+});
+```
+
+`getAccessToken` 提供的是 Host upstream access token。SDK 會在每一個 Gateway request 前重新呼叫 provider，並且只將結果放進 `Authorization: Bearer <token>` header。SDK 不 decode JWT、不讀 claims、不推導 Customer、不建立 Backend internal JWT，也不保存或快取 token。
+
+Gateway 負責驗證 upstream Host identity，依 IntegrationBinding 決定 Customer，並另行為 Backend 建立 internal JWT。Browser 永遠不應取得 Gateway → Backend 的 internal JWT。此 SDK capability ready 不代表任何特定 Customer Host token 已相容；token signing algorithm、issuer、audience、JWKS、Gateway required claims 與 IntegrationBinding provisioning 仍須由實際 Host/Gateway integration 驗證。
+
+### Gateway-v1 HTTP surface
+
+Gateway-v1 正式支援以下四個 Host-facing operations；所有 request 都使用 request-scoped upstream `Authorization`：
+
+| Operation | Method | Route |
+| --- | --- | --- |
+| createSession | POST | `/api/v1/assistant/sessions` |
+| getSession / restore | GET | `/api/v1/assistant/sessions/:sessionId` |
+| loadHistory | GET | `/api/v1/assistant/sessions/:sessionId/messages` |
+| streamMessage / conversation SSE | POST | `/api/v1/assistant/sessions/:sessionId/messages` |
+
+Gateway-v1 沒有 SDK-owned Gateway ingress for feedback, approval, action confirmation, cancel endpoint，或其他 Shared Runtime operations。SDK 不會 invent route，也不會 fallback 直接呼叫 Backend。
+
+### Gateway-v1 session restore
+
+- 沒有 session candidate 時，widget 建立新 session。
+- stored session candidate 會先 remote validate，再載入 history 並 render 既有對話。
+- stored candidate 明確得到 404 時，SDK 清除 stale pointer 後建立 fresh session。
+- temporary auth、network 或 Gateway/downstream failure 時，SDK 保留 stored pointer 並 fail closed；不會 silent replace conversation。
+- Host-provided session candidate 必須 remote validate；任何 validation failure 都不會自動替換 session。
+- valid session 的 history 暫時無法載入時，session 仍保持可用，pointer 也會保留。
+
+### Gateway-v1 pageContext and identity boundary
+
+`provider()` 可以供應 `pageContext`、local session namespace context 與 Host UI context。Gateway-v1 的 wire contract 只送出 sanitized page context：
+
+```json
+// create
+{ "pageContext": {} }
+
+// send
+{ "message": "...", "pageContext": {} }
+```
+
+Browser context 的 `actorId`、`organizationId`、`hostApp`、`roles`、`permissionScopes`、`customerId` 與 `integrationId` 都不是 trusted Backend authority，且不會被 SDK serialise 到 Gateway-v1 create/send body。Customer authority 只屬於 Gateway IntegrationBinding。
+
 ## Session lifecycle
 
 每個 widget instance 維持隔離的 local runtime state。多個 widget 可以顯式指向同一個 backend `sessionId`，但共享 backend session 不等於共享 Pinia/runtime instance。
@@ -224,7 +291,7 @@ mountAssistantWidget({
 });
 ```
 
-若獨立 package consumer 已有自己的 Gateway endpoint，可由 host/deployment configuration 顯式提供 HTTP(S) `apiBaseUrl`。此值只能是 endpoint；不要放入 token、credential、tenant 或 permission data。
+若獨立 package consumer 已有自己的 Gateway endpoint，可由 host/deployment configuration 顯式提供 HTTP(S) `apiBaseUrl`，例如 `http://localhost:4000/api/v1` 用於 local direct Gateway integration。此值只能是 endpoint；不要放入 token、credential、tenant 或 permission data。不要新增 `gatewayUrl`、`backendUrl` 或 `gatewayBaseUrl`；也不要把 Backend `localhost:3000` 當作 Gateway-v1 browser target。
 
 ## Troubleshooting
 

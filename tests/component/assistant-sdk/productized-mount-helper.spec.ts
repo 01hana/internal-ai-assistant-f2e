@@ -140,6 +140,22 @@ describe("Frontend 002 productized mountAssistantWidget helper", () => {
     target.remove();
   });
 
+  it("accepts an opaque access-token provider without resolving it during mount", async () => {
+    const target = createTarget();
+    const getAccessToken = vi.fn(() => "mount-token");
+    const handle = mountAssistantWidget({
+      configuration: { integrationMode: "gateway-v1" },
+      getAccessToken,
+      provider: async () => ({ hostApp: "gateway-v1-mount" }),
+      target,
+    });
+
+    await flushWidgetMount();
+    expect(getAccessToken).not.toHaveBeenCalled();
+    handle.destroy();
+    target.remove();
+  });
+
   it("unmounts and destroys idempotently while removing only the SDK-created root", async () => {
     const target = createTarget();
     const hostContent = document.createElement("span");

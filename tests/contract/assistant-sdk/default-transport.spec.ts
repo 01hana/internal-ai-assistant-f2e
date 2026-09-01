@@ -7,6 +7,7 @@ import {
 import {
   assistantRuntimeTransportOperationNames,
   assistantRuntimeTransportOwnership,
+  supportsAssistantRuntimeRemoteRestoration,
   type AssistantRuntimeTransportPort,
 } from "../../../packages/assistant-runtime/src/transport/ports";
 
@@ -271,6 +272,325 @@ describe("Frontend 002 default transport adapter boundary", () => {
     }
   });
 
+  it("uses Gateway-v1 JSON routes, opaque request-scoped authorization, and a create-only pageContext payload", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const getAccessToken = vi.fn()
+      .mockResolvedValueOnce("token-A")
+      .mockResolvedValueOnce(" token-B ")
+      .mockResolvedValueOnce("token-C");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      data: { sessionId: "session-001", status: "active" },
+      requestId: "gateway-request-001",
+    }), {
+      headers: { "content-type": "application/json" },
+      status: 200,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({
+        apiBaseUrl: "http://localhost:4000/api/v1/",
+        getAccessToken,
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+
+      await transport.createSession({
+        pageContext: {
+          entityId: "order-001",
+          entityType: "order",
+          selectedRows: [{ id: "order-001", label: "SO-001" }],
+        },
+      });
+      await transport.getSession?.({ sessionId: " session/001 " });
+      await transport.loadHistory?.({ sessionId: "session-001", cursor: "next cursor" });
+
+      expect(getAccessToken).toHaveBeenCalledTimes(3);
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        "http://localhost:4000/api/v1/assistant/sessions",
+        "http://localhost:4000/api/v1/assistant/sessions/session%2F001",
+        "http://localhost:4000/api/v1/assistant/sessions/session-001/messages?cursor=next%20cursor",
+      ]);
+
+      const [createInit, getInit, historyInit] = fetchMock.mock.calls.map(([, init]) => init as RequestInit);
+      const createHeaders = new Headers(createInit?.headers);
+      const getHeaders = new Headers(getInit?.headers);
+      const historyHeaders = new Headers(historyInit?.headers);
+
+      expect(createInit).toMatchObject({ method: "POST" });
+      expect(JSON.parse(String(createInit?.body))).toEqual({
+        pageContext: {
+          entityId: "order-001",
+          entityType: "order",
+          selectedRows: [{ id: "order-001", label: "SO-001" }],
+        },
+      });
+      expect(createHeaders.get("authorization")).toBe("Bearer token-A");
+      expect(createHeaders.get("accept")).toBe("application/json");
+      expect(createHeaders.get("content-type")).toBe("application/json");
+      expect(createHeaders.get("x-request-id")).toEqual(expect.any(String));
+
+      for (const headerName of [
+        "x-actor-id",
+        "x-organization-id",
+        "x-host-app",
+        "x-role",
+        "x-permission-scopes",
+        "x-customer-id",
+        "x-integration-id",
+      ]) {
+        expect(createHeaders.get(headerName)).toBeNull();
+      }
+
+      expect(getInit).toMatchObject({ method: "GET" });
+      expect(getInit?.body).toBeUndefined();
+      expect(getHeaders.get("authorization")).toBe("Bearer token-B");
+      expect(getHeaders.get("accept")).toBe("application/json");
+      expect(getHeaders.get("content-type")).toBeNull();
+
+      expect(historyInit).toMatchObject({ method: "GET" });
+      expect(historyInit?.body).toBeUndefined();
+      expect(historyHeaders.get("authorization")).toBe("Bearer token-C");
+      expect(historyHeaders.get("accept")).toBe("application/json");
+      expect(historyHeaders.get("content-type")).toBeNull();
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fails closed before Gateway-v1 JSON fetch when the access token is unavailable", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const missingTokenTransport = createDefaultTransport({ integrationMode: "gateway-v1" }) as DefaultTransport;
+      const throwingTokenTransport = createDefaultTransport({
+        getAccessToken: () => {
+          throw new Error("raw-token-error");
+        },
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+
+      await expect(missingTokenTransport.createSession({})).resolves.toMatchObject({
+        error: { code: "authentication_unavailable", userMessage: "integration error" },
+        ok: false,
+      });
+      await expect(throwingTokenTransport.getSession?.({ sessionId: "session-001" })).resolves.toMatchObject({
+        error: { code: "authentication_unavailable", userMessage: "integration error" },
+        ok: false,
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ["get", 404, "session_not_found"],
+    ["history", 404, "session_not_found"],
+    ["get", 401, "authentication_unavailable"],
+    ["history", 401, "authentication_unavailable"],
+    ["get", 403, "transport_forbidden"],
+    ["history", 403, "transport_forbidden"],
+    ["get", 503, "transport_execution_failed"],
+    ["history", 503, "transport_execution_failed"],
+  ] as const)("classifies Gateway-v1 %s JSON status %i without exposing its raw body", async (operation, status, code) => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      diagnostics: "internal gateway stack",
+      customerData: "customer-secret",
+    }), {
+      headers: { "content-type": "application/json" },
+      status,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({
+        getAccessToken: () => "token-gateway",
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+      const result = operation === "get"
+        ? await transport.getSession?.({ sessionId: "session-001" })
+        : await transport.loadHistory?.({ sessionId: "session-001" });
+
+      expect(result).toMatchObject({ error: { code, userMessage: "integration error" }, ok: false });
+      expect(JSON.stringify(result)).not.toMatch(/internal gateway stack|customer-secret/);
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps malformed Gateway-v1 JSON and network errors in the generic safe failure class", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const malformedFetch = vi.fn(async () => new Response("not-json", { status: 200 }));
+    vi.stubGlobal("fetch", malformedFetch);
+
+    try {
+      const transport = createDefaultTransport({
+        getAccessToken: () => "token-gateway",
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+      await expect(transport.getSession?.({ sessionId: "session-001" })).resolves.toMatchObject({
+        error: { code: "transport_execution_failed" },
+        ok: false,
+      });
+
+      vi.stubGlobal("fetch", vi.fn(async () => {
+        throw new Error("network diagnostic");
+      }));
+      await expect(transport.getSession?.({ sessionId: "session-001" })).resolves.toMatchObject({
+        error: { code: "transport_execution_failed" },
+        ok: false,
+      });
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("exposes remote restoration only for Compatibility Mode and Gateway-v1", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const compatibility = createDefaultTransport() as AssistantRuntimeTransportPort;
+    const gateway = createDefaultTransport({ integrationMode: "gateway-v1" }) as AssistantRuntimeTransportPort;
+    const backend002 = createDefaultTransport({ integrationMode: "backend002" }) as AssistantRuntimeTransportPort;
+
+    expect(supportsAssistantRuntimeRemoteRestoration(compatibility)).toBe(true);
+    expect(supportsAssistantRuntimeRemoteRestoration(gateway)).toBe(true);
+    expect(supportsAssistantRuntimeRemoteRestoration(backend002)).toBe(false);
+  });
+
+  it("opens Gateway-v1 SSE with a fresh token, a sanitized message body, and the runtime abort signal", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const getAccessToken = vi.fn()
+      .mockResolvedValueOnce("token-A")
+      .mockResolvedValueOnce("token-B")
+      .mockResolvedValueOnce("token-C")
+      .mockResolvedValueOnce("token-D");
+    const stream = new ReadableStream<Uint8Array>();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => (
+      init?.headers && new Headers(init.headers).get("accept") === "text/event-stream"
+        ? new Response(stream, {
+            headers: { "content-type": "text/event-stream" },
+            status: 200,
+          })
+        : new Response(JSON.stringify({ data: { sessionId: "session-001", status: "active" } }), {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          })
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({
+        getAccessToken,
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+      const controller = new AbortController();
+
+      await transport.createSession({});
+      await transport.getSession?.({ sessionId: "session-001" });
+      await transport.loadHistory?.({ sessionId: "session-001" });
+      const result = await transport.streamMessage({
+        message: "請摘要目前頁面",
+        pageContext: {
+          entityId: "order-001",
+          selectedRows: [{ id: "order-001", label: "SO-001" }],
+        },
+        sessionId: "session/001",
+      }, { signal: controller.signal });
+
+      expect(result).toEqual({ ok: true, value: stream });
+      expect(getAccessToken).toHaveBeenCalledTimes(4);
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        "/api/v1/assistant/sessions/session%2F001/messages",
+        expect.objectContaining({
+          method: "POST",
+          signal: controller.signal,
+        }),
+      );
+
+      const streamInit = fetchMock.mock.calls[3]?.[1] as RequestInit;
+      const headers = new Headers(streamInit.headers);
+      const body = JSON.parse(String(streamInit.body));
+
+      expect(headers.get("authorization")).toBe("Bearer token-D");
+      expect(headers.get("accept")).toBe("text/event-stream");
+      expect(headers.get("content-type")).toBe("application/json");
+      expect(headers.get("x-request-id")).toEqual(expect.any(String));
+      expect(body).toEqual({
+        message: "請摘要目前頁面",
+        pageContext: {
+          entityId: "order-001",
+          selectedRows: [{ id: "order-001", label: "SO-001" }],
+        },
+      });
+      expect(JSON.stringify(body)).not.toMatch(/sessionId|actorId|organizationId|hostApp|customerId|integrationId|role|roles|permissionScopes|token|credential|authorization/i);
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    undefined,
+    () => "   ",
+    () => {
+      throw new Error("raw-token-error");
+    },
+    async () => Promise.reject(new Error("raw-token-error")),
+  ] as const)("fails closed before Gateway-v1 SSE fetch when its token is unavailable", async (getAccessToken) => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({ getAccessToken, integrationMode: "gateway-v1" }) as DefaultTransport;
+
+      await expect(transport.streamMessage({
+        message: "請摘要目前頁面",
+        sessionId: "session-001",
+      })).resolves.toMatchObject({
+        error: { code: "authentication_unavailable", userMessage: "integration error" },
+        ok: false,
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps gateway-v1 sendMessage unavailable without an injected executor", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({
+        getAccessToken: () => "token-unused",
+        integrationMode: "gateway-v1",
+      }) as DefaultTransport;
+
+      await expect(transport.sendMessage({
+        message: "請摘要目前頁面",
+        sessionId: "session-001",
+      })).resolves.toMatchObject({
+        error: { code: "transport_unavailable" },
+        ok: false,
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("fails closed without a real session ID and never creates a pending session route", async () => {
     const { createDefaultTransport } = await loadDefaultTransportContract();
     const fetchMock = vi.fn();
@@ -360,6 +680,7 @@ describe("Frontend 002 default transport adapter boundary", () => {
   it("preserves frontend mode values as request-builder inputs, not backend routes or transport-owned modes", () => {
     expect(frontendIntegrationModes).toContain("Backend 001 Compatibility Mode");
     expect(frontendIntegrationModes).toContain("Backend 002 Mode");
+    expect(frontendIntegrationModes).toContain("Gateway-v1 Mode");
     expect(createPackageBuiltRequest().request).not.toHaveProperty("integrationMode");
     expect(createPackageBuiltRequest().request).not.toHaveProperty("backendRequestMode");
   });

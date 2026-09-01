@@ -2,6 +2,7 @@ export { default as AssistantWidget } from "./components/AssistantWidget.vue";
 export { mountAssistantWidget } from "./mountAssistantWidget";
 
 export type {
+  AssistantAccessTokenProvider,
   AssistantHostContextProvider,
   HostCallbacks,
   HostEvents,

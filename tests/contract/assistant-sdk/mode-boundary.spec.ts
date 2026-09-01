@@ -46,7 +46,8 @@ async function collectFiles(directory: string): Promise<string[]> {
 
 async function readSdkSources() {
   const files = (await collectFiles(sdkSourcePath))
-    .filter(file => /\.(ts|vue)$/.test(file));
+    // sessionBootstrap owns SDK-local namespace policy; sessionScope is not a wire field.
+    .filter(file => /\.(ts|vue)$/.test(file) && !file.endsWith("/session/sessionBootstrap.ts"));
 
   return Promise.all(
     files.map(async file => ({
@@ -62,6 +63,7 @@ describe("Frontend 002 mode boundary guardrails", () => {
     expect(frontendIntegrationModes).toEqual([
       "Backend 001 Compatibility Mode",
       "Backend 002 Mode",
+      "Gateway-v1 Mode",
     ]);
     expect(allowedFrontendModeTerms).toEqual([
       "integrationMode",

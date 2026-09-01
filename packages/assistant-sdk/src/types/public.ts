@@ -1,6 +1,10 @@
 import type { WidgetConfiguration } from "./widgetConfiguration";
 
-export type IntegrationMode = "backend001-compatibility" | "backend002";
+export type { IntegrationMode } from "./integrationMode";
+
+/** Opaque Host credential provider for Gateway-v1 built-in requests. */
+export type AssistantAccessTokenProvider =
+  () => string | null | undefined | Promise<string | null | undefined>;
 
 export type SanitizedPrimitive = string | number | boolean | null;
 
@@ -86,6 +90,7 @@ export type HostEvents =
 export interface MountOptions {
   readonly target: Element | string;
   readonly provider: AssistantHostContextProvider;
+  readonly getAccessToken?: AssistantAccessTokenProvider;
   readonly configuration?: WidgetConfiguration;
   readonly callbacks?: HostCallbacks;
 }

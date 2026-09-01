@@ -139,6 +139,7 @@ export const formalPublicExportNames = [
   "MountOptions",
   "MountHandle",
   "SafeError",
+  "AssistantAccessTokenProvider",
   "SanitizedPageContext",
 ] as const;
 
@@ -183,6 +184,7 @@ export const forbiddenPackageExports = [
 export const frontendIntegrationModes = [
   "Backend 001 Compatibility Mode",
   "Backend 002 Mode",
+  "Gateway-v1 Mode",
 ] as const;
 
 export const allowedFrontendModeTerms = [

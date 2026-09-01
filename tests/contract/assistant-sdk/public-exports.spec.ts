@@ -12,6 +12,10 @@ import {
 const projectRoot = new URL("../../../", import.meta.url);
 const sdkRootPath = fileURLToPath(new URL("packages/assistant-sdk", projectRoot));
 const sdkRootEntryPath = join(sdkRootPath, "src/index.ts");
+const publicTypesPath = join(sdkRootPath, "src/types/public.ts");
+const widgetConfigurationPath = join(sdkRootPath, "src/types/widgetConfiguration.ts");
+const widgetComponentPath = join(sdkRootPath, "src/components/AssistantWidget.vue");
+const defaultTransportPath = join(sdkRootPath, "src/transport/defaultTransport.ts");
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -58,5 +62,30 @@ describe("Frontend 002 SDK public exports", () => {
     for (const forbiddenPattern of forbiddenRuntimeBridgePublicExportPatterns) {
       expect(source, "Removed legacy runtime bridges must not be public-exported.").not.toMatch(forbiddenPattern);
     }
+  });
+
+  it("exports the opaque access-token provider type without exporting internal auth resolution", async () => {
+    const source = await readFile(sdkRootEntryPath, "utf8");
+
+    expect(source).toContain("AssistantAccessTokenProvider");
+    expect(source).not.toMatch(/accessTokenResolver|resolveAccessToken/);
+  });
+
+  it("keeps Gateway-v1 and request-scoped credentials on the documented public boundary", async () => {
+    const [publicTypes, widgetConfiguration, widgetComponent, defaultTransport] = await Promise.all([
+      readFile(publicTypesPath, "utf8"),
+      readFile(widgetConfigurationPath, "utf8"),
+      readFile(widgetComponentPath, "utf8"),
+      readFile(defaultTransportPath, "utf8"),
+    ]);
+
+    expect(publicTypes).toMatch(/interface MountOptions[\s\S]*getAccessToken\?: AssistantAccessTokenProvider/);
+    expect(widgetComponent).toMatch(/getAccessToken\?: AssistantAccessTokenProvider/);
+    expect(widgetConfiguration).toMatch(/apiBaseUrl\?: string/);
+    expect(widgetConfiguration).toMatch(/integrationMode\?: IntegrationMode/);
+    expect(widgetConfiguration).not.toMatch(/gatewayUrl|gatewayBaseUrl|backendUrl/);
+    expect(defaultTransport).toMatch(/integrationMode \?\? "backend001-compatibility"/);
+    expect(defaultTransport).toContain('"gateway-v1"');
+    expect(defaultTransport).toContain('"backend002"');
   });
 });

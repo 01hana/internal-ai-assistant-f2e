@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createBackend001RequestBuilderInput as createCoreAssistantRequestBuilderInput,
+  createBackend002RequestBuilderInput,
   forbiddenRequestBuilderFields,
 } from "../../fixtures/assistant-sdk/request-builder-fixtures";
 
@@ -102,5 +103,20 @@ describe("Frontend 002 core assistant contract compatibility profile request bui
     expect(containsField(request, "Use sourceSystem")).toBe(false);
     expect(containsField(request, "Use connectorId")).toBe(false);
     expect(containsField(request, "Use token")).toBe(false);
+  });
+
+  it("builds a Gateway-v1 message request without a session or Backend002 authority fields", async () => {
+    const { buildAssistantRequest } = await loadRequestBuilderContract();
+    const input = createBackend002RequestBuilderInput();
+    const request = expectSuccess(await buildAssistantRequest({
+      ...input,
+      integrationMode: "gateway-v1",
+    }));
+
+    expect(request).toEqual({
+      message: "Summarize this order",
+      pageContext: input.hostContext.pageContext,
+    });
+    expect(JSON.stringify(request)).not.toMatch(/sessionId|actorId|organizationId|hostApp|customerId|integrationId|role|permissionScopes|token|credential|authorization/i);
   });
 });

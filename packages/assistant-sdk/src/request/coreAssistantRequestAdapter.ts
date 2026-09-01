@@ -54,3 +54,43 @@ export function buildCoreAssistantRequest(
     request,
   };
 }
+
+/** Gateway-v1 accepts only the message and the already-sanitized page context. */
+export function buildGatewayAssistantRequest(
+  input: AssistantRequestBuildInput,
+): AssistantRequestBuildResult {
+  if (typeof input.message !== "string") {
+    return {
+      error: createRequestBuildError("invalid_message", {
+        userMessage: "integration error",
+      }),
+      ok: false,
+    };
+  }
+
+  const request: Record<string, unknown> = {
+    message: input.message,
+  };
+  const pageContext = readPageContext(input);
+
+  if (pageContext !== undefined) {
+    const sanitizedPageContext = sanitizePageContextForRequest(pageContext);
+
+    if (!sanitizedPageContext.ok) {
+      return {
+        error: createRequestBuildError(sanitizedPageContext.error.code, {
+          field: sanitizedPageContext.error.field,
+          userMessage: "context unavailable",
+        }),
+        ok: false,
+      };
+    }
+
+    request.pageContext = sanitizedPageContext.pageContext;
+  }
+
+  return {
+    ok: true,
+    request,
+  };
+}

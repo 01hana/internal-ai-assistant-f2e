@@ -1,8 +1,11 @@
 import type { TransportFailure } from "./types";
 
 export type TransportErrorCode =
+  | "authentication_unavailable"
   | "forbidden_outgoing_request_field"
+  | "session_not_found"
   | "sse_stream_unavailable"
+  | "transport_forbidden"
   | "transport_execution_failed"
   | "transport_unavailable";
 

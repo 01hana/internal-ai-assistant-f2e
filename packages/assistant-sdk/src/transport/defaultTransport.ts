@@ -13,7 +13,10 @@ import type {
   AssistantRuntimeTransportResult,
 } from "../../../assistant-runtime/src/transport/ports";
 import { buildAssistantRequest } from "../request/requestBuilder";
+import { sanitizePageContextForRequest } from "../request/pageContext";
+import type { AssistantAccessTokenProvider } from "../types/public";
 import { assertOutgoingRequestSafe } from "../request/outgoingRequestBoundary";
+import { resolveAccessToken } from "./accessTokenResolver";
 import { toTransportFailure } from "./transportErrors";
 import type {
   PackageBuiltRequest,
@@ -27,7 +30,9 @@ export type DefaultTransportOptions = {
   readonly apiBaseUrl?: string;
   readonly execute?: SdkTransportExecutor;
   readonly capabilities?: SdkTransportCapabilityMap;
-  readonly integrationMode?: "backend001-compatibility" | "backend002";
+  readonly integrationMode?: "backend001-compatibility" | "backend002" | "gateway-v1";
+  /** Optional opaque Host credential provider for Gateway-v1 built-in requests. */
+  readonly getAccessToken?: AssistantAccessTokenProvider;
 };
 
 type PortResult<T> = AssistantRuntimeTransportResult<T>;
@@ -36,6 +41,7 @@ type CompatibilityFetchRoute =
   | "getSession"
   | "loadHistory"
   | "streamMessage";
+type GatewayFetchRoute = "createSession" | "getSession" | "loadHistory" | "streamMessage";
 
 const COMPATIBILITY_API_PREFIX = "/api/v1";
 
@@ -131,6 +137,21 @@ async function normalizeJsonResponse<T>(response: Response): Promise<PortResult<
   catch {
     return toFailure("transport_execution_failed");
   }
+}
+
+function gatewayJsonFailureCode(response: Response): Parameters<typeof toTransportFailure>[0] {
+  if (response.status === 401) return "authentication_unavailable";
+  if (response.status === 403) return "transport_forbidden";
+  if (response.status === 404) return "session_not_found";
+  return "transport_execution_failed";
+}
+
+async function normalizeGatewayJsonResponse<T>(response: Response): Promise<PortResult<T>> {
+  if (!response.ok) {
+    return toFailure(gatewayJsonFailureCode(response));
+  }
+
+  return await normalizeJsonResponse<T>(response);
 }
 
 function normalizeStreamResponse(value: unknown): PortResult<ReadableStream<Uint8Array>> {
@@ -277,6 +298,16 @@ function getCompatibilityFetch(options: DefaultTransportOptions): typeof fetch |
     : null;
 }
 
+function getGatewayFetch(options: DefaultTransportOptions): typeof fetch | null {
+  if (options.integrationMode !== "gateway-v1") {
+    return null;
+  }
+
+  return typeof globalThis.fetch === "function"
+    ? globalThis.fetch.bind(globalThis)
+    : null;
+}
+
 function createJsonRequestInit(
   method: "GET" | "POST",
   runtimeOptions?: AssistantRuntimeRequestOptions,
@@ -322,6 +353,111 @@ function createCompatibilitySessionMessagesPath(apiBase: string, sessionId: stri
 
 function createCompatibilitySessionPath(apiBase: string, sessionId: string): string {
   return `${apiBase}/assistant/sessions/${encodeURIComponent(sessionId)}`;
+}
+
+function createGatewayHeaders(
+  requestId: string,
+  token: string,
+  accept: "application/json" | "text/event-stream",
+  contentType = false,
+): HeadersInit {
+  return {
+    accept,
+    authorization: `Bearer ${token}`,
+    ...(contentType ? { "content-type": "application/json" } : {}),
+    "x-request-id": requestId,
+  };
+}
+
+function buildGatewayCreatePayload(
+  request: Readonly<Record<string, unknown>>,
+): PortResult<Readonly<Record<string, unknown>>> {
+  if (request.pageContext === undefined) {
+    return { ok: true, value: {} };
+  }
+
+  const sanitizedPageContext = sanitizePageContextForRequest(request.pageContext);
+
+  if (!sanitizedPageContext.ok) {
+    return toFailure("transport_execution_failed");
+  }
+
+  return {
+    ok: true,
+    value: { pageContext: sanitizedPageContext.pageContext },
+  };
+}
+
+async function executeGatewayFetch<T>(
+  options: DefaultTransportOptions,
+  fetchImpl: typeof fetch,
+  apiBase: string,
+  route: GatewayFetchRoute,
+  executionInput: SdkTransportExecutionInput,
+  runtimeOptions?: AssistantRuntimeRequestOptions,
+): Promise<PortResult<T>> {
+  const accessToken = await resolveAccessToken(options.getAccessToken);
+
+  if (!accessToken.ok) {
+    return accessToken as PortResult<T>;
+  }
+
+  try {
+    if (route === "createSession") {
+      const payload = buildGatewayCreatePayload(executionInput.request);
+
+      if (!payload.ok) {
+        return payload as PortResult<T>;
+      }
+
+      return await normalizeGatewayJsonResponse<T>(await fetchImpl(
+        `${apiBase}/assistant/sessions`,
+        {
+          body: JSON.stringify(payload.value),
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json", true),
+          method: "POST",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    if (route === "getSession") {
+      return await normalizeGatewayJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "GET",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    if (route === "loadHistory") {
+      return await normalizeGatewayJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId, executionInput.request.cursor),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "GET",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    const response = await fetchImpl(
+      createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId),
+      {
+        body: JSON.stringify(executionInput.request),
+        headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "text/event-stream", true),
+        method: "POST",
+        signal: runtimeOptions?.signal,
+      },
+    );
+
+    return normalizeStreamResponse(response) as PortResult<T>;
+  }
+  catch {
+    return toFailure("transport_execution_failed");
+  }
 }
 
 async function executeCompatibilityFetch<T>(
@@ -374,6 +510,27 @@ async function executeOperation<T>(
   const executor = selectExecutor(options, operation);
 
   if (typeof executor !== "function") {
+    const gatewayFetch = getGatewayFetch(options);
+
+    if (
+      gatewayFetch
+      && (
+        operation === "createSession"
+        || operation === "getSession"
+        || operation === "loadHistory"
+        || operation === "streamMessage"
+      )
+    ) {
+      return await executeGatewayFetch<T>(
+        options,
+        gatewayFetch,
+        resolveCompatibilityApiBase(options.apiBaseUrl),
+        operation,
+        executionInput,
+        runtimeOptions,
+      );
+    }
+
     const compatibilityFetch = getCompatibilityFetch(options);
 
     if (
@@ -410,7 +567,8 @@ async function executeOperation<T>(
 }
 
 export function createDefaultTransport(options: DefaultTransportOptions = {}) {
-  const supportsLegacyRemoteRestoration = (options.integrationMode ?? "backend001-compatibility") === "backend001-compatibility";
+  const integrationMode = options.integrationMode ?? "backend001-compatibility";
+  const supportsRemoteRestoration = integrationMode === "backend001-compatibility" || integrationMode === "gateway-v1";
   async function send(
     request: PackageBuiltRequest,
     runtimeOptions?: AssistantRuntimeRequestOptions,
@@ -544,7 +702,7 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
       : executionInput;
   }
 
-  const remoteRestoration = supportsLegacyRemoteRestoration
+  const remoteRestoration = supportsRemoteRestoration
     ? { getSession, loadHistory }
     : {};
 

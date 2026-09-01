@@ -24,6 +24,7 @@ import { createMountHandle } from "../lifecycle/mountHandle";
 import { createSdkSessionLifecycleAdapter } from "../session/sessionLifecycle";
 import { createSdkSessionBootstrap } from "../session/sessionBootstrap";
 import type {
+  AssistantAccessTokenProvider,
   AssistantHostContextProvider,
   HostCallbacks,
   IntegrationMode,
@@ -37,6 +38,7 @@ import {
 type SdkRuntimeAdapterOptions = {
   readonly callbacks?: HostCallbacks;
   readonly configuration?: WidgetConfiguration;
+  readonly getAccessToken?: AssistantAccessTokenProvider;
   readonly pinia: Pinia;
   readonly provider: AssistantHostContextProvider;
   readonly runtimeScope: string;
@@ -53,6 +55,7 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     apiBaseUrl: options.configuration?.apiBaseUrl,
     capabilities: options.capabilities,
     execute: options.execute,
+    getAccessToken: options.getAccessToken,
     integrationMode,
   });
   const stores = createAssistantRuntimeStores({

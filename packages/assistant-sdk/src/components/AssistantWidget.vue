@@ -3,6 +3,7 @@
 import { createPinia } from "pinia";
 import { computed, defineAsyncComponent, onBeforeUnmount, shallowRef, type Component } from "vue";
 import type {
+  AssistantAccessTokenProvider,
   AssistantHostContextProvider,
   HostCallbacks,
   WidgetConfiguration,
@@ -15,6 +16,7 @@ const DEFAULT_HOST_CONTEXT_PROVIDER: AssistantHostContextProvider = async () => 
 const props = withDefaults(
   defineProps<{
     provider?: AssistantHostContextProvider;
+    getAccessToken?: AssistantAccessTokenProvider;
     configuration?: WidgetConfiguration;
     callbacks?: HostCallbacks;
   }>(),
@@ -22,6 +24,7 @@ const props = withDefaults(
     provider: undefined,
     configuration: undefined,
     callbacks: undefined,
+    getAccessToken: undefined,
   },
 );
 
@@ -45,6 +48,14 @@ function safeError(code: string, message: string) {
     message,
     userMessage: message,
   };
+}
+
+function readPageContext(context: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> | undefined {
+  const pageContext = context.pageContext;
+
+  return pageContext && typeof pageContext === "object" && !Array.isArray(pageContext)
+    ? pageContext as Readonly<Record<string, unknown>>
+    : undefined;
 }
 
 type SdkRuntimeAdapter = {
@@ -137,6 +148,7 @@ const adapterPromise = loadSdkRuntimeAdapterModule().then((module) => {
   const adapter = module.createSdkRuntimeAdapter({
     callbacks: props.callbacks,
     configuration: props.configuration,
+    getAccessToken: props.getAccessToken,
     pinia: createPinia(),
     provider: props.provider ?? DEFAULT_HOST_CONTEXT_PROVIDER,
     runtimeScope,
@@ -274,7 +286,7 @@ async function sendMessage(message: string) {
 
   await adapter.startMessageStream({
     message: text,
-    pageContext: context,
+    pageContext: readPageContext(context),
     sessionId,
   });
 }

@@ -1,4 +1,4 @@
-import { buildCoreAssistantRequest } from "./coreAssistantRequestAdapter";
+import { buildCoreAssistantRequest, buildGatewayAssistantRequest } from "./coreAssistantRequestAdapter";
 import { buildHostIntegrationRequest } from "./hostIntegrationRequestAdapter";
 import { assertOutgoingRequestSafe } from "./outgoingRequestBoundary";
 import type { AssistantRequestBuildInput, AssistantRequestBuildResult } from "./types";
@@ -51,6 +51,10 @@ export function buildAssistantRequest(
 
   if (buildInput.integrationMode === "backend002") {
     return ensureOutgoingRequestSafe(buildHostIntegrationRequest(buildInput));
+  }
+
+  if (buildInput.integrationMode === "gateway-v1") {
+    return ensureOutgoingRequestSafe(buildGatewayAssistantRequest(buildInput));
   }
 
   return {

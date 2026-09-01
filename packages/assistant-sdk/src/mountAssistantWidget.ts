@@ -97,6 +97,7 @@ export function mountAssistantWidget(options: MountOptions): MountHandle {
     render: () => h(AssistantWidget, {
       callbacks: options.callbacks,
       configuration: options.configuration,
+      getAccessToken: options.getAccessToken,
       provider: options.provider,
       ref: widgetRef,
     }),

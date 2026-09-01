@@ -12,7 +12,7 @@ type ContextResolutionModule = {
     readonly ok: boolean;
   };
   readonly resolveHostContextForRequest: (input: {
-    readonly integrationMode: "backend001-compatibility" | "backend002";
+    readonly integrationMode: "backend001-compatibility" | "backend002" | "gateway-v1";
     readonly operation: "send" | "retry";
     readonly provider: () => unknown | Promise<unknown>;
   }) => Promise<{
