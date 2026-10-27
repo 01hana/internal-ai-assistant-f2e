@@ -506,6 +506,12 @@ describe("Frontend 002 default transport adapter boundary", () => {
 
       expect(result).toEqual({ ok: true, value: stream });
       expect(getAccessToken).toHaveBeenCalledTimes(4);
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        "/api/v1/assistant/sessions",
+        "/api/v1/assistant/sessions/session-001",
+        "/api/v1/assistant/sessions/session-001/messages",
+        "/api/v1/assistant/sessions/session%2F001/messages",
+      ]);
       expect(fetchMock).toHaveBeenLastCalledWith(
         "/api/v1/assistant/sessions/session%2F001/messages",
         expect.objectContaining({
@@ -515,6 +521,17 @@ describe("Frontend 002 default transport adapter boundary", () => {
       );
 
       const streamInit = fetchMock.mock.calls[3]?.[1] as RequestInit;
+      const allInits = fetchMock.mock.calls.map(([, init]) => init as RequestInit);
+      const expectedTokens = ["token-A", "token-B", "token-C", "token-D"];
+
+      allInits.forEach((init, index) => {
+        const serializedCall = JSON.stringify({ body: init.body, headers: [...new Headers(init.headers)], url: fetchMock.mock.calls[index]?.[0] });
+
+        expect(new Headers(init.headers).get("authorization")).toBe(`Bearer ${expectedTokens[index]}`);
+        expect(serializedCall).not.toContain(expectedTokens[(index + 3) % expectedTokens.length]);
+        expect(String(init.body ?? "")).not.toMatch(/token|credential|refreshToken|authorization/i);
+      });
+
       const headers = new Headers(streamInit.headers);
       const body = JSON.parse(String(streamInit.body));
 
@@ -530,6 +547,73 @@ describe("Frontend 002 default transport adapter boundary", () => {
         },
       });
       expect(JSON.stringify(body)).not.toMatch(/sessionId|actorId|organizationId|hostApp|customerId|integrationId|role|roles|permissionScopes|token|credential|authorization/i);
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("resolves a credential for every Gateway-v1 built-in operation and fails closed before fetch when each resolution is blank", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const getAccessToken = vi.fn(() => "   ");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const transport = createDefaultTransport({ getAccessToken, integrationMode: "gateway-v1" }) as DefaultTransport;
+      const results = await Promise.all([
+        transport.createSession({}),
+        transport.getSession?.({ sessionId: "session-001" }),
+        transport.loadHistory?.({ sessionId: "session-001" }),
+        transport.streamMessage({ message: "test", sessionId: "session-001" }),
+      ]);
+
+      expect(getAccessToken).toHaveBeenCalledTimes(4);
+      for (const result of results) {
+        expect(result).toMatchObject({
+          error: { code: "authentication_unavailable", userMessage: "integration error" },
+          ok: false,
+        });
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+    finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps Gateway Authorization provider-specific and ignores arbitrary headers outside the built-in Gateway path", async () => {
+    const { createDefaultTransport } = await loadDefaultTransportContract();
+    const getAccessToken = vi.fn(() => "provider-token");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { sessionId: "session-001" } }), {
+      headers: { "content-type": "application/json" },
+      status: 200,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const compatibility = createDefaultTransport({
+        getAccessToken,
+        headers: {
+          authorization: "Bearer arbitrary-token",
+          "x-access-token": "arbitrary-token",
+        },
+        integrationMode: "backend001-compatibility",
+      }) as DefaultTransport;
+      const backend002 = createDefaultTransport({
+        getAccessToken,
+        headers: { authorization: "Bearer arbitrary-token" },
+        integrationMode: "backend002",
+      }) as DefaultTransport;
+
+      await compatibility.createSession({});
+      await expect(backend002.createSession({})).resolves.toMatchObject({ ok: false });
+
+      expect(getAccessToken).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+      expect(headers.get("authorization")).toBeNull();
+      expect(headers.get("x-access-token")).toBeNull();
     }
     finally {
       vi.unstubAllGlobals();

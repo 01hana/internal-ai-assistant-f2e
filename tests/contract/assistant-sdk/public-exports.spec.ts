@@ -84,6 +84,8 @@ describe("Frontend 002 SDK public exports", () => {
     expect(widgetConfiguration).toMatch(/apiBaseUrl\?: string/);
     expect(widgetConfiguration).toMatch(/integrationMode\?: IntegrationMode/);
     expect(widgetConfiguration).not.toMatch(/gatewayUrl|gatewayBaseUrl|backendUrl/);
+    expect(widgetConfiguration).not.toMatch(/(?:readonly\s+)?headers\??\s*:/);
+    expect(publicTypes).not.toMatch(/refreshToken/);
     expect(defaultTransport).toMatch(/integrationMode \?\? "backend001-compatibility"/);
     expect(defaultTransport).toContain('"gateway-v1"');
     expect(defaultTransport).toContain('"backend002"');

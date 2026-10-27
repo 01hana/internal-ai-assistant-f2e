@@ -45,6 +45,34 @@ describe("SDK request-scoped access token resolver", () => {
     }
   });
 
+  it("does not log or emit getter failures through console or telemetry-like channels", async () => {
+    const consoleSpies = [
+      vi.spyOn(console, "debug").mockImplementation(() => undefined),
+      vi.spyOn(console, "error").mockImplementation(() => undefined),
+      vi.spyOn(console, "info").mockImplementation(() => undefined),
+      vi.spyOn(console, "log").mockImplementation(() => undefined),
+      vi.spyOn(console, "warn").mockImplementation(() => undefined),
+    ];
+
+    try {
+      await expect(resolveAccessToken(() => {
+        throw new Error("RAW_CREDENTIAL_MUST_NOT_ESCAPE");
+      })).resolves.toMatchObject({
+        error: { code: "authentication_unavailable", userMessage: "integration error" },
+        ok: false,
+      });
+
+      for (const spy of consoleSpies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    }
+    finally {
+      for (const spy of consoleSpies) {
+        spy.mockRestore();
+      }
+    }
+  });
+
   it("calls the getter on every operation without a mount-lifetime cache", async () => {
     const getAccessToken = vi.fn()
       .mockResolvedValueOnce("token-A")
@@ -63,6 +91,7 @@ describe("SDK request-scoped access token resolver", () => {
 
     expect(source).not.toMatch(/\bjwt\b|decode|atob|UUID_Company|Permissions|customer(?:Id)?\s*[:=]/i);
     expect(source).not.toMatch(/localStorage|sessionStorage|cachedAccessToken|resolvedToken|authTokenState/);
+    expect(source).not.toMatch(/refreshToken|indexedDB|document\.cookie|console\.|telemetry|analytics/i);
     expect(source).not.toMatch(/x-(?:actor-id|organization-id|host-app|role|permission-scopes|customer-id)/i);
   });
 });

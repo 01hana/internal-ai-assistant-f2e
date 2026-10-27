@@ -7,6 +7,7 @@ import {
   outgoingRequestSurfaces,
   type OutgoingRequestSurfaceMap,
 } from "../../../fixtures/assistant-sdk/outgoing-request-boundary-fixtures";
+import { secretLikeFields } from "../../../fixtures/assistant-sdk/forbidden-fields";
 
 type OutgoingRequestSafetyResult =
   | {
@@ -91,6 +92,25 @@ describe("Frontend 002 outgoing request safety gate", () => {
       expect(error.code).toBe("forbidden_outgoing_request_field");
       expect(error.field ?? field).toBe(field);
       expect(error.surface ?? "body").toBe("body");
+    }
+  });
+
+  it("rejects every secret-like field, including refreshToken, on every modeled outgoing surface", async () => {
+    const { assertOutgoingRequestSafe } = await loadOutgoingRequestBoundaryContract();
+
+    for (const surface of outgoingRequestSurfaces) {
+      for (const field of secretLikeFields) {
+        const error = expectFailure(await assertOutgoingRequestSafe({
+          ...createSafeOutgoingRequestSurface(),
+          [surface]: { [field]: "classified-value" },
+        }));
+
+        expect(error).toMatchObject({
+          code: "forbidden_outgoing_request_field",
+          field,
+          surface,
+        });
+      }
     }
   });
 });
