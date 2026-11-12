@@ -10,5 +10,6 @@ export default withNuxt({
     "playwright-report/**",
     "test-results/**",
     "docs/reference/**",
+    "packages/assistant-sdk/templates/**",
   ],
 });

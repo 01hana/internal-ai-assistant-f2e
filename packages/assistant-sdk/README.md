@@ -10,6 +10,8 @@
 npm install @ideaxpress/assistant-sdk
 ```
 
+客戶系統的完整安裝、串接與更新步驟請見 [INSTALL.md](./INSTALL.md)。
+
 ## Stylesheet import
 
 只使用公開 root package 與 stylesheet entry：
@@ -310,7 +312,7 @@ mountAssistantWidget({
 此 package 預期透過 GitHub Packages restricted registry 發佈：
 
 ```text
-@internal-ai-assistant:registry=https://npm.pkg.github.com
+@ideaxpress:registry=https://npm.pkg.github.com
 ```
 
 請由 npm、CI 或 GitHub Packages 設定管理 registry authentication。不要把 registry token 傳進 SDK runtime。
