@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPinia, type Pinia } from "pinia";
 import { describe, expect, it, vi } from "vitest";
+import { createAssistantStreamingRuntimeMessage } from "../../../packages/assistant-runtime/src/runtime";
+import { createSdkRuntimeAdapter as createActualSdkRuntimeAdapter } from "../../../packages/assistant-sdk/src/runtime/sdkRuntimeAdapter";
 import type { AssistantRuntimeTransportPort } from "../../../packages/assistant-runtime/src/transport/ports";
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../../", import.meta.url)));
@@ -47,6 +49,88 @@ async function loadRuntimeAdapterModule() {
 }
 
 describe("SDK runtime adapter composer", () => {
+  it("aborts the matching SSE stream, terminates its typing message, and keeps a later reply isolated", async () => {
+    const streams: Array<ReadableStreamDefaultController<Uint8Array>> = [];
+    const signals: AbortSignal[] = [];
+    const execute = vi.fn(async (input: { operation: string }, runtimeOptions?: { signal?: AbortSignal }) => {
+      if (input.operation !== "streamMessage") throw new Error("unexpected operation");
+      signals.push(runtimeOptions?.signal as AbortSignal);
+      return new ReadableStream<Uint8Array>({
+        start(controller) { streams.push(controller); },
+      });
+    });
+    const adapter = createActualSdkRuntimeAdapter({
+      execute,
+      pinia: createPinia(),
+      provider: async () => ({ hostApp: "test" }),
+      runtimeScope: "sdk-runtime:sse-cancel",
+    });
+    const session = adapter.controller.stores.session;
+    const encoder = new TextEncoder();
+    const first = createAssistantStreamingRuntimeMessage({
+      createdAt: "2026-07-27T00:00:00.000Z",
+      key: "stream:first",
+      requestId: "local:first",
+    });
+    adapter.controller.appendAssistantStreamingPlaceholder(first);
+    adapter.controller.setStreamingRequest("local:first", first.key);
+    adapter.controller.markStreamingStarted();
+
+    const firstRun = adapter.startMessageStream({ message: "first", sessionId: "session-001" });
+    await vi.waitFor(() => expect(streams).toHaveLength(1));
+    const firstEvent = {
+      requestId: "server:first",
+      sessionId: "session-001",
+      messageId: "message:first",
+      eventType: "answer_delta",
+      sequence: 1,
+      data: { delta: "old content" },
+    };
+    streams[0]!.enqueue(encoder.encode(`event: answer_delta\ndata: ${JSON.stringify(firstEvent)}\n\n`));
+    await vi.waitFor(() => expect(first.lastSequence).toBe(1));
+    expect(session.activeRequestId.value).toBe("server:first");
+    expect(first.requestId).toBe("server:first");
+
+    await adapter.cancelMessageStream();
+    await firstRun;
+    expect(signals[0]?.aborted).toBe(true);
+    expect(first.status).toBe("cancelled");
+    expect(first.typingVisibleUntil).toBeNull();
+    expect(first.content).toBe("old content");
+    expect(session.activeRequestId.value).toBeNull();
+
+    const second = createAssistantStreamingRuntimeMessage({
+      createdAt: "2026-07-27T00:01:00.000Z",
+      key: "stream:second",
+      requestId: "local:second",
+    });
+    adapter.controller.appendAssistantStreamingPlaceholder(second);
+    adapter.controller.setStreamingRequest("local:second", second.key);
+    adapter.controller.markStreamingStarted();
+    const secondRun = adapter.startMessageStream({ message: "second", sessionId: "session-001" });
+    await vi.waitFor(() => expect(streams).toHaveLength(2));
+    adapter.controller.applyStreamingEvent({ ...firstEvent, sequence: 2, data: { delta: "late old event" } });
+    expect(first.content).toBe("old content");
+    expect(second.content).toBe("");
+
+    const finalEvent = {
+      requestId: "server:second",
+      sessionId: "session-001",
+      messageId: "message:second",
+      eventType: "final",
+      sequence: 1,
+      data: { answerDecision: "answered", answer: "new answer", evidenceRefs: [] },
+    };
+    streams[1]!.enqueue(encoder.encode(`event: final\ndata: ${JSON.stringify(finalEvent)}\n\n`));
+    await secondRun;
+    await adapter.cancelMessageStream();
+    expect(second.status).toBe("completed");
+    expect(second.content).toBe("new answer");
+    expect(first.status).toBe("cancelled");
+    expect(session.activeRequestId.value).toBeNull();
+    await adapter.destroy();
+  });
+
   it("composes Shared Runtime stores/controller, T134 transport, T135 session lifecycle, context resolver, and host events", async () => {
     const { createSdkRuntimeAdapter } = await loadRuntimeAdapterModule();
     const pinia = createPinia();

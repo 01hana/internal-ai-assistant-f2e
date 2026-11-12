@@ -720,7 +720,7 @@ export function createStreamingController<TMessage>(
     markStreamingCancelled() {
       const message = getActiveStreamingMessage();
       if (message && message.status !== "completed") {
-        revealPendingStreamingContent(message.requestId ?? state.activeRequestId.value, "cancelled");
+        revealPendingStreamingContent(state.activeRequestId.value, "cancelled");
       }
     },
     markStreamingInterrupted() {
@@ -730,13 +730,13 @@ export function createStreamingController<TMessage>(
         && message.status !== "completed"
         && message.status !== "failed"
       ) {
-        revealPendingStreamingContent(message.requestId ?? state.activeRequestId.value, "interrupted");
+        revealPendingStreamingContent(state.activeRequestId.value, "interrupted");
       }
     },
     markStreamingFailed() {
       const message = getActiveStreamingMessage();
       if (message && message.status !== "completed") {
-        revealPendingStreamingContent(message.requestId ?? state.activeRequestId.value, "failed");
+        revealPendingStreamingContent(state.activeRequestId.value, "failed");
       }
     },
     markStreamingFinalizing() {

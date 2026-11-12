@@ -112,6 +112,12 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
       activeMessageKey
       && session.activeRequestId.value !== event.requestId
     ) {
+      const activeMessage = (session.messages.value as Array<Record<string, unknown>>).find(message =>
+        message.kind === "assistant_streaming" && message.key === activeMessageKey,
+      );
+      if (activeMessage) {
+        activeMessage.requestId = event.requestId;
+      }
       controller.setStreamingRequest(event.requestId, activeMessageKey);
     }
   }
