@@ -17,3 +17,4 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+packages/assistant-sdk/ideaxpress-assistant-sdk-*.tgz

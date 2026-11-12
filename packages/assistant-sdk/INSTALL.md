@@ -243,14 +243,16 @@ npm install @ideaxpress/assistant-sdk@0.2.0
 
 在第一次正式發佈前，SDK 以 `.tgz` 檔交付：
 
-1. 把 `.tgz` 放到客戶系統的 `vendor/`，例如 `vendor/assistant-sdk-0.1.0.tgz`。
+1. 把 `.tgz` 放到客戶系統的 `vendor/`，並**統一命名為 `vendor/assistant-sdk.tgz`**（檔名不帶版號；版號以 tgz 內的 `package.json` 為準，升版時不用改任何設定）。
 2. 安裝：
    ```bash
-   npm install ./vendor/assistant-sdk-0.1.0.tgz
+   npm install ./vendor/assistant-sdk.tgz
    ```
-   `package.json` 會變成 `"@ideaxpress/assistant-sdk": "file:vendor/assistant-sdk-0.1.0.tgz"`。
-3. **`vendor/` 要 commit 進 repo**，否則別人或 CI 安裝時會找不到檔案。
-4. 更新時用新的 `.tgz` 覆蓋，再執行一次步驟 2。
+   `package.json` 會變成 `"@ideaxpress/assistant-sdk": "file:vendor/assistant-sdk.tgz"`。
+3. **`vendor/` 要 commit 進 repo**，否則別人或 CI 安裝時會找不到檔案。`package-lock.json` 也要一起 commit，裡面記錄了這個 tgz 的雜湊值。
+4. 更新時用新的 `.tgz` 覆蓋同一個檔名，再執行一次步驟 2（只覆蓋檔案不重新安裝的話，lockfile 的雜湊值會對不上，`npm ci` 會失敗）。
+
+   若本機同時有 internal-ai-assistant repo，可以把 `idx-shinmone-scm-frontend/scripts/update-assistant-sdk.sh` 複製過去，用 `npm run sdk:update` 一次完成建置、打包、覆蓋與安裝。
 
 改用 GitHub Packages 後，把依賴改回 `"^0.1.0"` 並重新 `npm install`，就可以刪掉 `vendor/`。
 
