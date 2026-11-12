@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { access, readFile } from "node:fs/promises";
+import { flushPromises } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 
@@ -52,6 +53,23 @@ async function expectPathExists(path: string, message: string) {
   await expect(access(path), message).resolves.toBeUndefined();
 }
 
+async function flushWidgetMount() {
+  await nextTick();
+  await flushPromises();
+  await nextTick();
+}
+
+async function expectMountedOpenWidget(target: Element) {
+  await vi.waitFor(() => {
+    for (const requirement of productizedOpenWidgetRequirements) {
+      expect(
+        queryVisible(target, requirement.selectors),
+        `Opened productized widget must visibly render ${requirement.name}.`,
+      ).toBe(true);
+    }
+  });
+}
+
 describe("Frontend 002 productized mountAssistantWidget smoke", () => {
   let app: TemporaryConsumingApp;
   let sdk: InstalledSdk;
@@ -98,6 +116,8 @@ describe("Frontend 002 productized mountAssistantWidget smoke", () => {
       target,
     });
 
+    await flushWidgetMount();
+
     expect(target.childElementCount, "Installed mountAssistantWidget must mount a closed widget DOM into the target.").toBeGreaterThan(0);
 
     for (const requirement of productizedClosedWidgetRequirements) {
@@ -109,37 +129,26 @@ describe("Frontend 002 productized mountAssistantWidget smoke", () => {
 
     expect(callbacks.onOpened).toHaveBeenCalledTimes(0);
     handle.open?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
     expect(callbacks.onOpened, "open() must notify onOpened before callback suppression can be trusted.").toHaveBeenCalledTimes(1);
-    for (const requirement of productizedOpenWidgetRequirements) {
-      expect(
-        queryVisible(target, requirement.selectors),
-        `Opened productized widget must visibly render ${requirement.name}.`,
-      ).toBe(true);
-    }
+    await expectMountedOpenWidget(target);
 
     handle.close?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
     expect(callbacks.onClosed, "close() must notify onClosed before callback suppression can be trusted.").toHaveBeenCalledTimes(1);
     expect(queryVisible(target, productizedOpenWidgetRequirements[0].selectors), "close() must remove or hide the widget panel.").toBe(false);
     expect(queryAny(target, productizedClosedWidgetRequirements[1].selectors), "close() must keep the launcher usable.").toBe(true);
 
     handle.unmount?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
     expect(target.childElementCount, "unmount() must remove the SDK widget DOM from its target.").toBe(0);
     handle.destroy?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
     handle.destroy?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
     handle.open?.();
     handle.close?.();
-    await nextTick();
-    await Promise.resolve();
+    await flushWidgetMount();
 
     expect(callbacks.onOpened, "Callbacks must be suppressed after destroy.").toHaveBeenCalledTimes(1);
     expect(callbacks.onClosed, "Callbacks must be suppressed after destroy.").toHaveBeenCalledTimes(1);
@@ -185,8 +194,7 @@ describe("Frontend 002 productized mountAssistantWidget smoke", () => {
         (duplicateResult as MountHandleLike).destroy?.();
       }
       firstHandle.destroy?.();
-      await nextTick();
-      await Promise.resolve();
+      await flushWidgetMount();
       expect(target.childElementCount, "Duplicate-mount cleanup must remove the first widget DOM.").toBe(0);
     }
   });

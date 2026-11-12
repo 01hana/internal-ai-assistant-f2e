@@ -495,6 +495,34 @@ This phase is appended after the original T001-T149 history. It does not imply G
 - Integrity: targeted ESLint passed; `git diff --check` passed; all `packages/assistant-sdk/src/**` SHA-256 values remained unchanged; tracked TGZ remained unchanged at `a606d0dd066058d135e611d5c37da1c174d7cdf0e259500ec9f4546aca5a1013`.
 - Stage C was not executed: no production SDK edit、build/pack/repack、README/package metadata update、external credential/backend call、customer repository change or publish action occurred.
 
+## Phase 12 Stage C: 2026-09-02 SDK Package Validation and Local TGZ Repack
+
+This stage is separately authorized after T156. It validates the current Gateway-v1 public artifact, creates and proves an isolated candidate package, and replaces only the tracked local `0.1.0` TGZ after every pre-replacement gate passes. It does not authorize SDK production changes、package version changes、real publish、external backend calls or Customer-repository work.
+
+- [x] T157 [US10] Record the Stage B SDK source and old tracked-TGZ baselines, run the authoritative clean SDK build, and validate dist declarations、public/private boundaries、typecheck、artifact smoke、internal-path scan、release exports、publish/productized readiness and `npm pack --dry-run` before creating or replacing a tracked artifact.
+- [x] T158 [US10] Create a candidate SDK TGZ in an isolated `/private/tmp` directory without replacing the tracked TGZ; record its resolved path and SHA-256, inspect and unpack the archive, and require the approved package identity/files/exports plus Gateway-v1 public declarations while excluding private/deep exports、source paths、tests/fixtures/specs、sourcemaps、temporary files and credential material.
+- [x] T159 [US10] Stage the exact candidate TGZ in an isolated temporary consumer using only public package entries and local dependencies; validate root/style resolution、public Gateway-v1 types、productized mount and Backend 001 compatibility without real network or credentials, and replace the tracked TGZ only after every T157-T159 candidate gate passes with a new SHA distinct from the old artifact.
+- [x] T160 [US10] Reinspect the replaced tracked TGZ independently, rerun the final SDK build/typecheck、Gateway security、full SDK、artifact/export/readiness、packed-consumer、dry-run pack、targeted lint and diff gates, verify SDK source and Customer boundaries, then record dated Stage C evidence and mark T157-T160 complete only after all results pass.
+
+### 2026-09-02 Stage C Pre-Replacement Blocker Remediation Evidence
+
+- The stale active package-consumer scope defect was reproduced as `ERR_MODULE_NOT_FOUND`: the reference-consumer smoke staged the authoritative `@ideaxpress/assistant-sdk` package under historical `node_modules/@internal-ai-assistant/assistant-sdk`. Active staging now derives the real installed path from the shared `sdkPackageName` contract; intentional forbidden-pattern checks、the private `@internal-ai-assistant/assistant-runtime` identity and historical registry/evidence text remain unchanged.
+- The productized mount failure was classified as `TEST_SYNCHRONIZATION_DEFECT`, not a production defect. The installed-package smoke now uses the established deterministic `nextTick()` → `flushPromises()` → `nextTick()` sequence plus `vi.waitFor`, without arbitrary sleeps or weakening the DOM-semantic visibility contract.
+- Source、fresh dist and exact-candidate mount/open parity all passed. Safe DOM inspection found the panel、canonical product runtime、message area、composer and send action; the panel had `hidden=false`, no `aria-hidden`, and no inline `display:none` or `visibility:hidden`.
+- The retained candidate remained `/private/tmp/assistant-sdk-stage-c.tdlf9d/ideaxpress-assistant-sdk-0.1.0.tgz` with SHA-256 `06be0c75ebd964200757ec5c543fb0d385c6561004bd43884694f9187804e359`; exact-candidate root/style resolution and public-type compilation passed.
+- T159 pre-replacement validation passed: reference-consumer、productized mount and packaged Backend 001 compatibility ran 3/3 files and 18/18 tests; artifact smoke、release exports、dist internal-path scan、packaged-runtime source boundary、publish readiness and productized widget runtime ran 6/6 files and 26/26 tests. Targeted ESLint and `git diff --check` passed.
+- This remediation intentionally stops before replacement: SDK production source and the tracked TGZ remain unchanged, Customer work and external calls were not performed, and T157-T160 remain unchecked pending separate authorization to resume the replacement gate.
+
+### 2026-09-02 Stage C Final Evidence
+
+- Package-consumer identity is single-sourced: the temporary consumer installs under `join(consumerRoot, "node_modules", ...sdkPackageName.split("/"))` and active consumers reuse `sdkPackageName` and `sdkStylesheetEntry`.
+- The pre-replacement T159 suite and candidate contract were reconfirmed before mutation. The tracked TGZ still had its required old SHA-256 `a606d0dd066058d135e611d5c37da1c174d7cdf0e259500ec9f4546aca5a1013` immediately before replacement.
+- The validated candidate `/private/tmp/assistant-sdk-stage-c.tdlf9d/ideaxpress-assistant-sdk-0.1.0.tgz` had SHA-256 `06be0c75ebd964200757ec5c543fb0d385c6561004bd43884694f9187804e359`. It was copied directly over the tracked TGZ; `cmp` proved byte identity, the tracked SHA is the same candidate SHA, and it differs from the old artifact.
+- Independent tracked-archive inspection passed: identity remains `@ideaxpress/assistant-sdk@0.1.0`; exports remain only `.` and `./styles.css`; declarations expose `AssistantAccessTokenProvider`, optional `MountOptions.getAccessToken`, and `gateway-v1`; public runtime exports remain only `AssistantWidget` and `mountAssistantWidget`; resolver/Gateway helpers、deep internal entries、`app/**`、private source、tests/fixtures/specs、sourcemaps、temporary material and credentials are absent.
+- Exact tracked-package staging、public-type compilation、root/style resolution and runtime import passed in a fresh temporary consumer. `npm pack --dry-run --json` passed and listed only the approved 11 package entries.
+- Final validation passed: `npm run build:assistant-sdk`; `npm run typecheck`; the full Assistant SDK gate at 46/46 files and 287/287 tests; the focused Gateway/security gate at 11/11 files and 97/97 tests; artifact/export/readiness gates at 6/6 files and 26/26 tests; and reference-consumer、productized mount and packaged Backend 001 integration at 3/3 files and 18/18 tests.
+- Targeted ESLint and `git diff --check` passed. All 35 `packages/assistant-sdk/src/**` SHA-256 values match the accepted pre-Stage-C baseline. No SDK production source、package version、Customer repository、external backend、real credential or publish operation changed.
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

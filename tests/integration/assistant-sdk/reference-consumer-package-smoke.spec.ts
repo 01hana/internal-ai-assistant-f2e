@@ -53,12 +53,11 @@ async function stagePackedSdkPackage(): Promise<{
   const cacheDirectory = join(tempRoot, "npm-cache");
   const extractDirectory = join(tempRoot, "extract");
   const consumerRoot = join(tempRoot, "consumer");
-  const scopedPackageRoot = join(consumerRoot, "node_modules", "@internal-ai-assistant");
-  const installedPackageRoot = join(scopedPackageRoot, "assistant-sdk");
+  const installedPackageRoot = join(consumerRoot, "node_modules", ...sdkPackageName.split("/"));
 
   await mkdir(packDirectory, { recursive: true });
   await mkdir(extractDirectory, { recursive: true });
-  await mkdir(scopedPackageRoot, { recursive: true });
+  await mkdir(dirname(installedPackageRoot), { recursive: true });
 
   const { stdout } = await execFileAsync("npm", ["pack", "--json", "--pack-destination", packDirectory], {
     cwd: join(projectRootPath, sdkPackageRoot),

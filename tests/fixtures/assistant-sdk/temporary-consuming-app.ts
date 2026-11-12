@@ -6,13 +6,12 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { createPublicOnlyConsumerSource } from "./productized-sdk-fixtures";
+import { sdkPackageName, sdkStylesheetEntry } from "./release-readiness-contract";
 
 const execFileAsync = promisify(execFile);
 const projectRootPath = process.cwd();
 const temporaryRootPath = "/private/tmp";
 const sdkPackageRootPath = join(projectRootPath, "packages/assistant-sdk");
-const sdkPackageName = "@ideaxpress/assistant-sdk";
-const sdkStylesSpecifier = "@ideaxpress/assistant-sdk/styles.css";
 
 type NpmPackResult = {
   readonly filename: string;
@@ -60,7 +59,7 @@ async function symlinkProjectDependency(consumerRoot: string, dependencyName: st
 }
 
 async function stagePackedSdkIntoConsumer(consumerRoot: string, tarballPath: string) {
-  const installedPackageRoot = join(consumerRoot, "node_modules/@ideaxpress/assistant-sdk");
+  const installedPackageRoot = join(consumerRoot, "node_modules", ...sdkPackageName.split("/"));
 
   await mkdir(installedPackageRoot, { recursive: true });
   await execFileAsync("tar", ["-xzf", tarballPath, "-C", installedPackageRoot, "--strip-components=1"], {
@@ -94,7 +93,7 @@ export async function createTemporaryConsumingApp(
     }, null, 2),
     "utf8",
   );
-  await writeFile(sourceFile, options.source ?? createPublicOnlyConsumerSource(), "utf8");
+  await writeFile(sourceFile, options.source ?? createPublicOnlyConsumerSource([sdkPackageName, sdkStylesheetEntry]), "utf8");
   await writeFile(runtimeBridgeFile, `export * from ${JSON.stringify(sdkPackageName)};\n`, "utf8");
 
   const installedPackageRoot = await stagePackedSdkIntoConsumer(root, tarballPath);
