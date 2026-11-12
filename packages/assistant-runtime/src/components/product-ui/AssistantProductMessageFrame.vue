@@ -46,23 +46,21 @@ const formattedCreatedAt = computed(() => {
 
     <div class="assistant-message-frame-content">
       <slot />
-      <time
-        v-if="formattedCreatedAt && createdAt"
-        class="assistant-message-timestamp"
-        data-testid="assistant-message-timestamp"
-        :datetime="createdAt"
+      <div
+        v-if="(formattedCreatedAt && createdAt) || $slots.metadata"
+        class="assistant-message-metadata"
+        data-testid="assistant-message-metadata"
       >
-        {{ formattedCreatedAt }}
-      </time>
+        <time
+          v-if="formattedCreatedAt && createdAt"
+          class="assistant-message-timestamp"
+          data-testid="assistant-message-timestamp"
+          :datetime="createdAt"
+        >
+          {{ formattedCreatedAt }}
+        </time>
+        <slot name="metadata" />
+      </div>
     </div>
-
-    <span
-      v-if="role === 'user'"
-      class="assistant-message-avatar assistant-message-avatar--user"
-      data-testid="assistant-message-avatar-user"
-      aria-hidden="true"
-    >
-      <AssistantProductIcon name="user" />
-    </span>
   </article>
 </template>

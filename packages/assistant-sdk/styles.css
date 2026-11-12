@@ -44,11 +44,9 @@
     var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 24%,
     transparent
   );
-  --assistant-sdk-default-bubble-shadow: 0 8px 28px color-mix(
-    in srgb,
-    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 8%,
-    transparent
-  );
+  --assistant-sdk-default-bubble-shadow:
+    0 1px 2px color-mix(in srgb, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 6%, transparent),
+    0 6px 20px color-mix(in srgb, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 8%, transparent);
   --assistant-sdk-default-focus-ring: color-mix(
     in srgb,
     var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 24%,
@@ -88,19 +86,12 @@
     transparent
   );
   --assistant-sdk-default-safe-outcome-foreground: var(--assistant-sdk-warning-foreground, var(--assistant-sdk-default-warning-foreground));
-  --assistant-sdk-default-evidence-background: color-mix(
-    in srgb,
-    var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 8%,
-    transparent
-  );
+  --assistant-sdk-default-evidence-background: transparent;
   --assistant-sdk-default-streaming-status-foreground: var(--assistant-sdk-info, var(--assistant-sdk-default-info));
   --assistant-sdk-default-feedback-success-foreground: var(--assistant-sdk-success, var(--assistant-sdk-default-success));
   --assistant-sdk-default-feedback-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
-  --assistant-sdk-default-action-draft-background: color-mix(
-    in srgb,
-    var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 5%,
-    transparent
-  );
+  --assistant-sdk-default-feedback-foreground: #6b7280;
+  --assistant-sdk-default-action-draft-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
   --assistant-sdk-default-approval-request-background: var(--assistant-sdk-action-draft-background, var(--assistant-sdk-default-action-draft-background));
   --assistant-sdk-default-input-background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
   --assistant-sdk-default-input-foreground: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
@@ -325,25 +316,19 @@
   background: var(--assistant-sdk-message-area-background, var(--assistant-sdk-default-message-area-background));
 }
 
-.assistant-sdk-root [data-testid="assistant-message-list"],
-[data-assistant-sdk-root] [data-testid="assistant-message-list"] {
-  min-block-size: 0;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--assistant-sdk-message-list-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1));
-}
-
 .assistant-sdk-root .assistant-message-list,
 [data-assistant-sdk-root] .assistant-message-list {
   display: grid;
+  min-inline-size: 0;
   gap: var(--assistant-sdk-message-list-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.assistant-sdk-root .assistant-message-item,
+[data-assistant-sdk-root] .assistant-message-item {
+  min-inline-size: 0;
 }
 
 .assistant-sdk-root [data-testid="assistant-message-empty"],
@@ -362,13 +347,10 @@
   text-align: center;
 }
 
-.assistant-sdk-root [data-testid="assistant-user-message"],
-.assistant-sdk-root [data-testid="assistant-ai-message"],
 .assistant-sdk-root .assistant-message-bubble,
-[data-assistant-sdk-root] [data-testid="assistant-user-message"],
-[data-assistant-sdk-root] [data-testid="assistant-ai-message"],
 [data-assistant-sdk-root] .assistant-message-bubble {
-  max-inline-size: var(--assistant-sdk-message-bubble-max-width, 88%);
+  box-sizing: border-box;
+  max-inline-size: 100%;
   border: 1px solid var(--assistant-sdk-message-bubble-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
   border-radius: var(--assistant-sdk-message-bubble-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md)));
   padding:
@@ -380,12 +362,8 @@
   overflow-wrap: anywhere;
 }
 
-.assistant-sdk-root .assistant-message--user,
 .assistant-sdk-root .assistant-message-bubble--user,
-[data-assistant-sdk-root] .assistant-message--user,
 [data-assistant-sdk-root] .assistant-message-bubble--user {
-  align-self: flex-end;
-  margin-inline-start: auto;
   border-color: var(
     --assistant-sdk-user-message-border,
     color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 36%, transparent)
@@ -394,12 +372,9 @@
   color: var(--assistant-sdk-user-message-foreground, var(--assistant-sdk-default-user-message-foreground));
 }
 
-.assistant-sdk-root .assistant-message--assistant,
 .assistant-sdk-root .assistant-message-bubble--assistant,
-[data-assistant-sdk-root] .assistant-message--assistant,
 [data-assistant-sdk-root] .assistant-message-bubble--assistant {
-  align-self: flex-start;
-  margin-inline-end: auto;
+  border: 0;
   background: var(--assistant-sdk-assistant-message-background, var(--assistant-sdk-default-assistant-message-background));
 }
 
@@ -456,16 +431,32 @@
   color: var(--assistant-sdk-safe-outcome-foreground, var(--assistant-sdk-default-safe-outcome-foreground));
 }
 
-.assistant-sdk-root [data-testid="assistant-evidence-ref"],
-[data-assistant-sdk-root] [data-testid="assistant-evidence-ref"] {
+.assistant-sdk-root .assistant-evidence-list,
+[data-assistant-sdk-root] .assistant-evidence-list {
   display: grid;
   gap: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1));
   margin-block-start: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
-  border-radius: var(--assistant-sdk-evidence-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
-  padding: var(--assistant-sdk-evidence-padding, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
+  margin-block-end: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-sdk-root [data-testid="assistant-evidence-ref"],
+[data-assistant-sdk-root] [data-testid="assistant-evidence-ref"] {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
   background: var(--assistant-sdk-evidence-background, var(--assistant-sdk-default-evidence-background));
-  color: var(--assistant-sdk-evidence-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
-  font-size: var(--assistant-sdk-evidence-font-size, 0.84rem);
+  color: var(--assistant-sdk-evidence-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
+  font-size: var(--assistant-sdk-evidence-font-size, 12px);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.assistant-sdk-root [data-testid="assistant-evidence-title"],
+[data-assistant-sdk-root] [data-testid="assistant-evidence-title"] {
+  font-weight: inherit;
 }
 
 .assistant-sdk-root [aria-label="回答回饋"],
@@ -477,17 +468,6 @@
   align-items: center;
   gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
   margin-block-start: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
-}
-
-.assistant-sdk-root [data-testid="assistant-feedback-helpful"],
-.assistant-sdk-root [data-testid="assistant-feedback-not-helpful"],
-[data-assistant-sdk-root] [data-testid="assistant-feedback-helpful"],
-[data-assistant-sdk-root] [data-testid="assistant-feedback-not-helpful"] {
-  border: 1px solid var(--assistant-sdk-feedback-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
-  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
-  padding: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
-  background: var(--assistant-sdk-feedback-background, var(--assistant-sdk-default-feedback-background));
-  color: var(--assistant-sdk-feedback-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
 }
 
 .assistant-sdk-root [data-testid="assistant-feedback-error"],
@@ -631,6 +611,41 @@
   background: var(--assistant-sdk-icon-button-hover-background, var(--assistant-sdk-surface, var(--assistant-sdk-default-surface)));
 }
 
+.assistant-sdk-root .assistant-feedback-controls .assistant-feedback-button,
+[data-assistant-sdk-root] .assistant-feedback-controls .assistant-feedback-button {
+  inline-size: var(--assistant-sdk-feedback-hit-width, var(--assistant-sdk-feedback-hit-size, 24px));
+  block-size: var(--assistant-sdk-feedback-hit-height, var(--assistant-sdk-feedback-hit-size, 32px));
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--assistant-sdk-feedback-foreground, var(--assistant-sdk-default-feedback-foreground));
+}
+
+.assistant-sdk-root .assistant-feedback-button .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-feedback-button .assistant-product-icon {
+  inline-size: var(--assistant-sdk-feedback-icon-size, 16px);
+  block-size: var(--assistant-sdk-feedback-icon-size, 16px);
+}
+
+.assistant-sdk-root .assistant-feedback-controls .assistant-feedback-button:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-feedback-controls .assistant-feedback-button:hover:not(:disabled) {
+  transform: none;
+  background: transparent;
+  color: var(--assistant-sdk-feedback-hover-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
+}
+
+.assistant-sdk-root .assistant-feedback-controls .assistant-feedback-button[aria-pressed="true"],
+[data-assistant-sdk-root] .assistant-feedback-controls .assistant-feedback-button[aria-pressed="true"] {
+  color: var(--assistant-sdk-feedback-selected-foreground, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)));
+}
+
+.assistant-sdk-root .assistant-feedback-controls .assistant-feedback-button[aria-pressed="true"]:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-feedback-controls .assistant-feedback-button[aria-pressed="true"]:hover:not(:disabled) {
+  color: var(--assistant-sdk-feedback-selected-foreground, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)));
+}
+
 .assistant-sdk-root .assistant-product-icon-button--danger,
 [data-assistant-sdk-root] .assistant-product-icon-button--danger {
   border-color: var(--assistant-sdk-button-danger-border, transparent);
@@ -659,7 +674,13 @@
   border-radius: var(--assistant-sdk-panel-mobile-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg))) var(--assistant-sdk-panel-mobile-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg))) 0 0;
   background: var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background));
   box-shadow: var(--assistant-sdk-panel-shadow, var(--assistant-sdk-shadow, var(--assistant-sdk-default-shadow)));
-  animation: assistant-sdk-panel-enter var(--assistant-sdk-panel-enter-duration, 300ms) var(--assistant-sdk-panel-enter-easing, ease) both;
+}
+
+.assistant-sdk-root .assistant-sdk-panel[data-leaving="true"],
+[data-assistant-sdk-root] .assistant-sdk-panel[data-leaving="true"],
+.assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-leave-active,
+[data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-leave-active {
+  pointer-events: none;
 }
 
 .assistant-sdk-root .assistant-product-panel-surface,
@@ -805,7 +826,7 @@
   overflow: hidden;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 577px) {
   .assistant-sdk-root .assistant-product-panel-shell,
   [data-assistant-sdk-root] .assistant-product-panel-shell,
   .assistant-sdk-panel.assistant-product-panel-shell {
@@ -816,6 +837,100 @@
     block-size: var(--assistant-sdk-panel-height, min(calc(100dvh - 48px), 720px));
     border-radius: var(--assistant-sdk-panel-radius, var(--assistant-sdk-radius-lg, var(--assistant-sdk-default-radius-lg)));
   }
+
+  .assistant-sdk-root .assistant-sdk-panel[data-desktop-entering="true"],
+  [data-assistant-sdk-root] .assistant-sdk-panel[data-desktop-entering="true"] {
+    animation: assistant-sdk-panel-enter var(--assistant-sdk-panel-enter-duration, 300ms) var(--assistant-sdk-panel-enter-easing, ease) both;
+  }
+}
+
+@media (max-width: 576px) {
+  .assistant-sdk-root[data-mobile-open="true"],
+  [data-assistant-sdk-root][data-mobile-open="true"] {
+    box-sizing: border-box;
+    inset: var(--assistant-sdk-visual-viewport-top, 0px) 0 auto 0;
+    inline-size: 100%;
+    block-size: 100vh;
+    block-size: var(--assistant-sdk-visual-viewport-height, 100dvh);
+    max-inline-size: none;
+    max-block-size: none;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: var(--assistant-sdk-panel-background, var(--assistant-sdk-default-panel-background));
+  }
+
+  .assistant-sdk-root[data-mobile-open="true"][data-panel-transitioning="true"],
+  [data-assistant-sdk-root][data-mobile-open="true"][data-panel-transitioning="true"] {
+    background: transparent;
+  }
+
+  .assistant-sdk-root[data-mobile-open="true"] .assistant-sdk-launcher,
+  [data-assistant-sdk-root][data-mobile-open="true"] .assistant-sdk-launcher {
+    display: none;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel.assistant-product-panel-shell,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-product-panel-shell {
+    box-sizing: border-box;
+    position: fixed;
+    inset: var(--assistant-sdk-visual-viewport-top, 0px) 0 auto 0;
+    inline-size: 100% !important;
+    block-size: 100vh !important;
+    block-size: var(--assistant-sdk-visual-viewport-height, 100dvh) !important;
+    max-inline-size: none;
+    max-block-size: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-enter-active,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-enter-active {
+    transition:
+      transform var(--assistant-sdk-panel-mobile-enter-duration, 280ms) var(--assistant-sdk-panel-mobile-enter-easing, cubic-bezier(0.22, 1, 0.36, 1)),
+      opacity var(--assistant-sdk-panel-mobile-enter-opacity-duration, 220ms) ease-out;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-leave-active,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-leave-active {
+    transition:
+      transform var(--assistant-sdk-panel-mobile-leave-duration, 200ms) ease-in,
+      opacity var(--assistant-sdk-panel-mobile-leave-opacity-duration, 180ms) ease-in;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-enter-from,
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-leave-to,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-enter-from,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-leave-to {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0.92;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel[data-panel-entered="true"].assistant-sdk-panel-enter-active,
+  [data-assistant-sdk-root] .assistant-sdk-panel[data-panel-entered="true"].assistant-sdk-panel-enter-active {
+    transform: none;
+    opacity: 1;
+    transition: none;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel .assistant-product-panel-surface,
+  [data-assistant-sdk-root] .assistant-sdk-panel .assistant-product-panel-surface {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel .assistant-product-panel-header,
+  [data-assistant-sdk-root] .assistant-sdk-panel .assistant-product-panel-header {
+    padding-block-start: calc(var(--assistant-sdk-panel-header-padding-block, 12px) + env(safe-area-inset-top, 0px));
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel [data-testid="assistant-panel-footer"],
+  [data-assistant-sdk-root] .assistant-sdk-panel [data-testid="assistant-panel-footer"] {
+    padding-block-end: calc(var(--assistant-sdk-panel-footer-padding-block, 12px) + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @keyframes assistant-sdk-panel-enter {
@@ -824,6 +939,20 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .assistant-sdk-root .assistant-sdk-panel,
+  [data-assistant-sdk-root] .assistant-sdk-panel {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-enter-from,
+  .assistant-sdk-root .assistant-sdk-panel.assistant-sdk-panel-leave-to,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-enter-from,
+  [data-assistant-sdk-root] .assistant-sdk-panel.assistant-sdk-panel-leave-to {
+    transform: none;
+    opacity: 1;
+  }
+
   .assistant-sdk-root .assistant-product-icon-button,
   [data-assistant-sdk-root] .assistant-product-icon-button {
     transition: none;
@@ -833,22 +962,32 @@
 /* FE001-parity message frame: avatars, bubbles, timestamps, and streaming state. */
 .assistant-sdk-root .assistant-message-frame,
 [data-assistant-sdk-root] .assistant-message-frame {
+  box-sizing: border-box;
   display: flex;
   inline-size: 100%;
+  min-inline-size: 0;
   align-items: flex-end;
+  justify-content: flex-start;
   gap: var(--assistant-sdk-message-avatar-gap, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .assistant-sdk-root .assistant-message-frame--user,
 [data-assistant-sdk-root] .assistant-message-frame--user {
-  flex-direction: row-reverse;
+  justify-content: flex-end;
 }
 
 .assistant-sdk-root .assistant-message-frame-content,
 [data-assistant-sdk-root] .assistant-message-frame-content {
+  box-sizing: border-box;
   display: flex;
+  inline-size: fit-content;
   min-inline-size: 0;
-  max-inline-size: var(--assistant-sdk-message-bubble-max-width, 78%);
+  max-inline-size: var(--assistant-sdk-message-content-max-width, 78%);
   flex-direction: column;
   align-items: flex-start;
   gap: var(--assistant-sdk-message-metadata-gap, 6px);
@@ -857,6 +996,37 @@
 .assistant-sdk-root .assistant-message-frame--user .assistant-message-frame-content,
 [data-assistant-sdk-root] .assistant-message-frame--user .assistant-message-frame-content {
   align-items: flex-end;
+}
+
+.assistant-sdk-root .assistant-message-metadata,
+[data-assistant-sdk-root] .assistant-message-metadata {
+  box-sizing: border-box;
+  display: flex;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--assistant-sdk-message-metadata-gap, 6px);
+}
+
+.assistant-sdk-root .assistant-message-frame--user .assistant-message-metadata,
+[data-assistant-sdk-root] .assistant-message-frame--user .assistant-message-metadata {
+  justify-content: flex-end;
+}
+
+.assistant-sdk-root .assistant-message-metadata .assistant-feedback-controls,
+[data-assistant-sdk-root] .assistant-message-metadata .assistant-feedback-controls {
+  margin-block-start: 0;
+  gap: 0;
+}
+
+.assistant-sdk-root .assistant-message-metadata:has(.assistant-feedback-controls),
+[data-assistant-sdk-root] .assistant-message-metadata:has(.assistant-feedback-controls) {
+  gap: 2px;
+}
+
+.assistant-sdk-root .assistant-message-metadata:has(.assistant-feedback-controls) .assistant-message-timestamp,
+[data-assistant-sdk-root] .assistant-message-metadata:has(.assistant-feedback-controls) .assistant-message-timestamp {
+  padding-inline: 0;
 }
 
 .assistant-sdk-root .assistant-message-avatar,
@@ -874,11 +1044,6 @@
 .assistant-sdk-root .assistant-message-avatar--assistant,
 [data-assistant-sdk-root] .assistant-message-avatar--assistant {
   background: var(--assistant-sdk-assistant-avatar-background, var(--assistant-sdk-user-message-background, var(--assistant-sdk-default-user-message-background)));
-}
-
-.assistant-sdk-root .assistant-message-avatar--user,
-[data-assistant-sdk-root] .assistant-message-avatar--user {
-  background: var(--assistant-sdk-user-avatar-background, var(--assistant-sdk-default-user-avatar-background));
 }
 
 .assistant-sdk-root .assistant-message-avatar .assistant-product-icon,
@@ -967,14 +1132,21 @@
   color: var(--assistant-sdk-info-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
 }
 
+.assistant-sdk-root .assistant-message-state-body,
+[data-assistant-sdk-root] .assistant-message-state-body {
+  box-sizing: border-box;
+  inline-size: fit-content;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
 .assistant-sdk-root .assistant-product-state-bubble,
 [data-assistant-sdk-root] .assistant-product-state-bubble {
   display: grid;
   inline-size: min(100%, var(--assistant-sdk-message-bubble-max-width, 100%));
   gap: var(--assistant-sdk-state-gap, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)));
   margin: 0;
-  border: 1px solid var(--assistant-sdk-state-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
-  border-inline-start-width: var(--assistant-sdk-state-border-start-width, 1px);
+  border: 0;
   border-radius: var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-state-corner-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
   padding: var(--assistant-sdk-state-padding, var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3))) var(--assistant-sdk-state-padding-inline, calc(var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3)) + var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1))));
   box-shadow: var(--assistant-sdk-state-shadow, var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow)));
@@ -987,6 +1159,11 @@
 .assistant-sdk-root .assistant-product-state-bubble > p,
 [data-assistant-sdk-root] .assistant-product-state-bubble > p {
   margin: 0;
+}
+
+.assistant-sdk-root .assistant-product-state-bubble > p:not(.assistant-product-state-hint),
+[data-assistant-sdk-root] .assistant-product-state-bubble > p:not(.assistant-product-state-hint) {
+  color: var(--assistant-sdk-state-message-foreground, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)));
 }
 
 .assistant-sdk-root .assistant-product-state-badge,
@@ -1047,27 +1224,9 @@
 .assistant-sdk-root .assistant-approval-request-bubble,
 [data-assistant-sdk-root] .assistant-action-draft-bubble,
 [data-assistant-sdk-root] .assistant-approval-request-bubble {
-  border: 1px solid var(--assistant-sdk-action-card-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border: 0;
   border-radius: var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-radius, var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md))) var(--assistant-sdk-action-card-corner-radius, var(--assistant-sdk-radius-sm, var(--assistant-sdk-default-radius-sm)));
   box-shadow: var(--assistant-sdk-action-card-shadow, var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow)));
-}
-
-.assistant-sdk-root .assistant-action-draft-bubble > strong,
-.assistant-sdk-root .assistant-approval-request-bubble > strong,
-[data-assistant-sdk-root] .assistant-action-draft-bubble > strong,
-[data-assistant-sdk-root] .assistant-approval-request-bubble > strong {
-  justify-self: start;
-  border-radius: var(--assistant-sdk-state-badge-radius, var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill)));
-  padding: var(--assistant-sdk-state-badge-padding-block, 2px) var(--assistant-sdk-state-badge-padding-inline, var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)));
-  background: var(--assistant-sdk-warning-badge-background, color-mix(in srgb, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)) 17%, transparent));
-  color: var(--assistant-sdk-warning-badge-foreground, var(--assistant-sdk-warning, var(--assistant-sdk-default-warning)));
-  font-size: var(--assistant-sdk-state-badge-font-size, 0.75rem);
-}
-
-.assistant-sdk-root .assistant-approval-request-bubble > strong,
-[data-assistant-sdk-root] .assistant-approval-request-bubble > strong {
-  background: var(--assistant-sdk-danger-badge-background, color-mix(in srgb, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)) 14%, transparent));
-  color: var(--assistant-sdk-danger-badge-foreground, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)));
 }
 
 .assistant-sdk-root .assistant-action-draft-bubble dl,

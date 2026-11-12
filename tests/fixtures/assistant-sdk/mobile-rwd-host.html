@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Assistant SDK mobile RWD host</title>
+    <style>
+      body { margin: 0; min-height: 2400px; background: #f97316; }
+      #host-content { height: 2400px; }
+    </style>
+  </head>
+  <body>
+    <main id="host-content">Host content</main>
+    <div id="sdk-target"></div>
+    <script type="module">
+      import { mountAssistantWidget } from "/packages/assistant-sdk/dist/index.mjs";
+      import "/packages/assistant-sdk/styles.css";
+
+      window.__streams = [];
+      window.__streamSignals = [];
+      window.__sentMessages = [];
+      window.fetch = async (input, init = {}) => {
+        const pathname = new URL(typeof input === "string" ? input : input.url, location.href).pathname;
+        const method = (init.method || "GET").toUpperCase();
+        const json = (body, status = 200) => new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
+        if (method === "POST" && pathname.endsWith("/assistant/sessions")) {
+          return json({ requestId: "session:create", data: { sessionId: "session-rwd", status: "active" } }, 201);
+        }
+        if (method === "GET" && pathname.endsWith("/assistant/sessions/session-rwd")) {
+          return json({ requestId: "session:get", data: { sessionId: "session-rwd", status: "active" } });
+        }
+        if (method === "GET" && pathname.endsWith("/assistant/sessions/session-rwd/messages")) {
+          return json({ requestId: "session:history", data: { sessionId: "session-rwd", messages: [], nextCursor: null } });
+        }
+        if (method === "POST" && pathname.endsWith("/assistant/sessions/session-rwd/messages")) {
+          window.__sentMessages.push(JSON.parse(init.body).message);
+          window.__streamSignals.push(init.signal);
+          return new Response(new ReadableStream({
+            start(controller) { window.__streams.push(controller); },
+          }), { headers: { "content-type": "text/event-stream" } });
+        }
+        return json({ error: { code: "unexpected_route" } }, 404);
+      };
+      window.__sdkHandle = mountAssistantWidget({
+        target: "#sdk-target",
+        provider: async () => ({ hostApp: "mobile-rwd-test" }),
+        configuration: { size: { width: 360, height: 620 } },
+      });
+      window.__sdkReady = true;
+    </script>
+  </body>
+</html>

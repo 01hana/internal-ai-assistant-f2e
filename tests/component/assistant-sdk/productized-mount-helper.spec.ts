@@ -114,7 +114,6 @@ describe("Frontend 002 productized mountAssistantWidget helper", () => {
     expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-submit\"]");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-frame");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--assistant");
-    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--user");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-timestamp");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-typing-indicator");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--warning");
@@ -126,13 +125,15 @@ describe("Frontend 002 productized mountAssistantWidget helper", () => {
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-input-background");
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-button-primary-background");
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-focus-ring");
-    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-user-avatar-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-feedback-foreground");
     expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
 
     handle.close();
     await flushWidgetMount();
     expect(callbacks.onClosed).toHaveBeenCalledTimes(1);
-    expect(queryVisible(target, productizedOpenWidgetRequirements[0].selectors)).toBe(false);
+    await vi.waitFor(() => {
+      expect(queryVisible(target, productizedOpenWidgetRequirements[0].selectors)).toBe(false);
+    });
     expect(queryAny(target, productizedClosedWidgetRequirements[1].selectors)).toBe(true);
 
     handle.destroy();

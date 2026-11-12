@@ -144,7 +144,6 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     expectStylesheetOwnsSelector(stylesheet, "[data-testid=\"assistant-chat-submit\"]");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-frame");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--assistant");
-    expectStylesheetOwnsSelector(stylesheet, ".assistant-message-avatar--user");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-message-timestamp");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-typing-indicator");
     expectStylesheetOwnsSelector(stylesheet, ".assistant-safe-outcome--warning");
@@ -156,7 +155,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-input-background");
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-button-primary-background");
     expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-focus-ring");
-    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-user-avatar-background");
+    expectStylesheetUsesThemeToken(stylesheet, "--assistant-sdk-feedback-foreground");
     expect(stylesheet).not.toMatch(/@tailwind|@import\s+["'][^"']*tailwind/i);
   });
 
@@ -248,6 +247,98 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
       expect(second.text()).not.toContain("first widget only");
     }
     finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("stops a mounted SDK stream, clears typing, and sends a complete IME message afterward", async () => {
+    const router = createCompatibilityFetchRouter({
+      sseFixture: createCanonicalSseOutcomeFixture("completed-answer"),
+    });
+    const streams: Array<ReadableStreamDefaultController<Uint8Array>> = [];
+    const signals: AbortSignal[] = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const pathname = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, "https://sdk.test").pathname;
+      if (init?.method === "POST" && /\/assistant\/sessions\/[^/]+\/messages\/?$/.test(pathname)) {
+        signals.push(init.signal as AbortSignal);
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) { streams.push(controller); },
+        }), { headers: { "content-type": "text/event-stream" } });
+      }
+      return router.fetch(input, init);
+    });
+    vi.stubGlobal("fetch", fetch);
+    const wrapper = mount(AssistantWidget, {
+      props: { provider: async () => ({ hostApp: "mounted-sdk-stop-ime" }) },
+    });
+    const encoder = new TextEncoder();
+    const frame = (event: Record<string, unknown>) => encoder.encode(`event: ${event.eventType}\ndata: ${JSON.stringify(event)}\n\n`);
+
+    try {
+      await wrapper.get("[data-assistant-launcher]").trigger("click");
+      await vi.waitFor(() => expect(wrapper.get("[data-testid='assistant-chat-input']").attributes("disabled")).toBeUndefined());
+      const input = wrapper.get("[data-testid='assistant-chat-input']");
+      await input.setValue("先前的訊息");
+      await input.trigger("keydown", { key: "Enter" });
+      await vi.waitFor(() => expect(streams).toHaveLength(1));
+      streams[0]!.enqueue(frame({
+        requestId: "server:first", sessionId: "session-001", messageId: "message:first",
+        eventType: "answer_delta", sequence: 1, data: { delta: "未完成回答" },
+      }));
+      await vi.waitFor(() => expect(wrapper.find("[data-testid='assistant-typing-indicator']").exists()).toBe(true));
+      expect(wrapper.findAll("[data-testid='assistant-chat-cancel']")).toHaveLength(1);
+      expect(wrapper.find(".assistant-message-bubble [data-testid='assistant-chat-cancel']").exists()).toBe(false);
+      expect(wrapper.get("[data-testid='assistant-chat-input-bar'] [data-testid='assistant-chat-cancel']").attributes("aria-label")).toBe("停止回覆");
+
+      await wrapper.get("[data-testid='assistant-chat-cancel']").trigger("click");
+      await vi.waitFor(() => {
+        expect(signals[0]?.aborted).toBe(true);
+        expect(wrapper.find("[data-testid='assistant-typing-indicator']").exists()).toBe(false);
+        expect(wrapper.find("[data-testid='assistant-chat-cancel']").exists()).toBe(false);
+      });
+      expect(wrapper.text()).toContain("回覆已取消");
+      expect(wrapper.text()).toContain("未完成回答");
+
+      for (const value of ["這週", "這週新增多少工單"]) {
+        await input.trigger("compositionstart");
+        await input.setValue(value);
+        await input.trigger("keydown", { key: "Enter", isComposing: true, keyCode: 229 });
+        await input.trigger("compositionend");
+        await input.trigger("keydown", { key: "Enter" });
+        await input.trigger("keyup", { key: "Enter" });
+      }
+      expect(streams).toHaveLength(1);
+      expect((input.element as HTMLTextAreaElement).value).toBe("這週新增多少工單");
+      await input.trigger("keydown", { key: "Enter" });
+      await vi.waitFor(() => expect(streams).toHaveLength(2));
+      streams[1]!.enqueue(frame({
+        requestId: "server:second", sessionId: "session-001", messageId: "message:second",
+        eventType: "tool_call_completed", sequence: 1,
+        data: { toolCallId: "tool:lookup", toolName: "internal.lookup", status: "completed", executionStatus: "executed" },
+      }));
+      streams[1]!.enqueue(frame({
+        requestId: "server:second", sessionId: "session-001", messageId: "message:second",
+        eventType: "final", sequence: 2,
+        data: {
+          answerDecision: "answered", answer: "本週新增 3 筆工單",
+          evidenceRefs: [{ id: "evidence:lookup", sourceType: "structured_record", title: "資料來源：內部資料查詢" }],
+        },
+      }));
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain("本週新增 3 筆工單");
+        expect(wrapper.text()).toContain("資料來源：內部資料查詢");
+        expect(wrapper.find("[data-testid='assistant-chat-submit']").exists()).toBe(true);
+      });
+      expect(wrapper.text()).not.toContain("回答完成");
+      expect(wrapper.text()).not.toContain("內部資料查詢完成");
+      expect(wrapper.text()).not.toContain("已回答");
+      expect(wrapper.get("[data-testid='assistant-evidence-ref']").element.closest(".assistant-message-bubble")).toBeTruthy();
+      expect(wrapper.get("[data-testid='assistant-chat-input-bar']").exists()).toBe(true);
+      expect(wrapper.text()).toContain("這週新增多少工單");
+      expect(wrapper.text()).toContain("回覆已取消");
+    }
+    finally {
+      wrapper.unmount();
       vi.unstubAllGlobals();
     }
   });

@@ -98,7 +98,6 @@ describe("Frontend 002 SDK package artifact smoke", () => {
       ".assistant-message-bubble--assistant",
       ".assistant-message-frame",
       ".assistant-message-avatar--assistant",
-      ".assistant-message-avatar--user",
       ".assistant-message-timestamp",
       ".assistant-typing-indicator",
       ".assistant-streaming-cursor",
@@ -109,7 +108,7 @@ describe("Frontend 002 SDK package artifact smoke", () => {
       "[data-testid=\"assistant-chat-submit\"]",
       "[data-testid=\"assistant-safe-outcome\"]",
       "[data-testid=\"assistant-evidence-ref\"]",
-      "[data-testid=\"assistant-feedback-helpful\"]",
+      ".assistant-feedback-button",
       "[data-testid=\"assistant-action-draft-confirm\"]",
       "[data-testid=\"assistant-approval-request-open-detail\"]",
     ];

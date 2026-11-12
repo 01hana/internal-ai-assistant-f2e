@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /// <reference types="vite/client" />
 import { createPinia } from "pinia";
-import { computed, defineAsyncComponent, onBeforeUnmount, shallowRef, type Component } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Component } from "vue";
+import { acquireMobileViewportLock, releaseMobileViewportLock } from "../runtime/mobileViewportLock";
 import type {
   AssistantAccessTokenProvider,
   AssistantHostContextProvider,
@@ -110,6 +111,80 @@ const adapterRef = shallowRef<SdkRuntimeAdapter | null>(null);
 const controller = computed(() => adapterRef.value?.controller ?? null);
 const isOpen = computed(() => Boolean(adapterRef.value?.controller.stores.widget.isOpen.value));
 const panelOpen = computed(() => isOpen.value || !launcherEnabled.value);
+const sdkRootRef = ref<HTMLElement | null>(null);
+const mobileViewport = ref(false);
+const panelEntering = ref(!launcherEnabled.value);
+const panelLeaving = ref(false);
+const panelEntered = ref(false);
+const mobilePanelVisible = computed(() => mobileViewport.value && (panelOpen.value || panelLeaving.value));
+
+function updateVisualViewport() {
+  const root = sdkRootRef.value;
+  if (!root) return;
+  const viewport = typeof window !== "undefined" ? window.visualViewport : null;
+  if (mobilePanelVisible.value && viewport) {
+    root.style.setProperty("--assistant-sdk-visual-viewport-height", `${viewport.height}px`);
+    root.style.setProperty("--assistant-sdk-visual-viewport-top", `${viewport.offsetTop}px`);
+  }
+  else {
+    root.style.removeProperty("--assistant-sdk-visual-viewport-height");
+    root.style.removeProperty("--assistant-sdk-visual-viewport-top");
+  }
+}
+
+function updateMobileViewport() {
+  const nextMobile = window.matchMedia?.("(max-width: 576px)").matches ?? window.innerWidth <= 576;
+  if (nextMobile !== mobileViewport.value && (panelOpen.value || panelLeaving.value)) {
+    panelEntered.value = true;
+    panelEntering.value = false;
+    sdkRootRef.value?.querySelector<HTMLElement>("[data-assistant-panel]")?.getAnimations?.().forEach(animation => animation.cancel());
+  }
+  mobileViewport.value = nextMobile;
+  updateVisualViewport();
+}
+
+watch(mobilePanelVisible, (openOnMobile) => {
+  if (openOnMobile) acquireMobileViewportLock(runtimeScope);
+  else releaseMobileViewportLock(runtimeScope);
+  updateVisualViewport();
+});
+
+function afterPanelEnter() {
+  panelEntering.value = false;
+  panelEntered.value = true;
+}
+
+function beforePanelLeave(element: Element) {
+  element.setAttribute("inert", "");
+  element.setAttribute("aria-hidden", "true");
+  if (document.activeElement instanceof HTMLElement && element.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
+}
+
+function cancelPanelLeave(element: Element) {
+  element.removeAttribute("inert");
+  element.removeAttribute("aria-hidden");
+  if (panelOpen.value) {
+    panelLeaving.value = false;
+    panelEntering.value = false;
+    panelEntered.value = true;
+  }
+}
+
+function afterPanelLeave() {
+  if (panelOpen.value) return;
+  panelLeaving.value = false;
+  panelEntering.value = false;
+  panelEntered.value = false;
+}
+
+onMounted(() => {
+  updateMobileViewport();
+  window.addEventListener("resize", updateMobileViewport);
+  window.visualViewport?.addEventListener("resize", updateVisualViewport);
+  window.visualViewport?.addEventListener("scroll", updateVisualViewport);
+});
 const panelContextReady = computed(() => Boolean(adapterRef.value?.controller.stores.session.contextReady.value));
 const panelCanSend = computed(() => {
   const adapter = adapterRef.value;
@@ -217,6 +292,11 @@ async function openWidget() {
   const adapter = await getAdapter();
   const session = adapter.controller.stores.session;
 
+  if (!panelOpen.value) {
+    panelEntering.value = !panelLeaving.value;
+    panelEntered.value = panelLeaving.value;
+  }
+  panelLeaving.value = false;
   adapter.controller.stores.widget.isOpen.value = true;
   await adapter.emitHostEvent("opened", {
     sessionId: session.sessionId.value ?? undefined,
@@ -228,6 +308,10 @@ async function closeWidget() {
   const adapter = await getAdapter();
   const session = adapter.controller.stores.session;
 
+  if (panelOpen.value && mobileViewport.value) {
+    panelLeaving.value = true;
+  }
+  panelEntering.value = false;
   adapter.controller.stores.widget.isOpen.value = false;
   await adapter.emitHostEvent("closed", {
     sessionId: session.sessionId.value ?? undefined,
@@ -304,11 +388,17 @@ async function loadMoreHistory() {
   await adapter.controller.loadHistory({ cursor, sessionId });
 }
 
-async function cancelStreaming() {
+async function cancelStreaming(expectedRequestId: string) {
   const adapter = await getAdapter();
   const session = adapter.controller.stores.session;
+  if (session.activeRequestId.value !== expectedRequestId) return;
+  const activeMessage = (session.messages.value as Array<Record<string, unknown>>).find(message =>
+    message.kind === "assistant_streaming"
+    && message.key === session.activeAssistantMessageKey.value,
+  );
+  if (!activeMessage || !["sending", "queued", "connecting", "streaming"].includes(String(activeMessage.status))) return;
   const sessionId = session.sessionId.value;
-  const messageId = session.activeAssistantMessageKey.value ?? session.activeRequestId.value;
+  const messageId = typeof activeMessage.messageId === "string" ? activeMessage.messageId : null;
 
   await adapter.cancelMessageStream();
 
@@ -318,8 +408,10 @@ async function cancelStreaming() {
 
   const result = await adapter.transport.cancelMessage({ messageId, sessionId });
 
-  if (!result.ok) {
-    await emitError(result.error.code, result.error.message || "目前無法取消助理回覆。");
+  if (!result.ok && result.error.code !== "transport_unavailable") {
+    await adapter.emitHostEvent("error", {
+      error: safeError(result.error.code, result.error.message || "目前無法取消助理回覆。"),
+    });
   }
 }
 
@@ -441,6 +533,10 @@ async function openApprovalDetail(payload: {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener("resize", updateMobileViewport);
+  window.visualViewport?.removeEventListener("resize", updateVisualViewport);
+  window.visualViewport?.removeEventListener("scroll", updateVisualViewport);
+  releaseMobileViewportLock(runtimeScope);
   void adapterPromise.then(adapter => adapter.destroy());
 });
 
@@ -452,8 +548,11 @@ defineExpose({
 
 <template>
   <section
+    ref="sdkRootRef"
     class="assistant-sdk-root"
     data-assistant-sdk-root
+    :data-mobile-open="mobilePanelVisible ? 'true' : undefined"
+    :data-panel-transitioning="mobileViewport && (panelEntering || panelLeaving) ? 'true' : undefined"
     :data-runtime-scope="runtimeScope"
     :data-theme="props.configuration?.theme ?? 'system'"
     :data-position="props.configuration?.position ?? 'bottom-right'"
@@ -471,35 +570,48 @@ defineExpose({
     >
       <AssistantProductIcon name="chat" />
     </button>
-    <AssistantProductPanelShell
-      v-if="panelOpen"
-      class="assistant-sdk-panel"
-      data-assistant-panel
-      :context-ready="panelContextReady"
-      :status="panelStatus"
-      title="AI 助理"
-      restart-label="Restart assistant"
-      close-label="Close assistant"
-      :style="{
-        width: props.configuration?.size?.width ? `${props.configuration.size.width}px` : undefined,
-        height: props.configuration?.size?.height ? `${props.configuration.size.height}px` : undefined,
-        zIndex: props.configuration?.zIndex,
-      }"
-      @close="closeWidget"
-      @restart="restartWidget"
+    <Transition
+      name="assistant-sdk-panel"
+      @after-enter="afterPanelEnter"
+      @before-leave="beforePanelLeave"
+      @after-leave="afterPanelLeave"
+      @leave-cancelled="cancelPanelLeave"
     >
-      <AssistantProductRuntimePanel
-        :controller="controller"
-        :runtime-scope="runtimeScope"
-        :composer-can-send="panelCanSend"
-        :on-send-message="sendMessage"
-        :on-load-more-history="loadMoreHistory"
-        :on-cancel-streaming="cancelStreaming"
-        :on-submit-feedback="submitFeedback"
-        :on-confirm-action-draft="confirmActionDraft"
-        :on-cancel-action-draft="cancelActionDraft"
-        :on-open-approval-detail="openApprovalDetail"
-      />
-    </AssistantProductPanelShell>
+      <AssistantProductPanelShell
+        v-if="panelOpen"
+        class="assistant-sdk-panel"
+        data-assistant-panel
+        :data-panel-entered="panelEntered ? 'true' : undefined"
+        :data-desktop-entering="panelEntering && !mobileViewport ? 'true' : undefined"
+        :data-leaving="panelLeaving ? 'true' : undefined"
+        :inert="panelLeaving"
+        :aria-hidden="panelLeaving ? 'true' : undefined"
+        :context-ready="panelContextReady"
+        :status="panelStatus"
+        title="AI 助理"
+        restart-label="Restart assistant"
+        close-label="Close assistant"
+        :style="{
+          width: props.configuration?.size?.width ? `${props.configuration.size.width}px` : undefined,
+          height: props.configuration?.size?.height ? `${props.configuration.size.height}px` : undefined,
+          zIndex: props.configuration?.zIndex,
+        }"
+        @close="closeWidget"
+        @restart="restartWidget"
+      >
+        <AssistantProductRuntimePanel
+          :controller="controller"
+          :runtime-scope="runtimeScope"
+          :composer-can-send="panelCanSend"
+          :on-send-message="sendMessage"
+          :on-load-more-history="loadMoreHistory"
+          :on-cancel-streaming="cancelStreaming"
+          :on-submit-feedback="submitFeedback"
+          :on-confirm-action-draft="confirmActionDraft"
+          :on-cancel-action-draft="cancelActionDraft"
+          :on-open-approval-detail="openApprovalDetail"
+        />
+      </AssistantProductPanelShell>
+    </Transition>
   </section>
 </template>

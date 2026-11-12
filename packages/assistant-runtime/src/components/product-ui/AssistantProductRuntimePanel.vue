@@ -38,7 +38,7 @@ const props = defineProps<{
   runtimeScope: string;
   onSendMessage: (message: string) => void;
   onLoadMoreHistory: () => void;
-  onCancelStreaming: () => void;
+  onCancelStreaming: (requestId: string) => void | Promise<void>;
   onSubmitFeedback: (payload: FeedbackPayload) => void;
   onConfirmActionDraft: (actionDraftId: string) => void;
   onCancelActionDraft: (actionDraftId: string) => void;
@@ -64,11 +64,19 @@ function readStoreValue<T>(source: unknown, fallback: T): T {
 const messages = computed(() => readStoreValue<RuntimeMessage[]>(session.messages, []));
 const nextCursor = computed(() => readStoreValue<string | null>(session.nextCursor, null));
 const activeRequestId = computed(() => readStoreValue<string | null>(session.activeRequestId, null));
+const activeAssistantMessageKey = computed(() => readStoreValue<string | null>(session.activeAssistantMessageKey, null));
 const sessionStatus = computed(() => readStoreValue(session.status, "idle"));
 const sessionContextReady = computed(() => readStoreValue(session.contextReady, false));
 const sessionLastError = computed(() => readStoreValue<{ safeMessage?: string } | null>(session.lastError, null));
 const widgetAvailability = computed(() => readStoreValue(widget.availability, "normal"));
-const isStreaming = computed(() => Boolean(activeRequestId.value));
+const isStreaming = computed(() => Boolean(activeRequestId.value && messages.value.some(message =>
+  isStreamingMessage(message)
+  && record(message).key === activeAssistantMessageKey.value
+  && ["sending", "queued", "connecting", "streaming"].includes(message.status),
+)));
+const stopPendingRequestId = ref<string | null>(null);
+let composing: boolean = false;
+let compositionCommitPending: boolean = false;
 
 const externalDisabledMessages: Record<string, string> = {
   bootstrapping: "正在準備助理 session",
@@ -123,7 +131,7 @@ const disabledReason = computed(() => {
   return null;
 });
 
-const canSend = computed(() => props.composerCanSend ?? (disabledReason.value === null));
+const canSend = computed(() => !activeRequestId.value && (props.composerCanSend ?? (disabledReason.value === null)));
 const inputDisabled = computed(() => disabledReason.value !== null && disabledReason.value !== "streaming");
 const disabledMessage = computed(() => disabledReason.value === "streaming" ? null : disabledReason.value);
 
@@ -215,6 +223,10 @@ function isInterruptedMessage(message: RuntimeMessage): boolean {
     && ["interrupted", "cancelled", "failed"].includes(message.status);
 }
 
+function isStateMessage(message: RuntimeMessage): boolean {
+  return Boolean(safeOutcomeKind(message) || isEscalationMessage(message) || isInterruptedMessage(message));
+}
+
 function presentationTestId(message: RuntimeMessage): string {
   if (isUserMessage(message)) return "assistant-user-message";
   if (isActiveStreamingMessage(message)) return "assistant-streaming-message";
@@ -268,6 +280,18 @@ function noAnswerContent(message: RuntimeMessage): string {
     unsupported_scope: "目前頁面或資料範圍不支援這項查詢。",
   };
   return messages[noAnswerReason(message) ?? ""] ?? "目前無法安全回答這個問題。";
+}
+
+function noAnswerHint(message: RuntimeMessage): string {
+  const hints: Record<string, string> = {
+    ambiguous_query: "可指定查詢對象、時間或其他條件。",
+    evidence_conflict: "請先確認資料來源與適用範圍。",
+    low_confidence: "可提供更明確的資料範圍後再試。",
+    missing_page_context: "可切換至相關頁面或補充查詢條件。",
+    no_evidence: "可補充資料名稱、時間或範圍後重新查詢。",
+    unsupported_scope: "請改用支援的頁面或資料範圍。",
+  };
+  return hints[noAnswerReason(message) ?? ""] ?? "可補充查詢條件後再試。";
 }
 
 function safeStateContent(message: RuntimeMessage, fallback: string): string {
@@ -334,7 +358,7 @@ function streamingStatusLabel(message: RuntimeMessage): string {
 
   switch (message.status) {
     case "completed":
-      return "回答完成";
+      return "";
     case "interrupted":
       return "回覆已中斷，尚未完成。";
     case "cancelled":
@@ -457,6 +481,15 @@ function streamingActivities(message: RuntimeMessage) {
     return [];
   }
 
+  // 狀態型回覆（安全無答案、中斷、權限受限等）的說明一律收在卡片內，不在卡片外另外顯示進度文字。
+  if (isStateMessage(message)) {
+    return [];
+  }
+
+  if (message.status === "completed") {
+    return message.activities.filter(activity => activity.kind !== "tool_completed" && activity.kind !== "tool_running");
+  }
+
   return message.activities;
 }
 
@@ -485,9 +518,45 @@ function submitComposer() {
 }
 
 function onComposerKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter" && !event.shiftKey) {
+  if (event.key !== "Enter") {
+    compositionCommitPending = false;
+    return;
+  }
+  if (composing || event.isComposing || event.keyCode === 229 || compositionCommitPending) {
+    return;
+  }
+  if (!event.shiftKey) {
     event.preventDefault();
     submitComposer();
+  }
+}
+
+function onComposerKeyup(event: KeyboardEvent) {
+  if (event.key === "Enter") {
+    compositionCommitPending = false;
+  }
+}
+
+function onCompositionStart() {
+  composing = true;
+}
+
+function onCompositionEnd() {
+  composing = false;
+  compositionCommitPending = true;
+}
+
+async function requestStop() {
+  const requestId = activeRequestId.value;
+  if (!requestId || !isStreaming.value || stopPendingRequestId.value === requestId) return;
+  stopPendingRequestId.value = requestId;
+  try {
+    await props.onCancelStreaming(requestId);
+  }
+  finally {
+    if (stopPendingRequestId.value === requestId) {
+      stopPendingRequestId.value = null;
+    }
   }
 }
 </script>
@@ -560,6 +629,46 @@ function onComposerKeydown(event: KeyboardEvent) {
             :created-at="messageCreatedAt(message)"
             :message-test-id="presentationTestId(message)"
           >
+            <template v-if="isAnsweredMessage(message)" #metadata>
+              <section
+                class="assistant-feedback-controls"
+                data-testid="assistant-feedback-controls"
+                aria-label="回答回饋"
+                :aria-busy="feedbackState(message).pending ? 'true' : 'false'"
+              >
+                <button
+                  type="button"
+                  class="assistant-product-icon-button assistant-feedback-button"
+                  data-testid="assistant-feedback-helpful"
+                  aria-label="這個回答有幫助"
+                  title="這個回答有幫助"
+                  :aria-pressed="feedbackState(message).value === 'helpful' ? 'true' : 'false'"
+                  :disabled="!props.controller.prepareFeedbackSubmission({ messageId: messageId(message), value: 'helpful' }).allowed"
+                  @click="submitFeedback(message, 'helpful')"
+                >
+                  <AssistantProductIcon name="thumb-up" />
+                </button>
+                <button
+                  type="button"
+                  class="assistant-product-icon-button assistant-feedback-button"
+                  data-testid="assistant-feedback-not-helpful"
+                  aria-label="這個回答沒有幫助"
+                  title="這個回答沒有幫助"
+                  :aria-pressed="feedbackState(message).value === 'not_helpful' ? 'true' : 'false'"
+                  :disabled="!props.controller.prepareFeedbackSubmission({ messageId: messageId(message), value: 'not_helpful' }).allowed"
+                  @click="submitFeedback(message, 'not_helpful')"
+                >
+                  <AssistantProductIcon name="thumb-down" />
+                </button>
+                <p
+                  v-if="feedbackState(message).error"
+                  class="assistant-feedback-error"
+                  data-testid="assistant-feedback-error"
+                >
+                  {{ feedbackState(message).error }}
+                </p>
+              </section>
+            </template>
             <div
               v-if="isUserMessage(message)"
               class="assistant-message-bubble assistant-message-bubble--user"
@@ -568,9 +677,12 @@ function onComposerKeydown(event: KeyboardEvent) {
               <p>{{ messageContent(message) }}</p>
             </div>
 
-            <div v-else class="assistant-message-bubble assistant-message-bubble--assistant">
+            <div
+              v-else
+              :class="isStateMessage(message) ? 'assistant-message-state-body' : 'assistant-message-bubble assistant-message-bubble--assistant'"
+            >
               <div
-                v-if="isStreamingMessage(message) && messageContent(message)"
+                v-if="isStreamingMessage(message) && messageContent(message) && !isStateMessage(message)"
                 :data-testid="message.status === 'completed' ? 'assistant-ai-bubble' : undefined"
               >
                 <p data-testid="assistant-streaming-content">
@@ -583,7 +695,7 @@ function onComposerKeydown(event: KeyboardEvent) {
                 </p>
               </div>
               <div
-                v-else-if="!safeOutcomeKind(message)"
+                v-else-if="!isStateMessage(message)"
                 :data-testid="isAnsweredMessage(message) ? 'assistant-ai-bubble' : undefined"
               >
                 <p>{{ messageContent(message) }}</p>
@@ -601,7 +713,7 @@ function onComposerKeydown(event: KeyboardEvent) {
               </div>
 
               <p
-                v-if="isStreamingMessage(message)"
+                v-if="isStreamingMessage(message) && message.status !== 'completed' && !isStateMessage(message)"
                 class="assistant-streaming-status"
                 data-testid="assistant-streaming-status"
               >
@@ -616,23 +728,11 @@ function onComposerKeydown(event: KeyboardEvent) {
                 {{ activity.label }}
               </p>
               <p
-                v-if="isStreamingMessage(message) && message.status === 'finalizing'"
+                v-if="isStreamingMessage(message) && message.status === 'finalizing' && !isStateMessage(message)"
                 data-testid="assistant-streaming-finalized"
               >
                 正在整理最終回答。
               </p>
-              <button
-                v-if="isActiveStreamingMessage(message)"
-                type="button"
-                class="assistant-product-icon-button assistant-product-icon-button--danger"
-                data-testid="assistant-chat-cancel"
-                aria-label="停止回覆"
-                title="停止回覆"
-                @click="onCancelStreaming"
-              >
-                <AssistantProductIcon name="stop" />
-              </button>
-
               <section
                 v-if="safeOutcomeKind(message) === 'clarification_required'"
                 class="assistant-safe-outcome assistant-safe-outcome--warning assistant-product-state-bubble"
@@ -650,6 +750,7 @@ function onComposerKeydown(event: KeyboardEvent) {
               >
                 <span class="assistant-product-state-badge assistant-product-state-badge--error" data-testid="assistant-permission-denied-label">權限受限</span>
                 <p data-testid="assistant-permission-denied-content">{{ safeStateContent(message, "你目前沒有足夠權限查看這項資訊。") }}</p>
+                <p class="assistant-product-state-hint" data-testid="assistant-permission-denied-hint">請確認目前帳號的存取範圍。</p>
               </section>
 
               <section
@@ -667,8 +768,8 @@ function onComposerKeydown(event: KeyboardEvent) {
                 data-testid="assistant-safe-outcome"
               >
                 <span class="assistant-product-state-badge assistant-product-state-badge--neutral" data-testid="assistant-no-answer-label">{{ noAnswerLabel(message) }}</span>
-                <p data-testid="assistant-no-answer-content">{{ noAnswerContent(message) }}</p>
-                <p v-if="messageContent(message) && messageContent(message) !== noAnswerContent(message)" class="assistant-product-state-hint" data-testid="assistant-no-answer-detail">{{ messageContent(message) }}</p>
+                <p data-testid="assistant-no-answer-content">{{ safeStateContent(message, noAnswerContent(message)) }}</p>
+                <p class="assistant-product-state-hint" data-testid="assistant-no-answer-hint">{{ noAnswerHint(message) }}</p>
               </section>
 
               <section
@@ -690,7 +791,7 @@ function onComposerKeydown(event: KeyboardEvent) {
               </section>
 
               <section
-                v-if="isInterruptedMessage(message)"
+                v-if="isInterruptedMessage(message) || safeOutcomeKind(message) === 'interrupted'"
                 class="assistant-safe-outcome assistant-safe-outcome--warning assistant-product-state-bubble"
                 data-testid="assistant-safe-outcome"
               >
@@ -708,17 +809,10 @@ function onComposerKeydown(event: KeyboardEvent) {
                 </button>
               </section>
 
-              <p
-                v-if="isAnsweredMessage(message)"
-                data-testid="assistant-ai-answer-decision"
-              >
-                已回答
-              </p>
-
               <ul
                 v-if="evidenceRefs(message).length > 0"
                 class="assistant-evidence-list"
-                aria-label="參考依據"
+                aria-label="資料來源"
               >
                 <li
                   v-for="evidence in evidenceRefs(message)"
@@ -732,52 +826,12 @@ function onComposerKeydown(event: KeyboardEvent) {
               </ul>
 
               <section
-                v-if="isAnsweredMessage(message)"
-                class="assistant-feedback-controls"
-                data-testid="assistant-feedback-controls"
-                aria-label="回答回饋"
-                :aria-busy="feedbackState(message).pending ? 'true' : 'false'"
-              >
-                <button
-                  type="button"
-                  class="assistant-product-icon-button"
-                  data-testid="assistant-feedback-helpful"
-                  aria-label="這個回答有幫助"
-                  title="這個回答有幫助"
-                  :aria-pressed="feedbackState(message).value === 'helpful' ? 'true' : 'false'"
-                  :disabled="!props.controller.prepareFeedbackSubmission({ messageId: messageId(message), value: 'helpful' }).allowed"
-                  @click="submitFeedback(message, 'helpful')"
-                >
-                  <AssistantProductIcon name="thumb-up" />
-                </button>
-                <button
-                  type="button"
-                  class="assistant-product-icon-button"
-                  data-testid="assistant-feedback-not-helpful"
-                  aria-label="這個回答沒有幫助"
-                  title="這個回答沒有幫助"
-                  :aria-pressed="feedbackState(message).value === 'not_helpful' ? 'true' : 'false'"
-                  :disabled="!props.controller.prepareFeedbackSubmission({ messageId: messageId(message), value: 'not_helpful' }).allowed"
-                  @click="submitFeedback(message, 'not_helpful')"
-                >
-                  <AssistantProductIcon name="thumb-down" />
-                </button>
-                <p
-                  v-if="feedbackState(message).error"
-                  class="assistant-feedback-error"
-                  data-testid="assistant-feedback-error"
-                >
-                  {{ feedbackState(message).error }}
-                </p>
-              </section>
-
-              <section
                 v-if="actionDraftState(message)"
                 class="assistant-action-draft-bubble"
                 data-testid="assistant-action-draft-message"
                 data-assistant-action-draft-bubble
               >
-                <strong data-testid="assistant-action-draft-title">需要確認</strong>
+                <span class="assistant-product-state-badge assistant-product-state-badge--warning" data-testid="assistant-action-draft-title">需要確認</span>
                 <p>{{ actionDraftState(message)?.safeMessage ?? messageContent(message) }}</p>
                 <dl
                   v-if="actionRows(actionDraftState(message)).length > 0 || actionPreviewRows(actionDraftState(message)).length > 0"
@@ -850,7 +904,7 @@ function onComposerKeydown(event: KeyboardEvent) {
                 class="assistant-approval-request-bubble"
                 data-testid="assistant-approval-request-message"
               >
-                <strong data-testid="assistant-approval-request-title">需要審核</strong>
+                <span class="assistant-product-state-badge assistant-product-state-badge--info" data-testid="assistant-approval-request-title">需要審核</span>
                 <p>{{ messageContent(message) || "這個操作需要額外審核後才能繼續。" }}</p>
                 <p
                   v-if="approvalRequestState(message)?.status"
@@ -935,15 +989,19 @@ function onComposerKeydown(event: KeyboardEvent) {
           placeholder="輸入訊息..."
           aria-label="輸入訊息"
           @keydown="onComposerKeydown"
+          @keyup="onComposerKeyup"
+          @compositionstart="onCompositionStart"
+          @compositionend="onCompositionEnd"
         />
         <button
           v-if="isStreaming"
           type="button"
-          class="assistant-chat-submit assistant-chat-submit--cancel assistant-product-icon-button"
+          class="assistant-chat-submit assistant-chat-submit--cancel assistant-product-icon-button assistant-product-icon-button--danger"
           data-testid="assistant-chat-cancel"
           aria-label="停止回覆"
           title="停止回覆"
-          @click="onCancelStreaming"
+          :disabled="stopPendingRequestId === activeRequestId"
+          @click="requestStop"
         >
           <AssistantProductIcon name="stop" />
         </button>
