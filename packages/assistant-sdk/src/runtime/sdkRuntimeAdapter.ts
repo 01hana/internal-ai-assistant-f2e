@@ -299,6 +299,8 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     },
     sessionLifecycle,
     bootstrapSession: sessionBootstrap.bootstrap,
+    forgetStoredSession: sessionBootstrap.forgetStoredSession,
+    restoreSession: sessionBootstrap.restoreSession,
     sseRunner,
     startMessageStream(input: AssistantRuntimeStreamMessageInput): Promise<void> {
       if (destroyed) {

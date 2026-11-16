@@ -1,10 +1,12 @@
 import type {
   AssistantRuntimeActionConfirmationInput,
   AssistantRuntimeApprovalInput,
+  AssistantRuntimeArchiveSessionInput,
   AssistantRuntimeCancelMessageInput,
   AssistantRuntimeCreateSessionInput,
   AssistantRuntimeFeedbackInput,
   AssistantRuntimeGetSessionInput,
+  AssistantRuntimeListSessionsInput,
   AssistantRuntimeLoadHistoryInput,
   AssistantRuntimeRequestOptions,
   AssistantRuntimeSendMessageInput,
@@ -49,6 +51,8 @@ export type SdkTransportOperationInputMap = {
   readonly confirmAction: AssistantRuntimeActionConfirmationInput;
   readonly rejectAction: AssistantRuntimeActionConfirmationInput;
   readonly loadApprovalRequest: AssistantRuntimeApprovalInput;
+  readonly listSessions: AssistantRuntimeListSessionsInput;
+  readonly archiveSession: AssistantRuntimeArchiveSessionInput;
 };
 
 export type SdkTransportOperationName = keyof SdkTransportOperationInputMap;

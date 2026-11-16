@@ -234,7 +234,68 @@ export function createSdkSessionBootstrap(options: SessionBootstrapOptions) {
       }
   }
 
+  /**
+   * Frontend 003 (Backend Feature 013): open a session picked from the session list. The session is validated
+   * before anything changes, so a failure leaves the current conversation untouched. `beforeApply` lets the
+   * widget clear the current conversation only once the target is known to be usable.
+   */
+  async function restoreSession(
+    sessionId: string,
+    hooks: { readonly beforeApply?: () => Promise<void> | void } = {},
+  ): Promise<BootstrapResult> {
+    const targetSessionId = nonEmptyString(sessionId);
+    const unavailable = { code: "session_restore_failed", safeMessage: "目前無法開啟這段對話，請稍後再試。" };
+
+    if (bootstrapTask) {
+      await bootstrapTask.catch(() => undefined);
+    }
+
+    if (!targetSessionId || !supportsAssistantRuntimeRemoteRestoration(options.transport)) {
+      return { error: unavailable, ok: false };
+    }
+
+    const response = await options.transport.getSession({ sessionId: targetSessionId });
+
+    if (!response.ok || !isUsableSession(response.value)) {
+      const code = !response.ok && response.error.code === "session_not_found" ? "session_not_found" : unavailable.code;
+      return { error: { ...unavailable, code }, ok: false };
+    }
+
+    await hooks.beforeApply?.();
+    options.controller.setRestoring();
+    options.controller.setContextReady(true);
+    options.controller.setSession(response.value);
+
+    try {
+      await options.controller.loadHistory({ sessionId: response.value.sessionId });
+      options.controller.clearError();
+    } catch {
+      options.controller.setLastError({
+        code: "history_unavailable",
+        safeMessage: "對話紀錄暫時無法載入。",
+      }, null);
+      options.controller.setReady();
+    }
+
+    const snapshot = await options.resolveSnapshot();
+    const storedSession = snapshot.ok ? resolveStoredSession(record(snapshot.localContext), options.configuration) : null;
+
+    storedSession?.storage.set({ namespace: storedSession.namespace, sessionId: response.value.sessionId });
+    await options.emitHostEvent("session-changed", { sessionId: response.value.sessionId });
+    return { ok: true, sessionId: response.value.sessionId };
+  }
+
+  /** Frontend 003: forget the stored pointer (after archiving the current session) so the next bootstrap creates a new one. */
+  async function forgetStoredSession(): Promise<void> {
+    const snapshot = await options.resolveSnapshot();
+    const storedSession = snapshot.ok ? resolveStoredSession(record(snapshot.localContext), options.configuration) : null;
+
+    storedSession?.storage.clear({ namespace: storedSession.namespace });
+  }
+
   return {
     bootstrap,
+    forgetStoredSession,
+    restoreSession,
   };
 }

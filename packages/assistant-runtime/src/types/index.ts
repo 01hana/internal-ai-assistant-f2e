@@ -66,6 +66,19 @@ export interface SendAssistantMessageRequest {
   pageContext?: PageContext;
 }
 
+/** Backend Feature 013: a server-declared Quick Reply or suggestion; `id` is sent back as `choiceId`. */
+export interface AssistantChoice {
+  id: string;
+  label: string;
+}
+
+/** Backend Feature 013: returned only when a session is created. */
+export interface AssistantOpening {
+  configVersion: string | null;
+  greeting: string;
+  quickReplies: AssistantChoice[];
+}
+
 export interface AssistantSession {
   sessionId: AssistantSessionId;
   status: string;
@@ -74,6 +87,20 @@ export interface AssistantSession {
   updatedAt?: IsoDateTime;
   latestMessageId?: AssistantMessageId | null;
   pageContext?: PageContext | null;
+  opening?: AssistantOpening;
+}
+
+/** Backend Feature 013: one entry of the actor's session list. */
+export interface AssistantSessionListItem {
+  sessionId: AssistantSessionId;
+  title: string | null;
+  createdAt: IsoDateTime;
+  lastMessageAt: IsoDateTime;
+}
+
+export interface AssistantSessionListPage {
+  sessions: AssistantSessionListItem[];
+  nextCursor: string | null;
 }
 
 export type AssistantMessageRole = "user" | "assistant" | "system" | "tool";
@@ -117,6 +144,8 @@ export interface AssistantMessageFinalData {
   actionDraftId?: ActionDraftId;
   approvalRequestId?: ApprovalRequestId;
   escalationRequestId?: EscalationRequestId;
+  /** Backend Feature 013: present only when non-empty; already normalized by the SSE parser. */
+  suggestions?: AssistantChoice[];
 }
 
 export type AssistantKnownSseEventType =

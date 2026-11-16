@@ -1,7 +1,7 @@
 # Tasks: Assistant Conversation Experience（前端）
 
 **Input**: `spec.md`, `design.md`, `plan.md`
-**Status**: Phase 0 完成（Gate 0 PASS）；第一個未執行的 task 為 T004
+**Status**: Phase 0–1 完成（Gate 1 PASS）；第一個未執行的 task 為 T011
 
 ## Phase 0 — 基線
 
@@ -32,13 +32,27 @@ FRONTEND003_FIRST_UNEXECUTED_TASK=T004
 
 ## Phase 1 — 契約與資料層
 
-- [ ] T004 [P] unit：SSE `final` 接受選用 `suggestions`，不合法項目捨棄、全部不合法省略欄位、舊 final 不變（`tests/unit/assistant-runtime/`）。RED 後修改 `packages/assistant-runtime/src/types/index.ts`、`sse/index.ts`。
-- [ ] T005 [P] unit：`AssistantSession.opening` 正規化（缺欄位、型別錯誤時省略）。RED 後新增型別與正規化函式。
-- [ ] T006 unit：送訊息輸入 `message` / `choiceId` 二選一；`choiceId` 格式；兩者皆有或皆無被拒（`requestBuilder`、`requestSafety`、`outgoingRequestBoundary`）。RED 後實作。
-- [ ] T007 contract：`defaultTransport` 兩種模式 —— `createSession` 保留 `opening`；`streamMessage` body 只有 `choiceId` 與 `pageContext`；`listSessions` GET 路徑與 query；`archiveSession` POST 無 body；gateway-v1 只帶 `Authorization`。RED 後實作，路由白名單加入兩者。
-- [ ] T008 unit：transport port 選用 capability `listSessions` / `archiveSession` 與 `supportsAssistantRuntimeSessionHistory()`。
-- [ ] T009 unit：`sessionBootstrap` 還原到沒有訊息的 session 時清除指標並建立新 session；新增 `restore(sessionId)` 的成功與失敗路徑。
-- [ ] T010 **Gate 1**：typecheck、lint、Phase 1 focused；使用者全套通過（舊回應相容）。`FRONTEND003_GATE_1=PASS`。
+- [x] T004 [P] unit：SSE `final` 接受選用 `suggestions`，不合法項目捨棄、全部不合法省略欄位、舊 final 不變（`tests/unit/assistant-runtime/`）。RED 後修改 `packages/assistant-runtime/src/types/index.ts`、`sse/index.ts`。
+- [x] T005 [P] unit：`AssistantSession.opening` 正規化（缺欄位、型別錯誤時省略）。RED 後新增型別與正規化函式。
+- [x] T006 unit：送訊息輸入 `message` / `choiceId` 二選一；`choiceId` 格式；兩者皆有或皆無被拒（`requestBuilder`、`requestSafety`、`outgoingRequestBoundary`）。RED 後實作。
+- [x] T007 contract：`defaultTransport` 兩種模式 —— `createSession` 保留 `opening`；`streamMessage` body 只有 `choiceId` 與 `pageContext`；`listSessions` GET 路徑與 query；`archiveSession` POST 無 body；gateway-v1 只帶 `Authorization`。RED 後實作，路由白名單加入兩者。
+- [x] T008 unit：transport port 選用 capability `listSessions` / `archiveSession` 與 `supportsAssistantRuntimeSessionHistory()`。
+- [x] T009 component：`sessionBootstrap.restoreSession(sessionId)` 的成功與失敗路徑（失敗時目前對話不變）。（原「空 session 改建新 session」已撤回，見 spec Decision 4。）
+- [x] T010 **Gate 1**：typecheck、lint、Phase 1 focused；使用者全套通過（舊回應相容）。`FRONTEND003_GATE_1=PASS`。
+
+**Phase 1 執行證據（2026-11-16）**：
+
+- T004／T005／T008：`packages/assistant-runtime/src/experience/index.ts`（`ASSISTANT_CHOICE_ID_PATTERN` 與後端相同、`normalizeAssistantChoices`、`normalizeAssistantOpening`、`normalizeAssistantSessionListPage`）；型別 `AssistantChoice`、`AssistantOpening`、`AssistantSession.opening?`、`AssistantMessageFinalData.suggestions?`、`AssistantSessionListItem`／`Page`。SSE parser 對 `final.suggestions` 正規化（不合法項目捨棄、全部不合法則移除欄位，不讓事件失敗）；session orchestrator 建立 session 時正規化 `opening`。transport port 新增選用 `listSessions`／`archiveSession` 與 `supportsAssistantRuntimeSessionHistory()`。測試 `tests/unit/assistant-runtime/conversation-experience.spec.ts`。
+- T006：`AssistantRuntimeSendMessageInput` 改為 `message`／`choiceId` 二選一；`coreAssistantRequestAdapter` 的 compatibility 與 gateway 兩個 builder 共用 `readMessageOrChoice`，兩者皆有、皆無、`choiceId` 格式錯誤都拒絕；backend002 不支援 choice。測試 `tests/unit/assistant-sdk/choice-request.spec.ts`。
+- T007：`defaultTransport` 兩種內建模式新增 `listSessions`（GET，只帶 `limit`、`cursor`）與 `archiveSession`（POST，無 body）；只有這兩條路由把 400 回報為新的 `invalid_request`、404 回報為 `session_not_found`，既有路由的錯誤對應不變；列表回應不合法時安全失敗；`streamMessage` 支援 `choiceId`。backend002 不提供這兩個 capability（比照 remote restoration）。測試 `tests/contract/assistant-sdk/default-transport-conversation-experience.spec.ts`。
+- T009：`sessionBootstrap.restoreSession`、`forgetStoredSession`，adapter 對外提供。測試 `tests/component/assistant-sdk/session-restore-from-list.spec.ts`。原規劃的「空 session 改建新 session」撤回（spec Decision 4）。
+- 型別檢查：在 VM 以 strict 設定對 `packages/assistant-sdk/src`、`packages/assistant-runtime/src` 與新測試做 `vue-tsc`，錯誤清單與未修改的 `HEAD` 完全相同（皆為既有、只在 strict 設定出現的錯誤），新測試無錯誤。vitest、eslint 與 `nuxt typecheck` 需 Mac 原生套件，由使用者執行。
+- T010 Gate 1（使用者於 Mac 執行，2026-11-16，`ff7e64b` + Phase 1 未 commit 變更）：先 `npm run build:assistant-sdk`，再跑 unit／component／contract：766 tests 中 765 passed、1 failed（僅 Frontend 001 已知失敗 `send-message-streaming`）；新增 32 個測試全數通過。lint 由 35 降為 16，無新增錯誤（`sse/index.ts` 兩個 unused vars 為既有）。`npm run typecheck` 由使用者確認。
+
+```text
+FRONTEND003_GATE_1=PASS
+FRONTEND003_FIRST_UNEXECUTED_TASK=T011
+```
 
 ## Phase 2 — 開場與建議（US1、US2）
 

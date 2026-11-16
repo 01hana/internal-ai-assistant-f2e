@@ -1,4 +1,4 @@
-import type { AssistantSession, HistoryMessageSummary } from "../types";
+import type { AssistantSession, AssistantSessionListPage, HistoryMessageSummary } from "../types";
 
 export type AssistantRuntimeOperationName =
   | "createSession"
@@ -107,11 +107,17 @@ export type AssistantRuntimeLoadHistoryInput = {
   cursor?: string;
 };
 
+/**
+ * Exactly one of `message` (typed text) or `choiceId` (a server-declared Quick Reply or suggestion,
+ * Backend Feature 013) is sent.
+ */
 export type AssistantRuntimeSendMessageInput = {
   sessionId?: string;
-  message: string;
   pageContext?: AssistantRuntimePageContext;
-};
+} & (
+  | { message: string; choiceId?: never }
+  | { choiceId: string; message?: never }
+);
 
 export type AssistantRuntimeStreamMessageInput = AssistantRuntimeSendMessageInput;
 
@@ -149,6 +155,27 @@ export type AssistantRuntimeRemoteRestorationCapability = {
   ): Promise<AssistantRuntimeTransportResult<AssistantRuntimeHistory>>;
 };
 
+export type AssistantRuntimeListSessionsInput = {
+  limit?: number;
+  cursor?: string;
+};
+
+export type AssistantRuntimeArchiveSessionInput = {
+  sessionId: string;
+};
+
+/** Backend Feature 013: optional session list and archive; the history view is shown only when present. */
+export type AssistantRuntimeSessionHistoryCapability = {
+  listSessions(
+    input: AssistantRuntimeListSessionsInput,
+    options?: AssistantRuntimeRequestOptions
+  ): Promise<AssistantRuntimeTransportResult<AssistantSessionListPage>>;
+  archiveSession(
+    input: AssistantRuntimeArchiveSessionInput,
+    options?: AssistantRuntimeRequestOptions
+  ): Promise<AssistantRuntimeTransportResult<{ sessionId: string; status: "closed" }>>;
+};
+
 export type AssistantRuntimeTransportPort = {
   createSession(
     input: AssistantRuntimeCreateSessionInput,
@@ -157,6 +184,9 @@ export type AssistantRuntimeTransportPort = {
   /** Optional: a transport may support validating and loading a remote session. */
   getSession?: AssistantRuntimeRemoteRestorationCapability["getSession"];
   loadHistory?: AssistantRuntimeRemoteRestorationCapability["loadHistory"];
+  /** Optional: Backend Feature 013 session list and archive. */
+  listSessions?: AssistantRuntimeSessionHistoryCapability["listSessions"];
+  archiveSession?: AssistantRuntimeSessionHistoryCapability["archiveSession"];
   sendMessage(
     input: AssistantRuntimeSendMessageInput,
     options?: AssistantRuntimeRequestOptions
@@ -195,4 +225,10 @@ export function supportsAssistantRuntimeRemoteRestoration(
   transport: AssistantRuntimeTransportPort,
 ): transport is AssistantRuntimeTransportPort & AssistantRuntimeRemoteRestorationCapability {
   return typeof transport.getSession === "function" && typeof transport.loadHistory === "function";
+}
+
+export function supportsAssistantRuntimeSessionHistory(
+  transport: AssistantRuntimeTransportPort,
+): transport is AssistantRuntimeTransportPort & AssistantRuntimeSessionHistoryCapability {
+  return typeof transport.listSessions === "function" && typeof transport.archiveSession === "function";
 }

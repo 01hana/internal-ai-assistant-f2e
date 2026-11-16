@@ -28,7 +28,7 @@
 
 1. **Given** 建立 session 的回應含 `opening`，**then** 以 `greeting` 顯示第一則助理訊息，下方顯示 `quickReplies` 按鈕；`quickReplies` 為空時不顯示按鈕區。
 2. **Given** 回應沒有 `opening`（舊後端），**then** 行為與現在相同。
-3. **Given** 從儲存還原的 session 沒有任何訊息，**then** 改為建立新 session，以取得開場（後端列表本來就不列沒有訊息的 session，不會多出空紀錄）。
+3. 還原既有 session（host 指定或 `sessionScope` 為 `entity`／`page` 時的本機指標）不顯示開場，行為與現在相同（見 Decision 4）。
 4. 問候不是後端訊息，重新整理或還原既有對話時不會出現。
 5. 按「重新開始」建立的新對話同樣顯示開場。
 
@@ -80,5 +80,5 @@
 1. 問候為前端本地訊息（新 kind），不寫入後端歷史。
 2. 點擊選項的使用者訊息顯示 `label`；後端存的是設定中的完整問句，之後讀歷史時文字可能不同，屬預期。
 3. 點擊回 404 時視為選項失效，而非 session 遺失（session 剛建立或剛使用過）；真的遺失時，下一次手打訊息會照既有流程處理。
-4. 沒有訊息的還原 session 改建新 session（US1-3）。
+4. ~~沒有訊息的還原 session 改建新 session~~（2026-11-16 實作時撤回）：SDK 只在 `sessionScope` 為 `entity`／`page` 時保存 session 指標，nuxt-gateway 範本（Shinmone）用自訂字串，不會從儲存還原，每次載入頁面都建立新 session 並顯示開場；只為 entity／page 的少數情境改變還原行為，還會打破既有 bootstrap 測試，不值得。
 5. 對話紀錄按鈕只在 transport 提供 `listSessions` 時顯示；不新增設定開關。

@@ -6,6 +6,7 @@ import type {
   AssistantUnknownSseEvent,
   NoAnswerReason,
 } from "../types";
+import { normalizeAssistantChoices } from "../experience";
 
 export type AssistantSseMalformedEventErrorCode =
   | "invalid_json"
@@ -351,6 +352,21 @@ function isKnownEvent(value: AssistantUnknownSseEvent): value is AssistantSseEve
   }
 }
 
+/**
+ * Backend Feature 013: `final.data.suggestions` is optional and advisory. Malformed entries are dropped and a
+ * field with nothing valid is removed, so a bad suggestion list never turns an answer into a stream error.
+ */
+function normalizeKnownEvent(event: AssistantSseEvent): AssistantSseEvent {
+  if (event.eventType !== "final" || !isRecord(event.data) || !("suggestions" in event.data)) {
+    return event;
+  }
+
+  const { suggestions, ...rest } = event.data;
+  const normalized = normalizeAssistantChoices(suggestions);
+
+  return { ...event, data: normalized ? { ...rest, suggestions: normalized } : rest };
+}
+
 function findLineEnding(value: string): LineEnding | null {
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index];
@@ -544,7 +560,7 @@ export class AssistantSseParser {
       return [{
         kind: "event",
         eventName: parsed.eventType as AssistantKnownSseEventType,
-        event: parsed as AssistantSseEvent,
+        event: normalizeKnownEvent(parsed as AssistantSseEvent),
         ...(frame.id === undefined ? {} : { id: frame.id }),
       }];
     }

@@ -2,6 +2,7 @@ import { sanitizePageContextForRequest } from "./pageContext";
 import type { AssistantRequestBuildInput, AssistantRequestBuildResult } from "./types";
 import { createRequestBuildError } from "../types/safeErrors";
 import { isPlainObject } from "./requestSafety";
+import { isAssistantChoiceId } from "../../../assistant-runtime/src/experience";
 
 function readPageContext(input: AssistantRequestBuildInput): unknown {
   if (isPlainObject(input.hostContext) && "pageContext" in input.hostContext) {
@@ -11,10 +12,33 @@ function readPageContext(input: AssistantRequestBuildInput): unknown {
   return undefined;
 }
 
+/**
+ * Exactly one of typed `message` or a server-declared `choiceId` (Backend Feature 013).
+ * Both, neither, or a malformed choice ID is rejected before any request is built.
+ */
+function readMessageOrChoice(
+  input: AssistantRequestBuildInput,
+): { message: string } | { choiceId: string } | null {
+  const hasMessage = input.message !== undefined;
+  const hasChoice = input.choiceId !== undefined;
+
+  if (hasMessage === hasChoice) {
+    return null;
+  }
+
+  if (hasMessage) {
+    return typeof input.message === "string" ? { message: input.message } : null;
+  }
+
+  return isAssistantChoiceId(input.choiceId) ? { choiceId: input.choiceId } : null;
+}
+
 export function buildCoreAssistantRequest(
   input: AssistantRequestBuildInput,
 ): AssistantRequestBuildResult {
-  if (typeof input.message !== "string") {
+  const content = readMessageOrChoice(input);
+
+  if (!content) {
     return {
       error: createRequestBuildError("invalid_message", {
         userMessage: "integration error",
@@ -23,9 +47,7 @@ export function buildCoreAssistantRequest(
     };
   }
 
-  const request: Record<string, unknown> = {
-    message: input.message,
-  };
+  const request: Record<string, unknown> = { ...content };
 
   if (typeof input.sessionId === "string" && input.sessionId.length > 0) {
     request.sessionId = input.sessionId;
@@ -55,11 +77,13 @@ export function buildCoreAssistantRequest(
   };
 }
 
-/** Gateway-v1 accepts only the message and the already-sanitized page context. */
+/** Gateway-v1 accepts only the message or choice ID and the already-sanitized page context. */
 export function buildGatewayAssistantRequest(
   input: AssistantRequestBuildInput,
 ): AssistantRequestBuildResult {
-  if (typeof input.message !== "string") {
+  const content = readMessageOrChoice(input);
+
+  if (!content) {
     return {
       error: createRequestBuildError("invalid_message", {
         userMessage: "integration error",
@@ -68,9 +92,7 @@ export function buildGatewayAssistantRequest(
     };
   }
 
-  const request: Record<string, unknown> = {
-    message: input.message,
-  };
+  const request: Record<string, unknown> = { ...content };
   const pageContext = readPageContext(input);
 
   if (pageContext !== undefined) {

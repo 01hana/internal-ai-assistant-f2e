@@ -48,7 +48,7 @@
 | `transport/defaultTransport.ts` | `createSession` 回傳保留 `opening`（驗證形狀，不合法則省略）；`streamMessage` body 支援 `choiceId`；新增 `listSessions`（GET `/assistant/sessions?limit&cursor`）與 `archiveSession`（POST `/assistant/sessions/:id/archive`，無 body）；gateway-v1 路由白名單加入兩者；404 → `session_not_found`（沿用） |
 | `request/requestBuilder.ts`, `requestSafety.ts`, `outgoingRequestBoundary.ts` | 允許 `choiceId`（格式 `^[a-z0-9][a-z0-9._-]{0,63}$`），拒絕同時帶 `message` 與 `choiceId` |
 | `runtime/sdkRuntimeAdapter.ts` | `startMessageStream` 接受 choice 輸入；choice 請求得到 `session_not_found` 時回報 `choice_unavailable` 給 widget，而非 session 錯誤 |
-| `session/sessionBootstrap.ts` | 還原的 session 歷史為空 → 清除指標並建立新 session；新增 `restore(sessionId)` 供列表點擊（驗證可見性後更新本機指標，失敗則保留目前對話並回報錯誤） |
+| `session/sessionBootstrap.ts` | 新增 `restoreSession(sessionId, { beforeApply })` 供列表點擊：先 `getSession` 驗證，成功才呼叫 `beforeApply`（由 widget 清空目前對話）、載入歷史、更新本機指標並發出 `session-changed`；失敗時目前對話不變。新增 `forgetStoredSession()` 供封存目前對話後使用。還原行為其餘不變（spec Decision 4） |
 | `components/AssistantWidget.vue` | `sendChoice({ choiceId, label })`；`view: "chat" \| "history"`；列表資料（分頁、載入、錯誤、封存中）只存在 widget 本地狀態；封存目前對話時清除指標並在返回時重新 bootstrap |
 
 ## 3. 錯誤處理
