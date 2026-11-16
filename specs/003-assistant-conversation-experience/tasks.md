@@ -1,13 +1,34 @@
 # Tasks: Assistant Conversation Experience（前端）
 
 **Input**: `spec.md`, `design.md`, `plan.md`
-**Status**: Draft；第一個未執行的 task 為 T001
+**Status**: Phase 0 完成（Gate 0 PASS）；第一個未執行的 task 為 T004
 
 ## Phase 0 — 基線
 
-- [ ] T001 記錄 `main` @ `d4576cb` 的 `npm test`、`npm run typecheck`、`npm run lint` 結果（使用者於 Mac 執行），作為 baseline。
-- [ ] T002 更新 `docs/contracts/backend-assistant-core/`（`assistant-api-contract.md`、`openapi.yaml`、`sse-events.md`、`request-response-examples.md`）加入 opening、choiceId、suggestions、列表、封存；來源為後端 `docs/frontend-integration/assistant-conversation-experience.md`。
-- [ ] T003 **Gate 0**：baseline 記錄完成。`FRONTEND003_GATE_0=PASS`。
+- [x] T001 記錄 `main` @ `d4576cb` 的 `npm test`、`npm run typecheck`、`npm run lint` 結果（使用者於 Mac 執行），作為 baseline。
+- [x] T002 更新 `docs/contracts/backend-assistant-core/`（`assistant-api-contract.md`、`openapi.yaml`、`sse-events.md`、`request-response-examples.md`）加入 opening、choiceId、suggestions、列表、封存；來源為後端 `docs/frontend-integration/assistant-conversation-experience.md`。
+- [x] T003 **Gate 0**：baseline 記錄完成。`FRONTEND003_GATE_0=PASS`。
+
+**Phase 0 執行證據（2026-11-16）**：
+
+- T001 baseline（使用者於 Mac 執行，`main` @ `d4576cb`）：
+  - `npm test` 會依序跑 unit → component → contract，前一組失敗就停止；第一次只跑到 unit（19 files）。改以 `npx vitest run tests/unit tests/component tests/contract` 一次跑完：734 tests 中 5 failed。
+  - 其中 3 個 contract（`package-artifact-smoke`、`packaged-runtime-source-boundary`、`sdk-declaration-boundary`）是因 `packages/assistant-sdk/dist/` 為 11/11 的舊產物、缺 `index.d.ts`；執行 `npm run build:assistant-sdk` 後通過。**跑 contract 前須先 build SDK。**
+  - 2 個 component 穩定失敗（重跑仍失敗），屬既有問題：
+    - `tests/component/assistant-sdk/productized-widget-runtime.spec.ts`「stops a mounted SDK stream…」預期「回覆已取消」；`b700f2a`（2026-11-12 統一狀態卡）已把取消狀態改為「回覆已停止」，測試未同步。
+    - `tests/component/assistant/send-message-streaming.spec.ts`「switches to the safe not-ready mode…」屬 Frontend 001 Nuxt adapter（`app/`，不在 003 範圍）。
+  - `npm run typecheck` 通過。
+  - `npm run lint`：35 errors，皆為既有問題 —— 18 個在 `packages/assistant-runtime/src/**/*.d.ts`（12 個過時的舊產生檔，`types/index.d.ts` 170 行對 `index.ts` 264 行）、8 個 `app/stores/assistant/useSessionStore.ts` unused vars、其餘 9 個分散於 `app/types`、`assistant-runtime/src/sse/index.ts` 與兩個測試檔。
+- 經使用者同意，刪除 `packages/assistant-runtime/src/` 下 12 個過時 `*.d.ts`（沒有任何程式、設定或測試引用；`.ts` 本來就優先於同名 `.d.ts`）；`vue-tsc -p packages/assistant-runtime/tsconfig.json --noEmit` 通過。
+- 經使用者同意，`productized-widget-runtime.spec.ts` 第 299、338 行預期文字由「回覆已取消」改為「回覆已停止」（同一測試，對應 `b700f2a` 的狀態卡文字；`degraded-states.spec.ts` 已用「回覆已停止」）。`send-message-streaming` 的 Frontend 001 失敗記為已知問題，不在 003 處理。
+- T002：`docs/contracts/backend-assistant-core/` 加入 Feature 013：`openapi.yaml`（1.1.0：`GET /assistant/sessions`、`POST …/archive`、`opening`、`AssistantChoice`、`SendMessageRequest` 的 `message`／`choiceId` 二選一）、`assistant-api-contract.md`、`sse-events.md`（`final.suggestions`）、`request-response-examples.md`；YAML 可解析。
+- T003 Gate 0：修正後 `productized-widget-runtime.spec.ts` 重跑通過（使用者於 Mac，2026-11-16）。基準：除 Frontend 001 `send-message-streaming` 1 個已知失敗外，unit／component／contract 全部通過（contract 需先 build SDK）；typecheck 通過；lint 剩 `app/` 與少數測試檔的既有錯誤。
+
+```text
+FRONTEND003_GATE_0=PASS
+FRONTEND003_KNOWN_FAILURE=tests/component/assistant/send-message-streaming.spec.ts (Frontend 001, out of scope)
+FRONTEND003_FIRST_UNEXECUTED_TASK=T004
+```
 
 ## Phase 1 — 契約與資料層
 

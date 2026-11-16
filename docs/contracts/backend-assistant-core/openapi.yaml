@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Internal Assistant Core Frontend Handoff
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Hand-maintained frontend integration contract for the current internal-assistant-core backend.
     This file documents the tested public HTTP and SSE surface only. It is not a code-generated source
@@ -43,6 +43,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionEnvelope'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+    get:
+      tags: [Sessions]
+      summary: List the actor's sessions (Backend Feature 013)
+      description: |
+        The caller's own active sessions that contain at least one message, newest first
+        (`lastMessageAt desc`). `nextCursor` is opaque: send it back unchanged. Listing is not audited.
+        An invalid `limit` or `cursor` returns 400.
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+        - $ref: '#/components/parameters/SessionListLimitQuery'
+        - $ref: '#/components/parameters/SessionListCursorQuery'
+      responses:
+        '200':
+          description: Session page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionListResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /assistant/sessions/{sessionId}/archive:
+    post:
+      tags: [Sessions]
+      summary: Archive (close) one of the actor's sessions (Backend Feature 013)
+      description: |
+        No request body or query. Afterwards the session returns 404 for reads and messages.
+        An unknown, foreign or already archived session returns 404.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Session archived
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ArchiveSessionResponse'
         default:
           $ref: '#/components/responses/ErrorResponse'
 
@@ -623,6 +684,24 @@ components:
         enum: [asc]
       description: Current public runtime contract supports `asc` only.
 
+    SessionListLimitQuery:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    SessionListCursorQuery:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{1,200}$'
+      description: Opaque `nextCursor` from the previous page.
+
   responses:
     ErrorResponse:
       description: Safe error envelope
@@ -689,6 +768,76 @@ components:
         pageContext:
           $ref: '#/components/schemas/PageContext'
           nullable: true
+        opening:
+          $ref: '#/components/schemas/AssistantOpening'
+          description: |
+            Backend Feature 013. Present only in the create-session response. Without an active
+            experience configuration: `configVersion: null`, the Core greeting and no Quick Replies.
+
+    AssistantOpening:
+      type: object
+      required: [configVersion, greeting, quickReplies]
+      properties:
+        configVersion:
+          type: string
+          nullable: true
+        greeting:
+          type: string
+        quickReplies:
+          type: array
+          description: Already filtered by the actor's permissions and the page module.
+          items:
+            $ref: '#/components/schemas/AssistantChoice'
+
+    AssistantChoice:
+      type: object
+      required: [id, label]
+      description: A Quick Reply or suggestion; send `id` back as `choiceId`.
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'
+        label:
+          type: string
+
+    SessionListResponse:
+      type: object
+      required: [sessions, nextCursor]
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionListItem'
+        nextCursor:
+          type: string
+          nullable: true
+
+    SessionListItem:
+      type: object
+      required: [sessionId, title, createdAt, lastMessageAt]
+      properties:
+        sessionId:
+          type: string
+        title:
+          type: string
+          nullable: true
+          description: First user message, whitespace-collapsed, at most 40 characters.
+        createdAt:
+          type: string
+          format: date-time
+        lastMessageAt:
+          type: string
+          format: date-time
+
+    ArchiveSessionResponse:
+      type: object
+      required: [sessionId, status]
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum: [closed]
 
     CreateSessionRequest:
       type: object
@@ -698,10 +847,22 @@ components:
 
     SendMessageRequest:
       type: object
-      required: [message]
+      description: |
+        Exactly one of `message` or `choiceId` (Backend Feature 013). A `choiceId` that is unknown,
+        no longer configured, or not permitted for the actor returns 404 like a missing session.
+      oneOf:
+        - required: [message]
+          not:
+            required: [choiceId]
+        - required: [choiceId]
+          not:
+            required: [message]
       properties:
         message:
           type: string
+        choiceId:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'
         pageContext:
           $ref: '#/components/schemas/PageContext'
 

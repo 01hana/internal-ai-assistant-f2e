@@ -192,6 +192,25 @@ For `001-internal-assistant-embedded-chat-panel`:
 
 `approval_required` SSE 對 `001` 前端只需要 status card / action summary / risk level / open detail callback，不代表 side-effect 已完成。
 
+## Conversation experience（Backend Feature 013）
+
+來源：後端 repo `internal-ai-assistant.com` 的 `docs/frontend-integration/assistant-conversation-experience.md`（Core 013 以上；Gateway 需同步更新）。全部為新增欄位或新端點，舊後端不會回這些欄位。
+
+| 端點 | 變更 |
+| --- | --- |
+| `POST /assistant/sessions` | `data.opening = { configVersion: string \| null, greeting, quickReplies: [{ id, label }] }`；選項已依使用者權限與 `pageContext.module` 篩選 |
+| `POST /assistant/sessions/:id/messages` | body 為 `message` 與 `choiceId` 二選一；`choiceId` 不存在、已不在設定中或無權限 → 404（與 session 不存在相同） |
+| SSE `final` | `data.suggestions?: [{ id, label }]`，只在有值時出現：成功回答後的延伸建議、能力總覽、無法辨識問題時的可用選項 |
+| `GET /assistant/sessions?limit&cursor` | 使用者自己、至少有一則訊息、未封存的 session，依 `lastMessageAt` 由新到舊；`{ sessions: [{ sessionId, title, createdAt, lastMessageAt }], nextCursor }`；`limit` 1–50（預設 20）；cursor 不透明，原樣帶回；不合法回 400 |
+| `POST /assistant/sessions/:id/archive` | 無 body、無 query；回 `{ sessionId, status: "closed" }`；之後讀取與送訊息回 404；不存在、他人或已封存回 404 |
+
+前端規則：
+
+- 只顯示伺服器給的選項，不寫死、不快取；問候與選項的文字來自各客戶設定，前端程式對所有客戶相同。
+- 點擊選項時送 `{ choiceId, pageContext }`，不送 `message`；後端把設定中的完整問句存為使用者訊息，之後讀歷史時文字可能與按鈕 `label` 不同。
+- 建議只顯示在最新一則回答；歷史訊息不帶建議；還原既有 session 不會有 `opening`。
+- `title` 可能為 `null`。
+
 ## Out of this handoff
 
 這份 handoff 不以以下 surface 為主：
