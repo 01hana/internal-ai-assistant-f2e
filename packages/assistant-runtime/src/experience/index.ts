@@ -99,3 +99,78 @@ export function normalizeAssistantSessionListPage(value: unknown): AssistantSess
 
   return { sessions, nextCursor };
 }
+
+/** Frontend 003: the configured greeting shown as the first assistant message of a new session (local only). */
+export interface AssistantGreetingMessage {
+  key: string;
+  kind: "assistant_greeting";
+  role: "assistant";
+  content: string;
+  createdAt: string;
+  choices: AssistantChoice[];
+}
+
+export function createAssistantGreetingMessage(
+  sessionId: string,
+  opening: AssistantOpening,
+  createdAt: string,
+): AssistantGreetingMessage {
+  return {
+    key: `local-greeting:${sessionId}`,
+    kind: "assistant_greeting",
+    role: "assistant",
+    content: opening.greeting,
+    createdAt,
+    choices: [...opening.quickReplies],
+  };
+}
+
+export function isAssistantGreetingMessage(value: unknown): value is AssistantGreetingMessage {
+  return isRecord(value) && value.kind === "assistant_greeting";
+}
+
+function messageChoices(message: unknown): AssistantChoice[] {
+  if (!isRecord(message)) return [];
+  if (message.kind === "assistant_greeting" && Array.isArray(message.choices)) return message.choices as AssistantChoice[];
+  if (message.kind === "assistant_streaming" && message.status === "completed" && Array.isArray(message.suggestions)) {
+    return message.suggestions as AssistantChoice[];
+  }
+  return [];
+}
+
+function isRejectedChoiceTurn(message: unknown): boolean {
+  return isRecord(message) && (message.kind === "user" || message.role === "user") && typeof message.notice === "string";
+}
+
+/**
+ * Choices are offered only under the latest message, and only when that message is the greeting or a
+ * completed answer. Sending anything appends a user message, so older choices disappear on their own.
+ * A turn whose choice was rejected (it carries a notice and got no answer) is skipped, so the remaining
+ * choices stay available.
+ */
+export function resolveLatestAssistantChoices(
+  messages: readonly unknown[],
+): { messageKey: string; choices: AssistantChoice[] } | null {
+  let index = messages.length - 1;
+  while (index >= 0 && isRejectedChoiceTurn(messages[index])) index -= 1;
+  const last = messages[index];
+  const choices = messageChoices(last);
+
+  return choices.length > 0 && isRecord(last) && typeof last.key === "string"
+    ? { messageKey: last.key, choices }
+    : null;
+}
+
+/** Removes a choice the server no longer accepts from every message that offers it. */
+export function withoutAssistantChoice<TMessage>(messages: readonly TMessage[], choiceId: string): TMessage[] {
+  return messages.map((message) => {
+    if (!isRecord(message)) return message;
+    if (message.kind === "assistant_greeting" && Array.isArray(message.choices)) {
+      return { ...message, choices: (message.choices as AssistantChoice[]).filter((choice) => choice.id !== choiceId) } as TMessage;
+    }
+    if (message.kind === "assistant_streaming" && Array.isArray(message.suggestions)) {
+      return { ...message, suggestions: (message.suggestions as AssistantChoice[]).filter((choice) => choice.id !== choiceId) } as TMessage;
+    }
+    return message;
+  });
+}

@@ -1,7 +1,7 @@
 # Tasks: Assistant Conversation Experience（前端）
 
 **Input**: `spec.md`, `design.md`, `plan.md`
-**Status**: Phase 0–1 完成（Gate 1 PASS）；第一個未執行的 task 為 T011
+**Status**: Phase 0–2 完成（Gate 2 PASS；T016 併入 T031）；第一個未執行的 task 為 T018
 
 ## Phase 0 — 基線
 
@@ -56,13 +56,36 @@ FRONTEND003_FIRST_UNEXECUTED_TASK=T011
 
 ## Phase 2 — 開場與建議（US1、US2）
 
-- [ ] T011 後端 repo：準備本機體驗設定並寫入本機資料庫（不改客戶正式設定），讓本機能看到開場。
-- [ ] T012 unit：runtime 狀態 —— `createSession` 成功時加入 `assistant_greeting` 本地訊息；還原時不加入；「最新選項」推導（最後一則助理訊息、串流中不顯示）；`finalize` 保存 `suggestions`；`markChoiceUnavailable`。RED 後修改 `stores`、`runtime`、`session`。
-- [ ] T013 component：`AssistantProductRuntimePanel` 顯示 greeting（無回饋、無資料來源）、選項 group 與 chip、送出下一則後隱藏、串流中停用、使用者訊息 notice。RED 後實作。
-- [ ] T014 unit：`sdkRuntimeAdapter` choice 請求的 `session_not_found` 回報為 `choice_unavailable`。
-- [ ] T015 component／integration：`AssistantWidget.sendChoice` —— 顯示 label、送 `choiceId`、404 移除選項並提示、對話不重置；「重新開始」後再次顯示開場。
-- [ ] T016 本機手動驗證：開啟助理看到問候與 Quick Reply，點擊得到回答與建議（截圖記錄）。
-- [ ] T017 **Gate 2**：typecheck、lint、Phase 2 focused、使用者全套通過。`FRONTEND003_GATE_2=PASS`。
+- [x] T011 後端 repo：準備本機體驗設定並寫入本機資料庫（不改客戶正式設定），讓本機能看到開場。
+  - 2026-11-16：後端新增 `npm run assistant-experience:local:provision -- --file customers/shinmone/assistant-experience/1.0.0.json`：以正式設定為唯一來源，從本機 Capability Pack（`backend.env`）取得本機客戶範圍，複製到 `.local-state/`（不進版控）後，以 `local:start` 相同環境先 `--check` 再寫入。不另存本機設定檔（使用者決定，避免重複資料）。結果：`VALIDATED` → `ACTIVATED`（`customer-shinmone-scm-local` / `shinmone-scm-assistant-local`，`1.0.0`）。
+- [x] T012 unit：runtime 狀態 —— `createSession` 成功時加入 `assistant_greeting` 本地訊息；還原時不加入；「最新選項」推導（最後一則助理訊息、串流中不顯示）；`finalize` 保存 `suggestions`；`markChoiceUnavailable`。RED 後修改 `stores`、`runtime`、`session`。
+- [x] T013 component：`AssistantProductRuntimePanel` 顯示 greeting（無回饋、無資料來源）、選項 group 與 chip、送出下一則後隱藏、串流中停用、使用者訊息 notice。RED 後實作。
+- [x] T014 unit：`sdkRuntimeAdapter` choice 請求的 `session_not_found` 回報為 `choice_unavailable`。
+- [x] T015 component／integration：`AssistantWidget.sendChoice` —— 顯示 label、送 `choiceId`、404 移除選項並提示、對話不重置；「重新開始」後再次顯示開場。
+- [ ] T016 本機手動驗證：開啟助理看到問候與 Quick Reply，點擊得到回答與建議（截圖記錄）。**移到 T031 一起做**：本 repo 的預覽頁（`/assistant-sdk-preview`）使用 compatibility mode 且未設定 proxy，無法連到需要 Shinmone 身分的本機 Gateway；實際畫面要在 Shinmone 前端換上新版 SDK 後驗證。
+- [x] T017 **Gate 2**：typecheck、lint、Phase 2 focused、使用者全套通過。`FRONTEND003_GATE_2=PASS`。
+
+**Phase 2 執行證據（2026-11-16）**：
+
+- T012：runtime `experience` 模組新增 `createAssistantGreetingMessage`、`resolveLatestAssistantChoices`、`withoutAssistantChoice`；`createSession` 成功且有 `opening` 時在訊息列表最前面加入 `assistant_greeting` 本地訊息（沒有 `opening` 時訊息列表完全不動）；`finalizeActiveStreamingMessage` 保存 `suggestions`；controller 新增 `markChoiceUnavailable`。「最新選項」規則：只看最後一則訊息，必須是問候或已完成的回答；被拒絕的選項那一輪（帶 notice 的使用者訊息）會略過，讓其餘選項仍可點。測試 `tests/unit/assistant-runtime/conversation-experience-state.spec.ts`。
+- T013：`AssistantProductRuntimePanel` 新增選用 prop `onChooseSuggestion`（沒提供就不顯示選項）；問候以助理訊息顯示（`assistant-greeting-message`，無回饋按鈕）；選項列 `role="group" aria-label="建議問題"`，串流中或不能送出時停用；選項失效提示顯示在使用者訊息下方（`role="status"`）。樣式只使用既有 `--assistant-sdk-*` token。測試 `tests/component/assistant-runtime/product-runtime-panel-suggestions.spec.ts`。
+- T014：stream runner 會把開啟串流的錯誤統一成 `stream_transport_error`，因此 `sdkRuntimeAdapter` 在 `openStream` 記住「choice 請求得到 `session_not_found`」，於 `onTransportError` 改走選項失效處理：移除等待中的助理訊息、清除串流狀態、標記選項失效，不設 lastError、不顯示失敗狀態。
+- T015：`AssistantWidget` 新增 `sendChoice`，與 `sendMessage` 共用 `startConversationTurn`（顯示文字與送出內容分開）。測試 `tests/component/assistant-sdk/widget-conversation-experience.spec.ts`：開場、點擊送 `choiceId` 並顯示 label、回答後的建議、手打訊息後隱藏、404 移除選項並提示（其餘選項仍在）、沒有 `opening` 的舊後端維持原空白狀態。
+- 型別檢查：VM strict 設定錯誤清單與 `HEAD` 相同，新測試無錯誤。
+- Gate 2 首輪（使用者於 Mac，2026-11-16）：784 tests 中 2 failed —— Frontend 001 已知失敗，以及「選項 404」測試。原因：兩種內建 transport 對任何非 2xx 的串流回應都回 `transport_execution_failed`，選項被拒絕時不會是 `session_not_found`。修正：`defaultTransport` 只在帶 `choiceId` 的請求把 404 回報為 `session_not_found`，手打訊息的錯誤對應不變；contract 測試補兩種模式的案例。typecheck 通過；lint 16 個與 Gate 1 相同，無新增。
+- 修正後兩個相關檔案重跑通過（使用者於 Mac，2026-11-16）。
+
+```text
+FRONTEND003_GATE_2=PASS
+FRONTEND003_DEFERRED=T016→T031
+FRONTEND003_FIRST_UNEXECUTED_TASK=T018
+```
+
+**Phase 2 手動檢視後調整（2026-11-16，使用者以 Shinmone 前端 + 本機後端檢視）**：
+
+- 版面：選項原本放在訊息框外、時間下方，且按鈕過大。改為在 `AssistantProductMessageFrame` 新增 `after` slot（位於回覆與時間之間），選項與「選項失效」提示都放入其中；選項按鈕改用 helper 字級、較小的上下內距與間距。元件測試新增「回覆 → 選項 → 時間」順序與提示位於使用者訊息內的斷言。
+- 點選「你能查詢哪些資料？」得到「回覆未能完成」：不是 Core 的問題。本機 Gateway 程序自 2026-10-23 起未重啟（仍是不支援 `choiceId` 的舊版）；`dev/local-assistant/local-start.mjs` 判斷 Gateway 是否需要重啟時只看 `apps/gateway/dist/main.js`，重新 build 後 `main.js` 內容未變，因此沿用舊程序。後端 repo 已修正為與 backend 相同，納入整個 `apps/gateway/dist` 的編譯檔。
+- 使用者重啟本機 Gateway、以 `npm run sdk:update` 更新 Shinmone 前端後確認：版面正確，點選「你能查詢哪些資料？」可正常得到能力總覽。
 
 ## Phase 3 — 對話紀錄與封存（US3、US4）
 

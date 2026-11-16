@@ -12,6 +12,7 @@ import {
   type ApprovalRequestDetailState,
   type OpenApprovalDetailPayload,
 } from "../../approvals";
+import { resolveLatestAssistantChoices } from "../../experience";
 import type { AssistantFeedbackValue } from "../../feedback";
 import type { AssistantRuntimeSafeOutcomeKind } from "../../outcomes";
 import type {
@@ -19,6 +20,7 @@ import type {
   AssistantRuntimeStreamingMessage,
 } from "../../runtime";
 import type {
+  AssistantChoice,
   EvidenceRefSummary,
   HistoryMessageSummary,
 } from "../../types";
@@ -44,6 +46,8 @@ const props = defineProps<{
   onCancelActionDraft: (actionDraftId: string) => void;
   onOpenApprovalDetail: (payload: OpenApprovalDetailPayload) => void;
   onRetryMessage?: (key: string) => void;
+  /** Frontend 003: a Quick Reply or suggestion was clicked. Choices are hidden when this is not provided. */
+  onChooseSuggestion?: (choice: AssistantChoice) => void;
   composerCanSend?: boolean;
   composerDisabledReason?: string | null;
 }>();
@@ -74,6 +78,18 @@ const isStreaming = computed(() => Boolean(activeRequestId.value && messages.val
   && record(message).key === activeAssistantMessageKey.value
   && ["sending", "queued", "connecting", "streaming"].includes(message.status),
 )));
+// Frontend 003: choices are offered only under the latest greeting or completed answer.
+const latestChoices = computed(() => (props.onChooseSuggestion ? resolveLatestAssistantChoices(messages.value) : null));
+const choicesDisabled = computed(() => isStreaming.value || props.composerCanSend === false);
+
+function chooseSuggestion(choice: AssistantChoice) {
+  if (!choicesDisabled.value) props.onChooseSuggestion?.(choice);
+}
+
+function messageNotice(message: RuntimeMessage): string | null {
+  return readString(record(message).notice);
+}
+
 const stopPendingRequestId = ref<string | null>(null);
 let composing: boolean = false;
 let compositionCommitPending: boolean = false;
@@ -229,6 +245,7 @@ function isStateMessage(message: RuntimeMessage): boolean {
 
 function presentationTestId(message: RuntimeMessage): string {
   if (isUserMessage(message)) return "assistant-user-message";
+  if (record(message).kind === "assistant_greeting") return "assistant-greeting-message";
   if (isActiveStreamingMessage(message)) return "assistant-streaming-message";
   if (isInterruptedMessage(message)) return "assistant-interrupted-message";
 
@@ -967,6 +984,36 @@ async function requestStop() {
                 </button>
               </section>
             </div>
+            <template v-if="messageNotice(message) || (latestChoices && latestChoices.messageKey === messageKey(message, index))" #after>
+              <p
+                v-if="messageNotice(message)"
+                class="assistant-message-notice"
+                data-testid="assistant-choice-unavailable"
+                role="status"
+              >
+                {{ messageNotice(message) }}
+              </p>
+              <div
+                v-if="latestChoices && latestChoices.messageKey === messageKey(message, index)"
+                class="assistant-suggestion-list"
+                data-testid="assistant-suggestions"
+                role="group"
+                aria-label="建議問題"
+              >
+                <button
+                  v-for="choice in latestChoices.choices"
+                  :key="choice.id"
+                  type="button"
+                  class="assistant-suggestion-chip"
+                  data-testid="assistant-suggestion"
+                  :data-choice-id="choice.id"
+                  :disabled="choicesDisabled"
+                  @click="chooseSuggestion(choice)"
+                >
+                  {{ choice.label }}
+                </button>
+              </div>
+            </template>
           </AssistantProductMessageFrame>
         </li>
       </ol>

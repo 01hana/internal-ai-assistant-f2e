@@ -99,6 +99,14 @@ describe("default transport conversation experience (Frontend 003)", () => {
       expect(JSON.parse(String(init.body))).toEqual({ choiceId: "order-status-10001", pageContext: { module: "orders" } });
     });
 
+    it("reports a rejected choice (404) as session_not_found but keeps typed messages unchanged", async () => {
+      const { transport } = setup([json({}, 404), json({}, 404)]);
+      expect(await transport.streamMessage({ choiceId: "order-status-10001", sessionId: "s-1" }))
+        .toMatchObject({ ok: false, error: { code: "session_not_found" } });
+      expect(await transport.streamMessage({ message: "查詢訂單", sessionId: "s-1" }))
+        .toMatchObject({ ok: false, error: { code: "transport_execution_failed" } });
+    });
+
     it("passes the created session's opening through to the runtime", async () => {
       const opening = { configVersion: "1.0.0", greeting: "你好", quickReplies: [{ id: "overview", label: "總覽" }] };
       const { transport } = setup([json({ data: { sessionId: "s-1", status: "active", opening } }, 201)]);
@@ -110,7 +118,7 @@ describe("default transport conversation experience (Frontend 003)", () => {
     it("uses the same list and archive routes and keeps the message body free of page context", async () => {
       const stream = new ReadableStream<Uint8Array>();
       const responses = [json({ data: page }), json({ data: { sessionId: "s-1", status: "closed" } }),
-        new Response(stream, { status: 200 }), json({}, 404)];
+        new Response(stream, { status: 200 }), json({}, 404), json({}, 404)];
       const fetchMock = vi.fn(async () => responses.shift() ?? json({}, 500));
       vi.stubGlobal("fetch", fetchMock);
       const transport = withHistory(createDefaultTransport());
@@ -128,6 +136,8 @@ describe("default transport conversation experience (Frontend 003)", () => {
         "POST /api/v1/assistant/sessions/gone/archive",
       ]);
       expect(calls[1][1].body).toBeUndefined();
+      expect(await transport.streamMessage({ choiceId: "overview", sessionId: "s-1" }))
+        .toMatchObject({ ok: false, error: { code: "session_not_found" } });
       const body = JSON.parse(String(calls[2][1].body)) as Record<string, unknown>;
       expect(body.choiceId).toBe("overview");
       expect(body).not.toHaveProperty("message");

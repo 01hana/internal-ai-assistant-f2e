@@ -46,6 +46,8 @@ const formattedCreatedAt = computed(() => {
 
     <div class="assistant-message-frame-content">
       <slot />
+      <!-- Frontend 003: content attached to this message (choices, notices), between the bubble and the time. -->
+      <slot name="after" />
       <div
         v-if="(formattedCreatedAt && createdAt) || $slots.metadata"
         class="assistant-message-metadata"

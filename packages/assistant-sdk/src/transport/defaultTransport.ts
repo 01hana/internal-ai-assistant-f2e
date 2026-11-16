@@ -180,6 +180,21 @@ async function normalizeGatewayJsonResponse<T>(response: Response): Promise<Port
   return await normalizeJsonResponse<T>(response);
 }
 
+/**
+ * Frontend 003: a choice the server no longer accepts returns 404 (Backend Feature 013). Only choice requests
+ * report it as `session_not_found`; typed messages keep the existing generic failure.
+ */
+function normalizeChoiceStreamResponse(
+  value: unknown,
+  request: Readonly<Record<string, unknown>>,
+): PortResult<ReadableStream<Uint8Array>> {
+  if (request.choiceId !== undefined && isResponseLike(value) && value.status === 404) {
+    return toFailure("session_not_found");
+  }
+
+  return normalizeStreamResponse(value);
+}
+
 function normalizeStreamResponse(value: unknown): PortResult<ReadableStream<Uint8Array>> {
   if (isTransportResult<ReadableStream<Uint8Array>>(value)) {
     return value;
@@ -521,7 +536,7 @@ async function executeGatewayFetch<T>(
       },
     );
 
-    return normalizeStreamResponse(response) as PortResult<T>;
+    return normalizeChoiceStreamResponse(response, executionInput.request) as PortResult<T>;
   }
   catch {
     return toFailure("transport_execution_failed");
@@ -576,7 +591,7 @@ async function executeCompatibilityFetch<T>(
       createStreamRequestInit(runtimeOptions, executionInput.request),
     );
 
-    return normalizeStreamResponse(response) as PortResult<T>;
+    return normalizeChoiceStreamResponse(response, executionInput.request) as PortResult<T>;
   }
   catch {
     return toFailure("transport_execution_failed");

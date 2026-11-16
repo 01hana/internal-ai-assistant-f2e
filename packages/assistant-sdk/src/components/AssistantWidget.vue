@@ -73,10 +73,9 @@ type SdkRuntimeAdapter = {
   readonly emitHostEvent: (eventName: string, payload?: Readonly<Record<string, unknown>>) => Promise<{ readonly ok: boolean }>;
   readonly resolveContext: (operation: "send" | "retry") => Promise<Readonly<Record<string, unknown>> | null>;
   readonly startMessageStream: (input: {
-    message: string;
     pageContext?: Readonly<Record<string, unknown>>;
     sessionId?: string;
-  }) => Promise<void>;
+  } & ({ message: string; choiceId?: never } | { choiceId: string; message?: never })) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly transport: any;
 };
@@ -334,6 +333,18 @@ async function sendMessage(message: string) {
     return;
   }
 
+  await startConversationTurn(text, { message: text });
+}
+
+/** Frontend 003: a clicked Quick Reply or suggestion shows its label and sends only its ID. */
+async function sendChoice(choice: { id: string; label: string }) {
+  await startConversationTurn(choice.label, { choiceId: choice.id });
+}
+
+async function startConversationTurn(
+  displayText: string,
+  content: { message: string } | { choiceId: string },
+) {
   if (!await bootstrapSession()) {
     return;
   }
@@ -356,7 +367,7 @@ async function sendMessage(message: string) {
 
   const helpers = await getRuntimeHelpers();
   adapter.controller.appendUserMessage(helpers.createUserRuntimeMessage({
-    content: text,
+    content: displayText,
     createdAt,
     requestId,
   }));
@@ -369,7 +380,7 @@ async function sendMessage(message: string) {
   adapter.controller.markStreamingStarted();
 
   await adapter.startMessageStream({
-    message: text,
+    ...content,
     pageContext: readPageContext(context),
     sessionId,
   });
@@ -604,6 +615,7 @@ defineExpose({
           :runtime-scope="runtimeScope"
           :composer-can-send="panelCanSend"
           :on-send-message="sendMessage"
+          :on-choose-suggestion="sendChoice"
           :on-load-more-history="loadMoreHistory"
           :on-cancel-streaming="cancelStreaming"
           :on-submit-feedback="submitFeedback"
