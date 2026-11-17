@@ -507,3 +507,33 @@ POST /api/v1/assistant/sessions/session-020/archive
   "data": { "sessionId": "session-020", "status": "closed" }
 }
 ```
+
+### List archived sessions, unarchive, delete（Backend Feature 013 Phase 8）
+
+```http
+GET /api/v1/assistant/sessions?limit=20&status=archived
+```
+
+回應格式與一般列表相同。
+
+```http
+POST /api/v1/assistant/sessions/session-020/unarchive
+```
+
+```json
+{
+  "requestId": "req-frontend-024",
+  "data": { "sessionId": "session-020", "status": "active" }
+}
+```
+
+```http
+DELETE /api/v1/assistant/sessions/session-020
+```
+
+```json
+{
+  "requestId": "req-frontend-025",
+  "data": { "sessionId": "session-020", "status": "deleted" }
+}
+```

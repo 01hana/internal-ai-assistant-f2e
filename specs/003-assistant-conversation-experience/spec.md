@@ -17,7 +17,7 @@
 ## 範圍
 
 - **包含**：`packages/assistant-runtime`（型別、SSE、狀態、聊天面板 UI）與 `packages/assistant-sdk`（傳輸層、session bootstrap、`AssistantWidget`）。`gateway-v1` 與 `backend001-compatibility` 兩種模式都支援。
-- **不包含**：Frontend 001 Nuxt adapter（`app/`）的新畫面（型別新增欄位皆為選用，既有測試須維持通過）；後台；回饋功能變更；重新命名或刪除對話；Shinmone 前端 repo 的替換（Phase 4 另行進行，需要時再連接該 repo）。
+- **不包含**：Frontend 001 Nuxt adapter（`app/`）的新畫面（型別新增欄位皆為選用，既有測試須維持通過）；後台；回饋功能變更；重新命名對話；Shinmone 前端 repo 的替換（Phase 4 另行進行，需要時再連接該 repo）。
 - **不新增 SDK 公開 API**：`AssistantWidget`、`mountAssistantWidget`、provider、configuration、callbacks 的介面不變；新功能在 transport 支援時自動啟用。
 
 ## User Stories
@@ -62,7 +62,7 @@
 - **FR-001**：runtime 型別新增 `AssistantOpening { configVersion: string | null; greeting: string; quickReplies: AssistantChoice[] }`、`AssistantChoice { id; label }`；`AssistantSession.opening?`、`AssistantMessageFinalData.suggestions?`。
 - **FR-002**：SSE `final` 驗證接受選用 `suggestions`；只保留 `id`、`label` 皆為非空字串的項目，整個欄位不合法時捨棄。
 - **FR-003**：送訊息輸入為 `message` 與 `choiceId` 二選一；request builder 與 request safety 檢查不得同時帶兩者。
-- **FR-004**：transport port 新增選用 capability `listSessions(input: { limit?; cursor? })`、`archiveSession(input: { sessionId })`；`defaultTransport` 兩種模式皆實作，gateway-v1 路由白名單加入 `listSessions`、`archiveSession`。
+- **FR-004**：transport port 新增選用 capability `listSessions(input: { limit?; cursor? })`、`archiveSession(input: { sessionId })`，以及（後端 Feature 013 Phase 8）`listSessions` 的 `status?: "archived"`、選用 `unarchiveSession(input: { sessionId })`（POST `/sessions/:id/unarchive`）與 `deleteSession(input: { sessionId })`（DELETE `/sessions/:id`）；`defaultTransport` 兩種模式皆實作，gateway-v1 路由白名單一併加入。
 - **FR-005**：列表與封存不得把 provider context、page context 或 credential 以外的資料放入請求；gateway-v1 照舊只用 `Authorization` header。
 - **FR-006**：文字一律為繁體中文，按鈕有 `aria-label`，列表可用鍵盤操作；手機全螢幕面板可用。
 - **FR-007**：SDK 版本 `0.2.0`；`docs/contracts/backend-assistant-core` 與 `docs/integration-status.md` 更新。

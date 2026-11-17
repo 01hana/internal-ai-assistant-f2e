@@ -158,6 +158,8 @@ export type AssistantRuntimeRemoteRestorationCapability = {
 export type AssistantRuntimeListSessionsInput = {
   limit?: number;
   cursor?: string;
+  /** Omitted for the active list; `archived` lists archived sessions. */
+  status?: "archived";
 };
 
 export type AssistantRuntimeArchiveSessionInput = {
@@ -174,6 +176,16 @@ export type AssistantRuntimeSessionHistoryCapability = {
     input: AssistantRuntimeArchiveSessionInput,
     options?: AssistantRuntimeRequestOptions
   ): Promise<AssistantRuntimeTransportResult<{ sessionId: string; status: "closed" }>>;
+  /** Optional: move an archived session back to the active list. */
+  unarchiveSession?(
+    input: AssistantRuntimeArchiveSessionInput,
+    options?: AssistantRuntimeRequestOptions
+  ): Promise<AssistantRuntimeTransportResult<{ sessionId: string; status: "active" }>>;
+  /** Optional: delete a session for good (the backend keeps it for audit). */
+  deleteSession?(
+    input: AssistantRuntimeArchiveSessionInput,
+    options?: AssistantRuntimeRequestOptions
+  ): Promise<AssistantRuntimeTransportResult<{ sessionId: string; status: "deleted" }>>;
 };
 
 export type AssistantRuntimeTransportPort = {
@@ -187,6 +199,8 @@ export type AssistantRuntimeTransportPort = {
   /** Optional: Backend Feature 013 session list and archive. */
   listSessions?: AssistantRuntimeSessionHistoryCapability["listSessions"];
   archiveSession?: AssistantRuntimeSessionHistoryCapability["archiveSession"];
+  unarchiveSession?: AssistantRuntimeSessionHistoryCapability["unarchiveSession"];
+  deleteSession?: AssistantRuntimeSessionHistoryCapability["deleteSession"];
   sendMessage(
     input: AssistantRuntimeSendMessageInput,
     options?: AssistantRuntimeRequestOptions

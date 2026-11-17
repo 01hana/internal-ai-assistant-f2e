@@ -70,6 +70,37 @@ describe("default transport conversation experience (Frontend 003)", () => {
       expect(new Headers(init.headers).get("authorization")).toBe("Bearer token-A");
     });
 
+    it("lists archived sessions with status=archived", async () => {
+      const { fetchMock, transport } = setup([json({ data: { sessions: [], nextCursor: null } })]);
+      expect(await transport.listSessions({ limit: 20, status: "archived" })).toEqual({ ok: true, value: { sessions: [], nextCursor: null } });
+      expect(String((fetchMock.mock.calls[0] as unknown as [string])[0])).toBe("http://localhost:4000/api/v1/assistant/sessions?limit=20&status=archived");
+    });
+
+    it("unarchives with POST and deletes with DELETE, both without a body", async () => {
+      const { fetchMock, transport } = setup([
+        json({ data: { sessionId: "s/1", status: "active" } }),
+        json({ data: { sessionId: "s/1", status: "deleted" } }),
+        json({ error: { code: "NOT_FOUND" } }, 404),
+        json({ error: { code: "NOT_FOUND" } }, 404),
+      ]);
+      expect(await transport.unarchiveSession!({ sessionId: "s/1" })).toEqual({ ok: true, value: { sessionId: "s/1", status: "active" } });
+      expect(await transport.deleteSession!({ sessionId: "s/1" })).toEqual({ ok: true, value: { sessionId: "s/1", status: "deleted" } });
+      expect(await transport.unarchiveSession!({ sessionId: "gone" })).toMatchObject({ ok: false, error: { code: "session_not_found" } });
+      expect(await transport.deleteSession!({ sessionId: "gone" })).toMatchObject({ ok: false, error: { code: "session_not_found" } });
+
+      const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+      expect(calls.map(([url, init]) => `${init.method} ${url}`)).toEqual([
+        "POST http://localhost:4000/api/v1/assistant/sessions/s%2F1/unarchive",
+        "DELETE http://localhost:4000/api/v1/assistant/sessions/s%2F1",
+        "POST http://localhost:4000/api/v1/assistant/sessions/gone/unarchive",
+        "DELETE http://localhost:4000/api/v1/assistant/sessions/gone",
+      ]);
+      for (const [, init] of calls) {
+        expect(init.body).toBeUndefined();
+        expect(new Headers(init.headers).get("authorization")).toBe("Bearer token-A");
+      }
+    });
+
     it("reports 400 and 404 distinctly and fails safely on a malformed page", async () => {
       const { transport } = setup([
         json({ error: { code: "BAD_REQUEST" } }, 400),
@@ -115,6 +146,24 @@ describe("default transport conversation experience (Frontend 003)", () => {
   });
 
   describe("Compatibility Mode", () => {
+    it("uses the same archived list, unarchive and delete routes", async () => {
+      const responses = [json({ data: { sessions: [], nextCursor: null } }), json({ data: { sessionId: "s-1", status: "active" } }),
+        json({ data: { sessionId: "s-1", status: "deleted" } })];
+      const fetchMock = vi.fn(async () => responses.shift() ?? json({}, 500));
+      vi.stubGlobal("fetch", fetchMock);
+      const transport = withHistory(createDefaultTransport());
+
+      await transport.listSessions({ status: "archived" });
+      expect(await transport.unarchiveSession!({ sessionId: "s-1" })).toMatchObject({ ok: true });
+      expect(await transport.deleteSession!({ sessionId: "s-1" })).toMatchObject({ ok: true });
+      const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+      expect(calls.map(([url, init]) => `${init.method} ${url}`)).toEqual([
+        "GET /api/v1/assistant/sessions?status=archived",
+        "POST /api/v1/assistant/sessions/s-1/unarchive",
+        "DELETE /api/v1/assistant/sessions/s-1",
+      ]);
+    });
+
     it("uses the same list and archive routes and keeps the message body free of page context", async () => {
       const stream = new ReadableStream<Uint8Array>();
       const responses = [json({ data: page }), json({ data: { sessionId: "s-1", status: "closed" } }),

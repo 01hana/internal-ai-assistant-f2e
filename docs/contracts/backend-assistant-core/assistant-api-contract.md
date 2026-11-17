@@ -203,6 +203,9 @@ For `001-internal-assistant-embedded-chat-panel`:
 | SSE `final` | `data.suggestions?: [{ id, label }]`，只在有值時出現：成功回答後的延伸建議、能力總覽、無法辨識問題時的可用選項 |
 | `GET /assistant/sessions?limit&cursor` | 使用者自己、至少有一則訊息、未封存的 session，依 `lastMessageAt` 由新到舊；`{ sessions: [{ sessionId, title, createdAt, lastMessageAt }], nextCursor }`；`limit` 1–50（預設 20）；cursor 不透明，原樣帶回；不合法回 400 |
 | `POST /assistant/sessions/:id/archive` | 無 body、無 query；回 `{ sessionId, status: "closed" }`；之後讀取與送訊息回 404；不存在、他人或已封存回 404 |
+| `GET /assistant/sessions?status=archived` | （Phase 8）列出已封存的 session，格式與分頁同上；`status` 只接受 `archived`，其他值回 400 |
+| `POST /assistant/sessions/:id/unarchive` | （Phase 8）無 body、無 query；回 `{ sessionId, status: "active" }`，回到一般列表；不存在、他人或未封存回 404 |
+| `DELETE /assistant/sessions/:id` | （Phase 8）無 body、無 query；回 `{ sessionId, status: "deleted" }`；使用者端永久移除（不再列出、讀取與送訊息回 404），後端保留資料供稽核；一般與已封存的 session 皆可刪除；不存在、他人或已刪除回 404 |
 
 前端規則：
 

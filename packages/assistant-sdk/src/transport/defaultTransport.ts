@@ -46,11 +46,13 @@ type CompatibilityFetchRoute =
   | "loadHistory"
   | "streamMessage"
   | "listSessions"
-  | "archiveSession";
+  | "archiveSession"
+  | "unarchiveSession"
+  | "deleteSession";
 type GatewayFetchRoute = CompatibilityFetchRoute;
 
 const BUILT_IN_FETCH_ROUTES: readonly string[] = [
-  "createSession", "getSession", "loadHistory", "streamMessage", "listSessions", "archiveSession",
+  "createSession", "getSession", "loadHistory", "streamMessage", "listSessions", "archiveSession", "unarchiveSession", "deleteSession",
 ] satisfies readonly GatewayFetchRoute[];
 
 function isBuiltInFetchRoute(operation: SdkTransportOperationName | "send"): operation is GatewayFetchRoute {
@@ -350,7 +352,7 @@ function getGatewayFetch(options: DefaultTransportOptions): typeof fetch | null 
 }
 
 function createJsonRequestInit(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   runtimeOptions?: AssistantRuntimeRequestOptions,
   request?: Readonly<Record<string, unknown>>,
 ): RequestInit {
@@ -406,14 +408,17 @@ function createSessionListPath(apiBase: string, request: Readonly<Record<string,
   if (typeof request.cursor === "string" && request.cursor.length > 0) {
     query.set("cursor", request.cursor);
   }
+  if (request.status === "archived") {
+    query.set("status", "archived");
+  }
 
   const search = query.toString();
 
   return search ? `${apiBase}/assistant/sessions?${search}` : `${apiBase}/assistant/sessions`;
 }
 
-function createArchiveSessionPath(apiBase: string, sessionId: string): string {
-  return `${createCompatibilitySessionPath(apiBase, sessionId)}/archive`;
+function createArchiveSessionPath(apiBase: string, sessionId: string, action: "archive" | "unarchive" = "archive"): string {
+  return `${createCompatibilitySessionPath(apiBase, sessionId)}/${action}`;
 }
 
 function createGatewayHeaders(
@@ -515,12 +520,23 @@ async function executeGatewayFetch<T>(
       ));
     }
 
-    if (route === "archiveSession") {
+    if (route === "archiveSession" || route === "unarchiveSession") {
       return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
-        createArchiveSessionPath(apiBase, executionInput.sessionId),
+        createArchiveSessionPath(apiBase, executionInput.sessionId, route === "archiveSession" ? "archive" : "unarchive"),
         {
           headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
           method: "POST",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    if (route === "deleteSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "DELETE",
           signal: runtimeOptions?.signal,
         },
       ));
@@ -579,10 +595,17 @@ async function executeCompatibilityFetch<T>(
       ));
     }
 
-    if (route === "archiveSession") {
+    if (route === "archiveSession" || route === "unarchiveSession") {
       return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
-        createArchiveSessionPath(apiBase, executionInput.sessionId),
+        createArchiveSessionPath(apiBase, executionInput.sessionId, route === "archiveSession" ? "archive" : "unarchive"),
         createJsonRequestInit("POST", runtimeOptions),
+      ));
+    }
+
+    if (route === "deleteSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        createJsonRequestInit("DELETE", runtimeOptions),
       ));
     }
 
@@ -797,6 +820,7 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
     const executionInput = buildSafeOperationExecutionInput("listSessions", {
       ...(input.limit === undefined ? {} : { limit: input.limit }),
       ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+      ...(input.status === "archived" ? { status: "archived" } : {}),
     });
 
     if (!executionInput.ok) {
@@ -834,8 +858,33 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
     return { ok: true, value: { sessionId: executionInput.value.sessionId, status: "closed" } };
   }
 
+  /** Backend Feature 013: shared shape for the session state changes that return only the new status. */
+  async function changeSessionStatus<S extends "active" | "deleted">(
+    operation: "unarchiveSession" | "deleteSession",
+    status: S,
+    input: AssistantRuntimeArchiveSessionInput,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ): Promise<PortResult<{ sessionId: string; status: S }>> {
+    const executionInput = buildSafeOperationExecutionInput(operation, input);
+
+    if (!executionInput.ok) {
+      return executionInput as PortResult<{ sessionId: string; status: S }>;
+    }
+
+    const result = await executeOperation<unknown>(options, operation, executionInput.value, runtimeOptions);
+
+    return result.ok
+      ? { ok: true, value: { sessionId: executionInput.value.sessionId, status } }
+      : result as PortResult<{ sessionId: string; status: S }>;
+  }
+
+  const unarchiveSession = (input: AssistantRuntimeArchiveSessionInput, runtimeOptions?: AssistantRuntimeRequestOptions) =>
+    changeSessionStatus("unarchiveSession", "active", input, runtimeOptions);
+  const deleteSession = (input: AssistantRuntimeArchiveSessionInput, runtimeOptions?: AssistantRuntimeRequestOptions) =>
+    changeSessionStatus("deleteSession", "deleted", input, runtimeOptions);
+
   const remoteRestoration = supportsRemoteRestoration
-    ? { getSession, loadHistory, listSessions, archiveSession }
+    ? { getSession, loadHistory, listSessions, archiveSession, unarchiveSession, deleteSession }
     : {};
 
   return {

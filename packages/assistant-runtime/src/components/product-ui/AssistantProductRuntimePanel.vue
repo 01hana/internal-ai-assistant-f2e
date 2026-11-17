@@ -984,17 +984,17 @@ async function requestStop() {
                 </button>
               </section>
             </div>
-            <template v-if="messageNotice(message) || (latestChoices && latestChoices.messageKey === messageKey(message, index))" #after>
+            <template v-if="messageNotice(message)" #after>
               <p
-                v-if="messageNotice(message)"
                 class="assistant-message-notice"
                 data-testid="assistant-choice-unavailable"
                 role="status"
               >
                 {{ messageNotice(message) }}
               </p>
+            </template>
+            <template v-if="latestChoices && latestChoices.messageKey === messageKey(message, index)" #footer>
               <div
-                v-if="latestChoices && latestChoices.messageKey === messageKey(message, index)"
                 class="assistant-suggestion-list"
                 data-testid="assistant-suggestions"
                 role="group"

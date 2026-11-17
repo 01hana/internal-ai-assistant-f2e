@@ -1,7 +1,7 @@
 # Tasks: Assistant Conversation Experience（前端）
 
 **Input**: `spec.md`, `design.md`, `plan.md`
-**Status**: Phase 0–2 完成（Gate 2 PASS；T016 併入 T031）；第一個未執行的 task 為 T018
+**Status**: Phase 0–3 完成（Gate 3 PASS；T016 併入 T031）；下一步 Phase 4
 
 ## Phase 0 — 基線
 
@@ -84,18 +84,35 @@ FRONTEND003_FIRST_UNEXECUTED_TASK=T018
 **Phase 2 手動檢視後調整（2026-11-16，使用者以 Shinmone 前端 + 本機後端檢視）**：
 
 - 版面：選項原本放在訊息框外、時間下方，且按鈕過大。改為在 `AssistantProductMessageFrame` 新增 `after` slot（位於回覆與時間之間），選項與「選項失效」提示都放入其中；選項按鈕改用 helper 字級、較小的上下內距與間距。元件測試新增「回覆 → 選項 → 時間」順序與提示位於使用者訊息內的斷言。
+- 版面再調整（使用者於 Phase 3 檢視，2026-11-16）：選項改放在時間下方（`AssistantProductMessageFrame` 新增 `footer` slot；`after` slot 只留給「選項失效」提示），順序為「回覆 → 時間 → 選項」；選項按鈕可用 `--assistant-sdk-suggestion-*` 覆寫。
+- 視覺層級調整（2026-11-17）：助理頭像對齊訊息框頂端（不再貼齊下方的選項）；訊息與時間間距 4px、時間與選項 10px，形成「訊息＋時間」與「選項」兩組；時間取消左右內距，與訊息框、選項左緣對齊；選項改為無陰影的外框按鈕（主色 35% 邊框、4% 底色、深主色一般字重、13px 字、6px／14px 內距），hover 底色 9%，陰影只留給訊息框。
+- 列表狀態（2026-11-17）：載入中、空白、錯誤三種狀態佔滿列表區塊並水平、垂直置中；錯誤訊息用主要文字色，「重試」改為實心主色按鈕。
+- T023（使用者以 Shinmone 前端 + 本機後端檢視，2026-11-16～17）：列表、還原、封存、已封存分類與取消封存、刪除、問候與選項版面、狀態畫面皆確認；過程中的版面回饋已依上列各項調整。
+- Gate 3 首輪（使用者於 Mac，2026-11-17）：816 tests 中 6 failed —— Frontend 001 已知失敗 1 個；另 5 個為 SDK stylesheet 字串合約測試（`productized-mount-helper`、`productized-widget-runtime`、`package-artifact-smoke`、`theme-token-contract` ×2）。原因：`styles.css` 被編輯器整檔重新格式化，`var(...)` 被拆成多行。修正：以既有版本為基準，內容相同的規則沿用原文字，只有本 Phase 變更的規則重寫為單行宣告（以腳本確認除空白外內容不變）。lint 16 個與 Gate 2 相同，無新增；typecheck 通過。
+- 修正後受影響的 5 個測試檔重跑：37 tests 全數通過。
 - 點選「你能查詢哪些資料？」得到「回覆未能完成」：不是 Core 的問題。本機 Gateway 程序自 2026-10-23 起未重啟（仍是不支援 `choiceId` 的舊版）；`dev/local-assistant/local-start.mjs` 判斷 Gateway 是否需要重啟時只看 `apps/gateway/dist/main.js`，重新 build 後 `main.js` 內容未變，因此沿用舊程序。後端 repo 已修正為與 backend 相同，納入整個 `apps/gateway/dist` 的編譯檔。
 - 使用者重啟本機 Gateway、以 `npm run sdk:update` 更新 Shinmone 前端後確認：版面正確，點選「你能查詢哪些資料？」可正常得到能力總覽。
 
 ## Phase 3 — 對話紀錄與封存（US3、US4）
 
-- [ ] T018 component：`AssistantProductPanelShell` 「對話紀錄」按鈕只在 `historyAvailable` 時顯示；列表畫面改為「返回」。
-- [ ] T019 component：新增 `AssistantProductSessionList.vue` —— 列表項目（標題、未命名、時間、目前對話標示）、載入更多、載入中／空白／錯誤＋重試、兩段式封存與單列錯誤。RED 後實作。
-- [ ] T020 integration：widget 列表 —— 進入時重新載入、分頁、cursor 400 時重載第一頁一次、點擊還原（`session-changed` 事件、指標更新）、還原失敗留在列表。
-- [ ] T021 integration：封存 —— 非目前對話移除；目前對話清除指標、返回時建立新對話並顯示開場；404 視為成功。
-- [ ] T022 a11y：按鈕 `aria-label`、列表鍵盤操作、焦點在切換畫面後移到標題（沿用既有 a11y 測試方式）。
-- [ ] T023 本機手動驗證：列表、還原、封存（桌面與手機寬度）。
-- [ ] T024 **Gate 3**：typecheck、lint、Phase 3 focused、使用者全套通過。`FRONTEND003_GATE_3=PASS`。
+- [x] T018 component：`AssistantProductPanelShell` 「對話紀錄」按鈕只在 `historyAvailable` 時顯示；列表畫面改為「返回」。
+- [x] T019 component：新增 `AssistantProductSessionList.vue` —— 列表項目（標題、未命名、時間、目前對話標示）、載入更多、載入中／空白／錯誤＋重試、兩段式封存與單列錯誤。RED 後實作。
+- [x] T020 integration：widget 列表 —— 進入時重新載入、分頁、cursor 400 時重載第一頁一次、點擊還原（`session-changed` 事件、指標更新）、還原失敗留在列表。
+- [x] T021 integration：封存 —— 非目前對話移除；目前對話清除指標、返回時建立新對話並顯示開場；404 視為成功。
+- [x] T022 a11y：按鈕 `aria-label`、列表鍵盤操作、焦點在切換畫面後移到標題（沿用既有 a11y 測試方式）。
+- [x] T023 本機手動驗證：列表、還原、封存（桌面與手機寬度）。
+- [x] T024 **Gate 3**：typecheck、lint、Phase 3 focused、使用者全套通過。`FRONTEND003_GATE_3=PASS`。
+
+**Phase 3 執行證據（2026-11-16）**：
+
+- T018：`AssistantProductPanelShell` 新增 `showHistory`、`historyOpen`、`history`／`back` 事件；列表畫面時以「返回對話」取代「對話紀錄」與「重新開始」。新增圖示 `list`、`back`、`archive`。
+- T019：新增 `AssistantProductSessionList.vue`（純顯示）：標題或「未命名對話」、目前對話標示（`aria-current`）、時間（今天顯示時:分，其他顯示月/日）、載入中／空白／錯誤＋重試、載入更多、單列兩段式封存與單列錯誤；開啟中或封存中的那一列停用；串流中停用開啟。
+- T020：`AssistantWidget`：transport 有 `listSessions`／`archiveSession` 才顯示入口；每次進入列表重新載入第一頁；載入更多遇到 400（cursor 失效）改重載第一頁一次；點選其他對話用 `restoreSession`，驗證成功才清空目前對話並切回對話畫面，失敗則留在列表並在該列顯示錯誤（`session_not_found` 直接移除該列）；點選目前對話直接返回。對話畫面以 `v-show` 保留，切換不會清掉輸入框內容；關閉面板回到對話畫面。列表元件透過與其他私有元件相同的 glob 允許清單載入。
+- T021：封存成功或 404 都從列表移除；封存的是目前對話時，立即清除本機指標、重設並建立新對話（返回時看到開場）；其他錯誤在該列顯示。
+- T022：列表出現時焦點移到列表標題（`tabindex="-1"`），返回時焦點移到輸入框；封存按鈕的 `aria-label` 含對話標題；錯誤以 `role="alert"`。
+- 測試：`tests/component/assistant-runtime/product-session-list.spec.ts`、`tests/component/assistant-sdk/widget-session-history.spec.ts`。型別檢查：VM strict 設定錯誤清單與 `HEAD` 相同，新測試無錯誤。
+- 使用者檢視列表畫面後調整（2026-11-16）：封存與刪除改為無外框的圖示按鈕（封存／刪除 icon 為主色／危險色各混 30% 灰；hover 才出現淡灰底，兩顆按鈕間距縮小；封存的確認按鈕為實心主色，刪除的確認按鈕沿用危險按鈕色；顏色皆來自 `--assistant-sdk-*` 主題變數）；封存右側新增刪除（`trash` 圖示，獨立的兩段式確認「確定刪除？刪除後無法復原。」）。
+- 封存可找回（做法 A，搭配後端 Feature 013 Phase 8）：列表上方「對話／已封存」切換（transport 有 `unarchiveSession` 才顯示）；已封存列不能直接開啟，只能「取消封存」（成功或 404 從已封存列表移除，失敗在該列顯示「目前無法取消封存這段對話，請稍後再試。」）或刪除；每次進入列表回到「對話」分類。刪除（`DELETE /sessions/:id`）對使用者是永久移除，後端保留資料供稽核；成功或 404 移除該列，刪除目前對話時與封存相同改開新對話；transport 沒有 `deleteSession` 時不顯示刪除按鈕。
 
 ## Phase 4 — 驗收與交付
 

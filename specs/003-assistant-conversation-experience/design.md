@@ -38,7 +38,7 @@
   - greeting 以助理訊息樣式顯示，不顯示回饋按鈕與資料來源。
   - 選項列：`role="group" aria-label="建議問題"`，按鈕為 chip 樣式，可換行；`choose` emit `{ choiceId, label }`。
   - 使用者訊息的 `notice` 顯示為次要提示文字。
-- 新增 `AssistantProductSessionList.vue`：列表、載入更多、空白／錯誤／載入狀態、每列封存的兩段式確認；emit `open(sessionId)`、`archive(sessionId)`、`load-more`、`retry`、`back`。純顯示元件，資料由 SDK widget 提供。
+- 新增 `AssistantProductSessionList.vue`：列表、載入更多、空白／錯誤／載入狀態、每列封存的兩段式確認；emit `open(sessionId)`、`archive(sessionId)`、`delete(sessionId)`、`unarchive(sessionId)`、`switch-view`、`load-more`、`retry`。上方「對話／已封存」切換；已封存列只有取消封存與刪除。純顯示元件，資料由 SDK widget 提供。
 - 樣式沿用 `--assistant-sdk-*` tokens，不新增必要 token。
 
 ### 2.4 SDK（`packages/assistant-sdk/src`）

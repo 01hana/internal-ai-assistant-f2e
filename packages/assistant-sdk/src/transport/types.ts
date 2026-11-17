@@ -53,6 +53,8 @@ export type SdkTransportOperationInputMap = {
   readonly loadApprovalRequest: AssistantRuntimeApprovalInput;
   readonly listSessions: AssistantRuntimeListSessionsInput;
   readonly archiveSession: AssistantRuntimeArchiveSessionInput;
+  readonly unarchiveSession: AssistantRuntimeArchiveSessionInput;
+  readonly deleteSession: AssistantRuntimeArchiveSessionInput;
 };
 
 export type SdkTransportOperationName = keyof SdkTransportOperationInputMap;

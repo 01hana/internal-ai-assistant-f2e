@@ -59,7 +59,7 @@ describe("product panel choices (Frontend 003)", () => {
     expect(wrapper.findAll("[data-testid='assistant-suggestion']").map((chip) => chip.text())).toEqual(["你能查詢哪些資料？", "訂單 SO-10001 的狀態"]);
   });
 
-  it("places the choices inside the message, after the reply and before the time", () => {
+  it("places the choices inside the message, after the reply and the time", () => {
     const { wrapper } = mountPanel([greeting()]);
     const frame = wrapper.get("[data-testid='assistant-greeting-message']").element;
     const choices = frame.querySelector("[data-testid='assistant-suggestions']");
@@ -68,7 +68,7 @@ describe("product panel choices (Frontend 003)", () => {
     expect(choices).not.toBeNull();
     expect(time).not.toBeNull();
     expect(reply!.compareDocumentPosition(choices!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(choices!.compareDocumentPosition(time!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(time!.compareDocumentPosition(choices!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("reports the clicked choice", async () => {

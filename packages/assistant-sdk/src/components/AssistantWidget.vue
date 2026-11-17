@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /// <reference types="vite/client" />
 import { createPinia } from "pinia";
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Component } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Component } from "vue";
 import { acquireMobileViewportLock, releaseMobileViewportLock } from "../runtime/mobileViewportLock";
 import type {
   AssistantAccessTokenProvider,
@@ -78,10 +78,18 @@ type SdkRuntimeAdapter = {
   } & ({ message: string; choiceId?: never } | { choiceId: string; message?: never })) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly transport: any;
+  /** Frontend 003: open a session picked from the session list. */
+  readonly restoreSession: (sessionId: string, hooks?: { readonly beforeApply?: () => Promise<void> | void }) => Promise<{
+    readonly error?: { readonly code: string; readonly safeMessage: string };
+    readonly ok: boolean;
+    readonly sessionId?: string;
+  }>;
+  readonly forgetStoredSession: () => Promise<void>;
 };
 
 const productRuntimePanelModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductRuntimePanel.vue", { eager: true }) as Record<string, { default: Component }>;
 const productPanelShellModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductPanelShell.vue", { eager: true }) as Record<string, { default: Component }>;
+const productSessionListModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductSessionList.vue", { eager: true }) as Record<string, { default: Component }>;
 const productIconModules = import.meta.glob("../../../assistant-runtime/src/components/product-ui/AssistantProductIcon.vue", { eager: true }) as Record<string, { default: Component }>;
 const runtimeModules = import.meta.glob("../../../assistant-runtime/src/runtime/index.ts", { eager: true }) as Record<string, Record<string, unknown>>;
 const sdkRuntimeAdapterModules = import.meta.glob("../runtime/sdkRuntimeAdapter.ts", { eager: true }) as Record<string, {
@@ -92,18 +100,20 @@ const sdkRuntimeAdapterModules = import.meta.glob("../runtime/sdkRuntimeAdapter.
 const productRuntimePanelModule = Object.values(productRuntimePanelModules)[0];
 const productPanelShellModule = Object.values(productPanelShellModules)[0];
 const productIconModule = Object.values(productIconModules)[0];
+const productSessionListModule = Object.values(productSessionListModules)[0];
 const runtimeModule = Object.values(runtimeModules)[0];
 const sdkRuntimeAdapterModule = Object.values(sdkRuntimeAdapterModules)[0];
 const loadRuntimeModule = async () => runtimeModule;
 const loadSdkRuntimeAdapterModule = async () => sdkRuntimeAdapterModule;
 
-if (!productRuntimePanelModule || !productPanelShellModule || !productIconModule || !runtimeModule || !sdkRuntimeAdapterModule) {
+if (!productRuntimePanelModule || !productPanelShellModule || !productIconModule || !productSessionListModule || !runtimeModule || !sdkRuntimeAdapterModule) {
   throw new Error("assistant_sdk_runtime_modules_unavailable");
 }
 
 const AssistantProductRuntimePanel = defineAsyncComponent(async () => productRuntimePanelModule);
 const AssistantProductPanelShell = defineAsyncComponent(async () => productPanelShellModule);
 const AssistantProductIcon = defineAsyncComponent(async () => productIconModule);
+const AssistantProductSessionList = defineAsyncComponent(async () => productSessionListModule);
 const runtimeScope = createRuntimeScope(props.configuration);
 const launcherEnabled = computed(() => props.configuration?.launcher?.enabled !== false);
 const adapterRef = shallowRef<SdkRuntimeAdapter | null>(null);
@@ -116,6 +126,29 @@ const panelEntering = ref(!launcherEnabled.value);
 const panelLeaving = ref(false);
 const panelEntered = ref(false);
 const mobilePanelVisible = computed(() => mobileViewport.value && (panelOpen.value || panelLeaving.value));
+
+// Frontend 003: session history view (Backend Feature 013). List data lives only in this widget instance.
+type SessionListEntry = { sessionId: string; title: string | null; createdAt: string; lastMessageAt: string };
+type SessionItemState = { pending?: boolean; error?: string | null };
+const SESSION_PAGE_SIZE = 20;
+const panelView = ref<"chat" | "history">("chat");
+const sessionListState = ref<{
+  sessions: SessionListEntry[];
+  nextCursor: string | null;
+  loading: boolean;
+  loadingMore: boolean;
+  error: string | null;
+  itemStates: Record<string, SessionItemState>;
+  view: "active" | "archived";
+}>({ sessions: [], nextCursor: null, loading: false, loadingMore: false, error: null, itemStates: {}, view: "active" });
+const archivedViewAvailable = computed(() => typeof adapterRef.value?.transport?.unarchiveSession === "function");
+const deleteAvailable = computed(() => typeof adapterRef.value?.transport?.deleteSession === "function");
+const historyAvailable = computed(() => {
+  const transport = adapterRef.value?.transport;
+  return Boolean(transport && typeof transport.listSessions === "function" && typeof transport.archiveSession === "function");
+});
+const currentSessionId = computed(() => adapterRef.value?.controller.stores.session.sessionId.value ?? null);
+const sessionSwitchDisabled = computed(() => Boolean(adapterRef.value?.controller.stores.session.activeRequestId.value));
 
 function updateVisualViewport() {
   const root = sdkRootRef.value;
@@ -304,6 +337,7 @@ async function openWidget() {
 }
 
 async function closeWidget() {
+  panelView.value = "chat";
   const adapter = await getAdapter();
   const session = adapter.controller.stores.session;
 
@@ -324,6 +358,174 @@ async function restartWidget() {
   adapter.controller.reset();
   adapter.controller.stores.widget.isOpen.value = true;
   await bootstrapSession(true);
+}
+
+function setSessionItemState(sessionId: string, state: SessionItemState | null) {
+  const next = Object.fromEntries(Object.entries(sessionListState.value.itemStates).filter(([id]) => id !== sessionId));
+  sessionListState.value = { ...sessionListState.value, itemStates: state ? { ...next, [sessionId]: state } : next };
+}
+
+function removeSessionListEntry(sessionId: string) {
+  setSessionItemState(sessionId, null);
+  sessionListState.value = {
+    ...sessionListState.value,
+    sessions: sessionListState.value.sessions.filter(item => item.sessionId !== sessionId),
+  };
+}
+
+let sessionListRequest = 0;
+
+async function loadSessionPage(mode: "first" | "more", retriedFirstPage = false): Promise<void> {
+  const adapter = await getAdapter();
+  const cursor = mode === "more" ? sessionListState.value.nextCursor : null;
+  if (mode === "more" && !cursor) return;
+
+  sessionListState.value = {
+    ...sessionListState.value,
+    ...(mode === "first" ? { loading: true, error: null } : { loadingMore: true }),
+  };
+  const view = sessionListState.value.view;
+  const request = ++sessionListRequest;
+  const result = await adapter.transport.listSessions({ limit: SESSION_PAGE_SIZE, ...(cursor ? { cursor } : {}),
+    ...(view === "archived" ? { status: "archived" } : {}) });
+  // A later load (another view, or reopening the list) wins over this response.
+  if (request !== sessionListRequest) return;
+
+  if (result.ok) {
+    sessionListState.value = {
+      ...sessionListState.value,
+      sessions: mode === "first" ? result.value.sessions : [...sessionListState.value.sessions, ...result.value.sessions],
+      nextCursor: result.value.nextCursor,
+      loading: false,
+      loadingMore: false,
+      error: null,
+      ...(mode === "first" ? { itemStates: {} } : {}),
+    };
+    return;
+  }
+
+  // An expired cursor (400) restarts from the first page once instead of showing an error.
+  if (mode === "more" && result.error.code === "invalid_request" && !retriedFirstPage) {
+    sessionListState.value = { ...sessionListState.value, loadingMore: false };
+    await loadSessionPage("first", true);
+    return;
+  }
+
+  sessionListState.value = {
+    ...sessionListState.value,
+    loading: false,
+    loadingMore: false,
+    error: "目前無法載入對話紀錄，請稍後再試。",
+  };
+}
+
+async function openSessionHistory() {
+  panelView.value = "history";
+  sessionListState.value = { ...sessionListState.value, view: "active", sessions: [], nextCursor: null };
+  await loadSessionPage("first");
+}
+
+async function switchSessionListView(view: "active" | "archived") {
+  sessionListState.value = { ...sessionListState.value, view, sessions: [], nextCursor: null, itemStates: {} };
+  await loadSessionPage("first");
+}
+
+async function unarchiveSessionFromList(sessionId: string) {
+  const adapter = await getAdapter();
+  setSessionItemState(sessionId, { pending: true });
+  const result = await adapter.transport.unarchiveSession({ sessionId });
+
+  // Already active or gone (404): either way it no longer belongs in the archived list.
+  if (!result.ok && result.error.code !== "session_not_found") {
+    setSessionItemState(sessionId, { error: "目前無法取消封存這段對話，請稍後再試。" });
+    return;
+  }
+
+  removeSessionListEntry(sessionId);
+}
+
+function focusComposer() {
+  void nextTick(() => {
+    sdkRootRef.value?.querySelector<HTMLElement>("[data-testid='assistant-chat-input']")?.focus();
+  });
+}
+
+function backToChat() {
+  panelView.value = "chat";
+  focusComposer();
+}
+
+async function openSessionFromList(sessionId: string) {
+  if (sessionId === currentSessionId.value) {
+    backToChat();
+    return;
+  }
+
+  const adapter = await getAdapter();
+  setSessionItemState(sessionId, { pending: true });
+  const result = await adapter.restoreSession(sessionId, {
+    beforeApply: async () => {
+      await adapter.controller.cleanup();
+      adapter.controller.reset();
+      adapter.controller.stores.widget.isOpen.value = true;
+    },
+  });
+
+  if (result.ok) {
+    setSessionItemState(sessionId, null);
+    backToChat();
+    return;
+  }
+
+  if (result.error?.code === "session_not_found") {
+    removeSessionListEntry(sessionId);
+    return;
+  }
+
+  setSessionItemState(sessionId, { error: "目前無法開啟這段對話，請稍後再試。" });
+}
+
+async function archiveSessionFromList(sessionId: string) {
+  const adapter = await getAdapter();
+  setSessionItemState(sessionId, { pending: true });
+  const result = await adapter.transport.archiveSession({ sessionId });
+
+  // Already archived elsewhere (404) counts as done.
+  if (!result.ok && result.error.code !== "session_not_found") {
+    setSessionItemState(sessionId, { error: "目前無法封存這段對話，請稍後再試。" });
+    return;
+  }
+
+  removeSessionListEntry(sessionId);
+  if (sessionId === currentSessionId.value) {
+    // The archived session can no longer be used: start a new one (with its opening) behind the list.
+    await adapter.forgetStoredSession();
+    await adapter.controller.cleanup();
+    adapter.controller.reset();
+    adapter.controller.stores.widget.isOpen.value = true;
+    await bootstrapSession(true);
+  }
+}
+
+/** Frontend 003: delete hides the session for good; the backend keeps it for audit. */
+async function deleteSessionFromList(sessionId: string) {
+  const adapter = await getAdapter();
+
+  setSessionItemState(sessionId, { pending: true });
+  const result = await adapter.transport.deleteSession({ sessionId });
+  if (!result.ok && result.error.code !== "session_not_found") {
+    setSessionItemState(sessionId, { error: "目前無法刪除這段對話，請稍後再試。" });
+    return;
+  }
+
+  removeSessionListEntry(sessionId);
+  if (sessionId === currentSessionId.value) {
+    await adapter.forgetStoredSession();
+    await adapter.controller.cleanup();
+    adapter.controller.reset();
+    adapter.controller.stores.widget.isOpen.value = true;
+    await bootstrapSession(true);
+  }
 }
 
 async function sendMessage(message: string) {
@@ -607,10 +809,36 @@ defineExpose({
           height: props.configuration?.size?.height ? `${props.configuration.size.height}px` : undefined,
           zIndex: props.configuration?.zIndex,
         }"
+        :show-history="historyAvailable"
+        :history-open="panelView === 'history'"
         @close="closeWidget"
         @restart="restartWidget"
+        @history="openSessionHistory"
+        @back="backToChat"
       >
+        <AssistantProductSessionList
+          v-if="panelView === 'history'"
+          :sessions="sessionListState.sessions"
+          :current-session-id="currentSessionId"
+          :loading="sessionListState.loading"
+          :loading-more="sessionListState.loadingMore"
+          :has-more="Boolean(sessionListState.nextCursor)"
+          :error="sessionListState.error"
+          :item-states="sessionListState.itemStates"
+          :open-disabled="sessionSwitchDisabled"
+          :show-delete="deleteAvailable"
+          :view="sessionListState.view"
+          :show-archived-view="archivedViewAvailable"
+          @open="openSessionFromList"
+          @archive="archiveSessionFromList"
+          @delete="deleteSessionFromList"
+          @unarchive="unarchiveSessionFromList"
+          @switch-view="switchSessionListView"
+          @load-more="loadSessionPage('more')"
+          @retry="loadSessionPage('first')"
+        />
         <AssistantProductRuntimePanel
+          v-show="panelView === 'chat'"
           :controller="controller"
           :runtime-scope="runtimeScope"
           :composer-can-send="panelCanSend"

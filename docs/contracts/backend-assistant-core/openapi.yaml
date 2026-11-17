@@ -52,7 +52,8 @@ paths:
       description: |
         The caller's own active sessions that contain at least one message, newest first
         (`lastMessageAt desc`). `nextCursor` is opaque: send it back unchanged. Listing is not audited.
-        An invalid `limit` or `cursor` returns 400.
+        With `status=archived` (Backend Feature 013 Phase 8) the caller's archived sessions are listed instead.
+        An invalid `limit`, `cursor` or `status` returns 400.
       parameters:
         - $ref: '#/components/parameters/RequestIdHeader'
         - $ref: '#/components/parameters/ActorIdHeader'
@@ -62,6 +63,7 @@ paths:
         - $ref: '#/components/parameters/PermissionScopesHeader'
         - $ref: '#/components/parameters/SessionListLimitQuery'
         - $ref: '#/components/parameters/SessionListCursorQuery'
+        - $ref: '#/components/parameters/SessionListStatusQuery'
       responses:
         '200':
           description: Session page
@@ -107,7 +109,67 @@ paths:
         default:
           $ref: '#/components/responses/ErrorResponse'
 
+  /assistant/sessions/{sessionId}/unarchive:
+    post:
+      tags: [Sessions]
+      summary: Restore an archived session (Backend Feature 013 Phase 8)
+      description: |
+        No request body or query. The session becomes active again and returns to the session list.
+        An unknown, foreign or not archived session returns 404.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Session restored
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionStatusChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
   /assistant/sessions/{sessionId}:
+    delete:
+      tags: [Sessions]
+      summary: Delete one of the actor's sessions (Backend Feature 013 Phase 8)
+      description: |
+        No request body or query. For the user the session is gone for good (not listed, 404 for reads and
+        messages); the backend keeps the data for audit. Active and archived sessions can be deleted.
+        An unknown, foreign or already deleted session returns 404.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/ActorIdHeader'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+        - $ref: '#/components/parameters/HostAppHeader'
+        - $ref: '#/components/parameters/RoleHeader'
+        - $ref: '#/components/parameters/PermissionScopesHeader'
+      responses:
+        '200':
+          description: Session deleted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionStatusChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
     get:
       tags: [Sessions]
       summary: Get session detail
@@ -702,6 +764,15 @@ components:
         pattern: '^[A-Za-z0-9_-]{1,200}$'
       description: Opaque `nextCursor` from the previous page.
 
+    SessionListStatusQuery:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [archived]
+      description: Omit for active sessions; `archived` lists archived sessions (Backend Feature 013 Phase 8).
+
   responses:
     ErrorResponse:
       description: Safe error envelope
@@ -838,6 +909,16 @@ components:
         status:
           type: string
           enum: [closed]
+
+    SessionStatusChangeResponse:
+      type: object
+      required: [sessionId, status]
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum: [active, deleted]
 
     CreateSessionRequest:
       type: object
