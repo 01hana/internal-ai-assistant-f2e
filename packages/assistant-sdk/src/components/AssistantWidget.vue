@@ -141,11 +141,16 @@ const sessionListState = ref<{
   itemStates: Record<string, SessionItemState>;
   view: "active" | "archived";
 }>({ sessions: [], nextCursor: null, loading: false, loadingMore: false, error: null, itemStates: {}, view: "active" });
-const archivedViewAvailable = computed(() => typeof adapterRef.value?.transport?.unarchiveSession === "function");
+// The built-in transports always offer these routes; an older backend that lacks them is detected on first use.
+const historyUnsupported = ref(false);
+const archivedViewUnsupported = ref(false);
+const archivedViewAvailable = computed(() =>
+  !archivedViewUnsupported.value && typeof adapterRef.value?.transport?.unarchiveSession === "function");
 const deleteAvailable = computed(() => typeof adapterRef.value?.transport?.deleteSession === "function");
 const historyAvailable = computed(() => {
   const transport = adapterRef.value?.transport;
-  return Boolean(transport && typeof transport.listSessions === "function" && typeof transport.archiveSession === "function");
+  return !historyUnsupported.value
+    && Boolean(transport && typeof transport.listSessions === "function" && typeof transport.archiveSession === "function");
 });
 const currentSessionId = computed(() => adapterRef.value?.controller.stores.session.sessionId.value ?? null);
 const sessionSwitchDisabled = computed(() => Boolean(adapterRef.value?.controller.stores.session.activeRequestId.value));
@@ -401,6 +406,21 @@ async function loadSessionPage(mode: "first" | "more", retriedFirstPage = false)
       error: null,
       ...(mode === "first" ? { itemStates: {} } : {}),
     };
+    return;
+  }
+
+  // A backend without the session list (before Backend Feature 013) answers 404: hide history, as before.
+  if (mode === "first" && view === "active" && result.error.code === "session_not_found") {
+    historyUnsupported.value = true;
+    sessionListState.value = { ...sessionListState.value, loading: false, loadingMore: false, error: null };
+    backToChat();
+    return;
+  }
+
+  // A backend without archived listing rejects `status=archived` (400): drop the switch and show the active list.
+  if (mode === "first" && view === "archived" && result.error.code === "invalid_request") {
+    archivedViewUnsupported.value = true;
+    await switchSessionListView("active");
     return;
   }
 

@@ -1,7 +1,7 @@
 # Tasks: Assistant Conversation Experience（前端）
 
 **Input**: `spec.md`, `design.md`, `plan.md`
-**Status**: Phase 0–3 完成（Gate 3 PASS；T016 併入 T031）；下一步 Phase 4
+**Status**: Phase 0–4 完成（Gate 4 PASS）；T016、T031 Shinmone 交付驗證完成。Frontend 003 完成
 
 ## Phase 0 — 基線
 
@@ -62,7 +62,7 @@ FRONTEND003_FIRST_UNEXECUTED_TASK=T011
 - [x] T013 component：`AssistantProductRuntimePanel` 顯示 greeting（無回饋、無資料來源）、選項 group 與 chip、送出下一則後隱藏、串流中停用、使用者訊息 notice。RED 後實作。
 - [x] T014 unit：`sdkRuntimeAdapter` choice 請求的 `session_not_found` 回報為 `choice_unavailable`。
 - [x] T015 component／integration：`AssistantWidget.sendChoice` —— 顯示 label、送 `choiceId`、404 移除選項並提示、對話不重置；「重新開始」後再次顯示開場。
-- [ ] T016 本機手動驗證：開啟助理看到問候與 Quick Reply，點擊得到回答與建議（截圖記錄）。**移到 T031 一起做**：本 repo 的預覽頁（`/assistant-sdk-preview`）使用 compatibility mode 且未設定 proxy，無法連到需要 Shinmone 身分的本機 Gateway；實際畫面要在 Shinmone 前端換上新版 SDK 後驗證。
+- [x] T016 本機手動驗證：開啟助理看到問候與 Quick Reply，點擊得到回答與建議（截圖記錄）。**移到 T031 一起做**：本 repo 的預覽頁（`/assistant-sdk-preview`）使用 compatibility mode 且未設定 proxy，無法連到需要 Shinmone 身分的本機 Gateway；實際畫面要在 Shinmone 前端換上新版 SDK 後驗證。
 - [x] T017 **Gate 2**：typecheck、lint、Phase 2 focused、使用者全套通過。`FRONTEND003_GATE_2=PASS`。
 
 **Phase 2 執行證據（2026-11-16）**：
@@ -116,10 +116,34 @@ FRONTEND003_FIRST_UNEXECUTED_TASK=T018
 
 ## Phase 4 — 驗收與交付
 
-- [ ] T025 integration：完整流程 開場 → 點 Quick Reply → 建議 → 手打問題 → 列表 → 還原 → 封存目前對話 → 新對話開場。
-- [ ] T026 相容性：以舊後端 fixture（無 opening、無 suggestions、列表 404）跑 SDK 主要流程，行為與 baseline 相同。
-- [ ] T027 SDK `0.2.0`：`packages/assistant-sdk/package.json`、CHANGELOG（若有）、`README.md`／`INSTALL.md`、`templates/nuxt-gateway/README.md` 說明新功能與後端版本需求（Core 013 以上）。
-- [ ] T028 `docs/integration-status.md` 更新稽核日期與 Feature 013 對應狀態。
-- [ ] T029 package 驗證：build、pack、既有 package 驗證流程通過。
-- [ ] T030 **Gate 4**：使用者全套、typecheck、lint、package 驗證通過；SC-001～SC-005 對照表記錄於本檔。`FRONTEND003_GATE_4=PASS`。
-- [ ] T031 交付 Shinmone 前端：使用者連接 Shinmone 前端 repo 後，替換 vendor SDK 與 composables，於本機與測試環境驗證（另行記錄）。
+- [x] T025 integration：完整流程 開場 → 點 Quick Reply → 建議 → 手打問題 → 列表 → 還原 → 封存目前對話 → 新對話開場。
+- [x] T026 相容性：以舊後端 fixture（無 opening、無 suggestions、列表 404）跑 SDK 主要流程，行為與 baseline 相同。
+- [x] T027 SDK `0.2.0`：`packages/assistant-sdk/package.json`、CHANGELOG（若有）、`README.md`／`INSTALL.md`、`templates/nuxt-gateway/README.md` 說明新功能與後端版本需求（Core 013 以上）。
+- [x] T028 `docs/integration-status.md` 更新稽核日期與 Feature 013 對應狀態。
+- [x] T029 package 驗證：build、pack、既有 package 驗證流程通過。
+- [x] T030 **Gate 4**：使用者全套、typecheck、lint、package 驗證通過；SC-001～SC-005 對照表記錄於本檔。`FRONTEND003_GATE_4=PASS`。
+- [x] T031 交付 Shinmone 前端：使用者連接 Shinmone 前端 repo 後，替換 vendor SDK 與 composables，於本機與測試環境驗證（另行記錄）。
+
+**Phase 4 執行證據（2026-11-17）**：
+
+- T025：`tests/component/assistant-sdk/widget-conversation-experience-acceptance.spec.ts` 以掛載的 SDK widget 走完整流程：開場問候與 Quick Reply → 點 Quick Reply（送 `choiceId`）得到回答與建議 → 點建議 → 手打問題 → 對話紀錄（目前對話標示）→ 還原較早的對話（歷史訊息、無開場）→ 封存目前對話 → 返回看到新對話的開場。
+- T026：同檔以 Feature 013 之前的後端（建立 session 無 `opening`、回答無 `suggestions`、列表 404）跑主要流程：維持原本空白狀態、手打問題正常、無選項。發現並修正一個相容性缺口：內建 transport 一律具備 `listSessions`，舊後端會顯示「對話紀錄」入口、點擊後出現錯誤畫面。修正：列表第一頁回 404 時隱藏入口並回到對話（與 `0.1.0` 相同）；`status=archived` 回 400（Core 013 尚未含 Phase 8）時隱藏「已封存」分類並回到一般列表（`widget-session-history.spec.ts` 新增案例）。取消封存與刪除無法偵測舊後端，README 註明升級前需確認後端含 Feature 013。
+- T027：SDK `0.2.0`（`package.json`、`package-lock.json` workspace 條目、`publish-readiness` fixture）；README 新增「Conversation experience」章節、Gateway-v1 路由表加入列表／封存／取消封存／刪除、新增的 theme tokens、版本相容性與 Release notes；INSTALL 版號範例、4.6 主題色說明（改語意色即全局生效、不要改 SDK `styles.css`）、新增 4.7「讓 Quick Reply 依頁面顯示」、後端準備事項加入體驗設定。
+- Nuxt 範本：`assistantWidget.ts` 新增選用的 `getModule`，有值時在 `pageContext` 帶 `module`（後端依 `pageScope.modules` 篩選 Quick Reply）；範本 README 同步。原因：Shinmone 儀表板只出現「你能查詢哪些資料？」，因為未帶 `module`，儀表板專屬的 Quick Reply 被篩掉。
+- T028：`docs/integration-status.md` 稽核日期改為 2026-11-17，新增 Frontend 003（SDK `0.2.0`）狀態列。
+- Gate 4 首輪（使用者於 Mac，2026-11-17）：819 tests 中 2 failed —— Frontend 001 已知失敗；以及 T025 測試本身的錯誤（還原後列表以 `v-if` 移除，測試誤用 `isVisible()` 檢查空的 wrapper），改為 `exists()` 後重跑該檔 2 tests 全數通過。lint 16 個與 Gate 3 相同，無新增；typecheck 通過。
+- T029：SDK build 後 `npm pack --dry-run --json`：`@ideaxpress/assistant-sdk@0.2.0`，12 個 entries，與既有 `0.1.0` tgz 內容清單相同（無新增檔案、無 sourcemap）；`package-artifact-smoke`、`publish-readiness`、`theme-token-contract` 等 contract 測試通過。
+- T031（Shinmone 前端，使用者於 Mac，2026-11-17）：`npm run sdk:update` 換上 `0.2.0`；`app.vue` 傳入 `getModule`（第一層路徑，例如 `/dashboard` → `dashboard`），`composables/assistant/assistantWidget.ts` 有值時在 `pageContext` 帶 `module`；`tests/contract/assistantSecurityGuards.spec.ts` 新增 module 案例。`npx nuxi prepare` 後 contract + unit 74 tests 全數通過（`sdk:update` 會刪除 `.nuxt`，執行測試前需先 prepare）。Shinmone repo 的 commit 由使用者自行處理。
+- T016／T031 手動驗證（使用者於 Shinmone 前端 + 本機後端，2026-11-17）：儀表板開新對話出現問候與 4 個 Quick Reply（總覽與 3 個儀表板統計），點選其中一個得到回答。
+
+**Gate 4 成功標準對照**：
+
+| SC | 結果 | 證據 |
+| --- | --- | --- |
+| SC-001 | PASS | `widget-conversation-experience.spec.ts`、`widget-conversation-experience-acceptance.spec.ts`（T025）：新對話顯示問候與 Quick Reply；`default-transport-conversation-experience.spec.ts`：choice 請求 body 只有 `choiceId` 與 `pageContext`（兩種模式） |
+| SC-002 | PASS | T026：舊後端（無 `opening`、無 `suggestions`、列表 404）主要流程不變，「對話紀錄」入口自動隱藏；既有測試除 Frontend 001 已知失敗外全數通過 |
+| SC-003 | PASS | `widget-conversation-experience.spec.ts`、`product-runtime-panel-suggestions.spec.ts`、T025：建議只在最新回答下方，送出下一則後隱藏 |
+| SC-004 | PASS | `widget-session-history.spec.ts`（分頁、cursor 失效重載、還原、封存目前／非目前、已封存分類、取消封存、刪除）、`product-session-list.spec.ts`、T025 |
+| SC-005 | PASS | 全套測試、`npm run typecheck`、lint（16 個，與 baseline 相同）、SDK build、`npm pack --dry-run` |
+
+`FRONTEND003_GATE_4=PASS`

@@ -9,7 +9,7 @@ const entry = (sessionId: string, title: string | null) =>
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 type ServerOptions = { firstPageCursor?: string | null; staleCursor?: boolean; failGet?: string[]; archiveStatus?: number;
-  deleteStatus?: number; unarchiveStatus?: number };
+  deleteStatus?: number; unarchiveStatus?: number; archivedListStatus?: number };
 
 function setup(options: ServerOptions = {}) {
   let created = 0;
@@ -31,6 +31,7 @@ function setup(options: ServerOptions = {}) {
       if (cursor === "stale") return json({ error: { code: "BAD_REQUEST" } }, 400);
       if (cursor === "page-2") return json({ data: { sessions: [entry("session-old-3", "第三段")], nextCursor: null } });
       if (url.searchParams.get("status") === "archived") {
+        if (options.archivedListStatus) return json({ error: { code: "BAD_REQUEST" } }, options.archivedListStatus);
         return json({ data: { sessions: [entry("session-archived-1", "已封存的對話"), entry("session-old-1", "查詢訂單 SO-10001 狀態"),
           entry("session-old-2", null)].filter(item => archived.has(item.sessionId) && !deleted.has(item.sessionId)), nextCursor: null } });
       }
@@ -282,6 +283,19 @@ describe("SDK widget session history (Frontend 003)", () => {
     await flushPromises();
     expect(itemIds(wrapper)).toEqual(["session-archived-1"]);
     expect(item(wrapper, "session-archived-1").get("[data-testid='assistant-session-item-error']").text()).toBe("目前無法取消封存這段對話，請稍後再試。");
+    wrapper.unmount();
+  });
+
+  it("drops the archived switch when the backend cannot list archived sessions (400)", async () => {
+    const { wrapper } = setup({ archivedListStatus: 400 });
+    await openWidget(wrapper);
+    await openHistory(wrapper);
+    await wrapper.get("[data-testid='assistant-session-view-archived']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find("[data-testid='assistant-session-view-archived']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='assistant-session-list-error']").exists()).toBe(false);
+    expect(itemIds(wrapper)).toEqual(["session-new-1", "session-old-1", "session-old-2"]);
     wrapper.unmount();
   });
 

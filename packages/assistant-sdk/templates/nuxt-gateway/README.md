@@ -53,6 +53,7 @@ const mountAssistant = () => {
   if (!assistantHostMounted || !/* 是否已登入 */ || assistantHandle !== null) return
   assistantHandle = mountAssistantWidget(createAssistantWidgetOptions({
     getAssistantAccessToken: assistantIdentityTokenProvider.getAssistantAccessToken,
+    getModule: () => /* 目前頁面的模組代碼，例如 route.meta.assistantModule */,
     getRoute: () => route.path,
     target: '#assistant-root',
   }))
@@ -75,7 +76,7 @@ onUnmounted(() => { assistantHostMounted = false; destroyAssistant() })
 </template>
 ```
 
-需要依客戶系統調整的只有兩處：`getNativeAccessToken`（怎麼拿到登入 token）和「是否已登入」的判斷。
+需要依客戶系統調整的有三處：`getNativeAccessToken`（怎麼拿到登入 token）、「是否已登入」的判斷，以及 `getModule`（SDK `0.2.0` 起，後端依頁面模組顯示 Quick Reply；值要和後端體驗設定的 `pageScope.modules` 相同，可省略）。
 
 ## 維護
 
