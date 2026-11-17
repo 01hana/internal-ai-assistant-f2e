@@ -45,6 +45,9 @@ type SdkRuntimeAdapterOptions = {
   readonly transport?: AssistantRuntimeTransportPort;
 } & Pick<DefaultTransportOptions, "capabilities" | "execute">;
 
+/** Frontend 003: shown under the user's message when a clicked choice is no longer accepted. */
+export const CHOICE_UNAVAILABLE_NOTICE = "這個選項目前無法使用，請直接輸入問題。";
+
 function resolveIntegrationMode(configuration: WidgetConfiguration | undefined): IntegrationMode {
   return configuration?.integrationMode ?? "backend001-compatibility";
 }
@@ -86,6 +89,21 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
       message: error.safeMessage,
       userMessage: error.safeMessage,
     };
+  }
+
+  // Frontend 003: the stream runner reports every open failure with one generic code, so a choice the server
+  // rejected (404, Backend Feature 013) is remembered here and handled as "choice unavailable", not a failure.
+  let rejectedChoiceId: string | null = null;
+
+  function handleRejectedChoice(choiceId: string): void {
+    const session = controller.stores.session;
+    const requestId = session.activeRequestId.value;
+    const placeholderKey = session.activeAssistantMessageKey.value;
+
+    controller.clearStreamingState();
+    session.messages.value = session.messages.value
+      .filter(message => (message as { readonly key?: unknown }).key !== placeholderKey);
+    controller.markChoiceUnavailable(choiceId, `local-user:${requestId}`, CHOICE_UNAVAILABLE_NOTICE);
   }
 
   async function emitStreamError(error: AssistantSseStreamSafeError): Promise<void> {
@@ -182,13 +200,23 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
         void emitStreamError(error);
       },
       onTransportError: (error) => {
+        if (rejectedChoiceId !== null) {
+          const choiceId = rejectedChoiceId;
+          rejectedChoiceId = null;
+          handleRejectedChoice(choiceId);
+          return;
+        }
         void emitStreamError(error);
       },
     },
     openStream: async (input, runtimeOptions) => {
+      rejectedChoiceId = null;
       const result = await transport.streamMessage(input, runtimeOptions);
 
       if (!result.ok) {
+        if (input.choiceId !== undefined && result.error.code === "session_not_found") {
+          rejectedChoiceId = input.choiceId;
+        }
         throw new Error(result.error.code);
       }
 
@@ -299,6 +327,8 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
     },
     sessionLifecycle,
     bootstrapSession: sessionBootstrap.bootstrap,
+    forgetStoredSession: sessionBootstrap.forgetStoredSession,
+    restoreSession: sessionBootstrap.restoreSession,
     sseRunner,
     startMessageStream(input: AssistantRuntimeStreamMessageInput): Promise<void> {
       if (destroyed) {

@@ -175,6 +175,21 @@ final.data.noAnswerReason === 'tool_failure'
 - `reasonCode`
 - `reasonSummary`
 
+## Suggestions on final（Backend Feature 013）
+
+`final.data` 可能多一個選用欄位 `suggestions: [{ id, label }]`，只在有值時出現，不改變其他欄位與 `answerDecision` 的意義：
+
+- `answered` 且工具成功：設定的延伸建議（最多 3 個）。
+- 能力總覽（`answered`，無工具）：使用者可執行的查詢選項。
+- 無法辨識問題（`clarification_required` 或 `no_answer`）：使用者可執行的查詢選項。
+
+```text
+event: final
+data: {"requestId":"req-010","sessionId":"session-001","messageId":"msg-010","eventType":"final","sequence":5,"data":{"answerDecision":"answered","answer":"SO-10001 目前狀態為 confirmed。","evidenceRefs":["evidence-010"],"suggestions":[{"id":"follow-order-10002","label":"看 SO-10002"}]}}
+```
+
+前端以 `id` 作為下一次請求的 `choiceId`。`suggestions` 格式不合法時應忽略該欄位，不可讓整個串流失敗。
+
 ## Error event
 
 在 runtime exception 或 stream fallback 情境下，backend 可能回：

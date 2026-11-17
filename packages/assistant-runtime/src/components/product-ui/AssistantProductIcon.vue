@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  name: "bot" | "chat" | "close" | "history" | "restart" | "send" | "stop" | "thumb-up" | "thumb-down" | "user";
+  name: "archive" | "back" | "trash" | "unarchive" | "bot" | "chat" | "close" | "history" | "list" | "restart" | "send" | "stop" | "thumb-up" | "thumb-down" | "user";
 }>();
 </script>
 
@@ -26,6 +26,23 @@ defineProps<{
     </template>
     <template v-else-if="name === 'close'">
       <path d="m6 6 12 12M18 6 6 18" />
+    </template>
+    <template v-else-if="name === 'list'">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </template>
+    <template v-else-if="name === 'back'">
+      <path d="m15 18-6-6 6-6" />
+    </template>
+    <template v-else-if="name === 'trash'">
+      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M6 6l1 14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-14M10 11v6M14 11v6" />
+    </template>
+    <template v-else-if="name === 'unarchive'">
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M12 17v-6M9.5 13.5 12 11l2.5 2.5" />
+    </template>
+    <template v-else-if="name === 'archive'">
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
     </template>
     <template v-else-if="name === 'history'">
       <path d="M3 12a9 9 0 1 0 3-6.7" />

@@ -296,7 +296,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
         expect(wrapper.find("[data-testid='assistant-typing-indicator']").exists()).toBe(false);
         expect(wrapper.find("[data-testid='assistant-chat-cancel']").exists()).toBe(false);
       });
-      expect(wrapper.text()).toContain("回覆已取消");
+      expect(wrapper.text()).toContain("回覆已停止");
       expect(wrapper.text()).toContain("未完成回答");
 
       for (const value of ["這週", "這週新增多少工單"]) {
@@ -335,7 +335,7 @@ describe("Frontend 002 productized AssistantWidget runtime completeness", () => 
       expect(wrapper.get("[data-testid='assistant-evidence-ref']").element.closest(".assistant-message-bubble")).toBeTruthy();
       expect(wrapper.get("[data-testid='assistant-chat-input-bar']").exists()).toBe(true);
       expect(wrapper.text()).toContain("這週新增多少工單");
-      expect(wrapper.text()).toContain("回覆已取消");
+      expect(wrapper.text()).toContain("回覆已停止");
     }
     finally {
       wrapper.unmount();

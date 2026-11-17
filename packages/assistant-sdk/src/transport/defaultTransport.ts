@@ -1,10 +1,12 @@
 import type {
   AssistantRuntimeActionConfirmationInput,
   AssistantRuntimeApprovalInput,
+  AssistantRuntimeArchiveSessionInput,
   AssistantRuntimeCancelMessageInput,
   AssistantRuntimeCreateSessionInput,
   AssistantRuntimeFeedbackInput,
   AssistantRuntimeGetSessionInput,
+  AssistantRuntimeListSessionsInput,
   AssistantRuntimeLoadHistoryInput,
   AssistantRuntimeRequestOptions,
   AssistantRuntimeSendMessageInput,
@@ -12,6 +14,8 @@ import type {
   AssistantRuntimeTransportPort,
   AssistantRuntimeTransportResult,
 } from "../../../assistant-runtime/src/transport/ports";
+import { normalizeAssistantSessionListPage } from "../../../assistant-runtime/src/experience";
+import type { AssistantSessionListPage } from "../../../assistant-runtime/src/types";
 import { buildAssistantRequest } from "../request/requestBuilder";
 import { sanitizePageContextForRequest } from "../request/pageContext";
 import type { AssistantAccessTokenProvider } from "../types/public";
@@ -40,8 +44,20 @@ type CompatibilityFetchRoute =
   | "createSession"
   | "getSession"
   | "loadHistory"
-  | "streamMessage";
-type GatewayFetchRoute = "createSession" | "getSession" | "loadHistory" | "streamMessage";
+  | "streamMessage"
+  | "listSessions"
+  | "archiveSession"
+  | "unarchiveSession"
+  | "deleteSession";
+type GatewayFetchRoute = CompatibilityFetchRoute;
+
+const BUILT_IN_FETCH_ROUTES: readonly string[] = [
+  "createSession", "getSession", "loadHistory", "streamMessage", "listSessions", "archiveSession", "unarchiveSession", "deleteSession",
+] satisfies readonly GatewayFetchRoute[];
+
+function isBuiltInFetchRoute(operation: SdkTransportOperationName | "send"): operation is GatewayFetchRoute {
+  return BUILT_IN_FETCH_ROUTES.includes(operation);
+}
 
 const COMPATIBILITY_API_PREFIX = "/api/v1";
 
@@ -146,12 +162,39 @@ function gatewayJsonFailureCode(response: Response): Parameters<typeof toTranspo
   return "transport_execution_failed";
 }
 
+/**
+ * Backend Feature 013 routes (both modes): 400 (invalid limit/cursor) and 404 (unknown or archived
+ * session) are reported distinctly so the widget can recover; other routes keep their existing mapping.
+ */
+async function normalizeStatusAwareJsonResponse<T>(response: Response): Promise<PortResult<T>> {
+  if (response.status === 400) {
+    return toFailure("invalid_request");
+  }
+
+  return await normalizeGatewayJsonResponse<T>(response);
+}
+
 async function normalizeGatewayJsonResponse<T>(response: Response): Promise<PortResult<T>> {
   if (!response.ok) {
     return toFailure(gatewayJsonFailureCode(response));
   }
 
   return await normalizeJsonResponse<T>(response);
+}
+
+/**
+ * Frontend 003: a choice the server no longer accepts returns 404 (Backend Feature 013). Only choice requests
+ * report it as `session_not_found`; typed messages keep the existing generic failure.
+ */
+function normalizeChoiceStreamResponse(
+  value: unknown,
+  request: Readonly<Record<string, unknown>>,
+): PortResult<ReadableStream<Uint8Array>> {
+  if (request.choiceId !== undefined && isResponseLike(value) && value.status === 404) {
+    return toFailure("session_not_found");
+  }
+
+  return normalizeStreamResponse(value);
 }
 
 function normalizeStreamResponse(value: unknown): PortResult<ReadableStream<Uint8Array>> {
@@ -232,7 +275,7 @@ function buildMessageExecutionInput(
       ? undefined
       : { pageContext: input.pageContext },
     integrationMode: mode,
-    message: input.message,
+    ...(input.choiceId === undefined ? { message: input.message } : { choiceId: input.choiceId }),
     sessionId: input.sessionId,
   });
 
@@ -258,7 +301,7 @@ function buildSafeOperationExecutionInput(
   const requestId = createRequestId();
   const sessionId = readSessionId(input);
 
-  if (operation !== "createSession" && !sessionId) {
+  if (operation !== "createSession" && operation !== "listSessions" && !sessionId) {
     return toFailure("missing_session_id");
   }
   const request = {
@@ -309,7 +352,7 @@ function getGatewayFetch(options: DefaultTransportOptions): typeof fetch | null 
 }
 
 function createJsonRequestInit(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   runtimeOptions?: AssistantRuntimeRequestOptions,
   request?: Readonly<Record<string, unknown>>,
 ): RequestInit {
@@ -353,6 +396,29 @@ function createCompatibilitySessionMessagesPath(apiBase: string, sessionId: stri
 
 function createCompatibilitySessionPath(apiBase: string, sessionId: string): string {
   return `${apiBase}/assistant/sessions/${encodeURIComponent(sessionId)}`;
+}
+
+/** Backend Feature 013: only `limit` and the opaque `cursor` are ever sent. */
+function createSessionListPath(apiBase: string, request: Readonly<Record<string, unknown>>): string {
+  const query = new URLSearchParams();
+
+  if (typeof request.limit === "number" && Number.isInteger(request.limit) && request.limit > 0) {
+    query.set("limit", String(request.limit));
+  }
+  if (typeof request.cursor === "string" && request.cursor.length > 0) {
+    query.set("cursor", request.cursor);
+  }
+  if (request.status === "archived") {
+    query.set("status", "archived");
+  }
+
+  const search = query.toString();
+
+  return search ? `${apiBase}/assistant/sessions?${search}` : `${apiBase}/assistant/sessions`;
+}
+
+function createArchiveSessionPath(apiBase: string, sessionId: string, action: "archive" | "unarchive" = "archive"): string {
+  return `${createCompatibilitySessionPath(apiBase, sessionId)}/${action}`;
 }
 
 function createGatewayHeaders(
@@ -443,6 +509,39 @@ async function executeGatewayFetch<T>(
       ));
     }
 
+    if (route === "listSessions") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createSessionListPath(apiBase, executionInput.request),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "GET",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    if (route === "archiveSession" || route === "unarchiveSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createArchiveSessionPath(apiBase, executionInput.sessionId, route === "archiveSession" ? "archive" : "unarchive"),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "POST",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
+    if (route === "deleteSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        {
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json"),
+          method: "DELETE",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
     const response = await fetchImpl(
       createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId),
       {
@@ -453,7 +552,7 @@ async function executeGatewayFetch<T>(
       },
     );
 
-    return normalizeStreamResponse(response) as PortResult<T>;
+    return normalizeChoiceStreamResponse(response, executionInput.request) as PortResult<T>;
   }
   catch {
     return toFailure("transport_execution_failed");
@@ -489,12 +588,33 @@ async function executeCompatibilityFetch<T>(
       ));
     }
 
+    if (route === "listSessions") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createSessionListPath(apiBase, executionInput.request),
+        createJsonRequestInit("GET", runtimeOptions),
+      ));
+    }
+
+    if (route === "archiveSession" || route === "unarchiveSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createArchiveSessionPath(apiBase, executionInput.sessionId, route === "archiveSession" ? "archive" : "unarchive"),
+        createJsonRequestInit("POST", runtimeOptions),
+      ));
+    }
+
+    if (route === "deleteSession") {
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        createCompatibilitySessionPath(apiBase, executionInput.sessionId),
+        createJsonRequestInit("DELETE", runtimeOptions),
+      ));
+    }
+
     const response = await fetchImpl(
       createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId),
       createStreamRequestInit(runtimeOptions, executionInput.request),
     );
 
-    return normalizeStreamResponse(response) as PortResult<T>;
+    return normalizeChoiceStreamResponse(response, executionInput.request) as PortResult<T>;
   }
   catch {
     return toFailure("transport_execution_failed");
@@ -514,12 +634,7 @@ async function executeOperation<T>(
 
     if (
       gatewayFetch
-      && (
-        operation === "createSession"
-        || operation === "getSession"
-        || operation === "loadHistory"
-        || operation === "streamMessage"
-      )
+      && isBuiltInFetchRoute(operation)
     ) {
       return await executeGatewayFetch<T>(
         options,
@@ -535,12 +650,7 @@ async function executeOperation<T>(
 
     if (
       compatibilityFetch
-      && (
-        operation === "createSession"
-        || operation === "getSession"
-        || operation === "loadHistory"
-        || operation === "streamMessage"
-      )
+      && isBuiltInFetchRoute(operation)
     ) {
       return await executeCompatibilityFetch<T>(
         compatibilityFetch,
@@ -702,8 +812,79 @@ export function createDefaultTransport(options: DefaultTransportOptions = {}) {
       : executionInput;
   }
 
+  /** Backend Feature 013. A response that is not a session page fails safely. */
+  async function listSessions(
+    input: AssistantRuntimeListSessionsInput,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ): Promise<PortResult<AssistantSessionListPage>> {
+    const executionInput = buildSafeOperationExecutionInput("listSessions", {
+      ...(input.limit === undefined ? {} : { limit: input.limit }),
+      ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+      ...(input.status === "archived" ? { status: "archived" } : {}),
+    });
+
+    if (!executionInput.ok) {
+      return executionInput as PortResult<AssistantSessionListPage>;
+    }
+
+    const result = await executeOperation<unknown>(options, "listSessions", executionInput.value, runtimeOptions);
+
+    if (!result.ok) {
+      return result as PortResult<AssistantSessionListPage>;
+    }
+
+    const page = normalizeAssistantSessionListPage(result.value);
+
+    return page ? { ok: true, value: page } : toFailure("transport_execution_failed");
+  }
+
+  /** Backend Feature 013. No request body; Core owns the visibility decision. */
+  async function archiveSession(
+    input: AssistantRuntimeArchiveSessionInput,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ): Promise<PortResult<{ sessionId: string; status: "closed" }>> {
+    const executionInput = buildSafeOperationExecutionInput("archiveSession", input);
+
+    if (!executionInput.ok) {
+      return executionInput as PortResult<{ sessionId: string; status: "closed" }>;
+    }
+
+    const result = await executeOperation<unknown>(options, "archiveSession", executionInput.value, runtimeOptions);
+
+    if (!result.ok) {
+      return result as PortResult<{ sessionId: string; status: "closed" }>;
+    }
+
+    return { ok: true, value: { sessionId: executionInput.value.sessionId, status: "closed" } };
+  }
+
+  /** Backend Feature 013: shared shape for the session state changes that return only the new status. */
+  async function changeSessionStatus<S extends "active" | "deleted">(
+    operation: "unarchiveSession" | "deleteSession",
+    status: S,
+    input: AssistantRuntimeArchiveSessionInput,
+    runtimeOptions?: AssistantRuntimeRequestOptions,
+  ): Promise<PortResult<{ sessionId: string; status: S }>> {
+    const executionInput = buildSafeOperationExecutionInput(operation, input);
+
+    if (!executionInput.ok) {
+      return executionInput as PortResult<{ sessionId: string; status: S }>;
+    }
+
+    const result = await executeOperation<unknown>(options, operation, executionInput.value, runtimeOptions);
+
+    return result.ok
+      ? { ok: true, value: { sessionId: executionInput.value.sessionId, status } }
+      : result as PortResult<{ sessionId: string; status: S }>;
+  }
+
+  const unarchiveSession = (input: AssistantRuntimeArchiveSessionInput, runtimeOptions?: AssistantRuntimeRequestOptions) =>
+    changeSessionStatus("unarchiveSession", "active", input, runtimeOptions);
+  const deleteSession = (input: AssistantRuntimeArchiveSessionInput, runtimeOptions?: AssistantRuntimeRequestOptions) =>
+    changeSessionStatus("deleteSession", "deleted", input, runtimeOptions);
+
   const remoteRestoration = supportsRemoteRestoration
-    ? { getSession, loadHistory }
+    ? { getSession, loadHistory, listSessions, archiveSession, unarchiveSession, deleteSession }
     : {};
 
   return {

@@ -16,6 +16,8 @@ type AssistantAccessTokenResolver = (() => Promise<string>) & {
 
 export interface AssistantWidgetOptionsDependencies {
   getAssistantAccessToken: AssistantAccessTokenResolver
+  /** 目前頁面的模組代碼（例如 `dashboard`），後端依此決定顯示哪些 Quick Reply；沒有就回傳 undefined */
+  getModule?: () => string | undefined
   getRoute: () => string
   target: Element | string
 }
@@ -43,11 +45,13 @@ export function createAssistantWidgetOptions(
     target: dependencies.target,
     provider: async () => {
       const connectorContextRef = await resolveConnectorContextRef(dependencies.getAssistantAccessToken)
+      const module = dependencies.getModule?.()?.trim()
 
       return {
         hostApp: HOST_APP,
         pageContext: {
           ...(connectorContextRef === undefined ? {} : { connectorContextRef }),
+          ...(module ? { module } : {}),
           route: dependencies.getRoute(),
         },
       }

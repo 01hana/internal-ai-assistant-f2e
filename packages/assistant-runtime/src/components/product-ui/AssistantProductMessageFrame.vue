@@ -46,6 +46,8 @@ const formattedCreatedAt = computed(() => {
 
     <div class="assistant-message-frame-content">
       <slot />
+      <!-- Frontend 003: notices attached to this message, between the bubble and the time. -->
+      <slot name="after" />
       <div
         v-if="(formattedCreatedAt && createdAt) || $slots.metadata"
         class="assistant-message-metadata"
@@ -61,6 +63,8 @@ const formattedCreatedAt = computed(() => {
         </time>
         <slot name="metadata" />
       </div>
+      <!-- Frontend 003: choices offered after this message, below the time. -->
+      <slot name="footer" />
     </div>
   </article>
 </template>

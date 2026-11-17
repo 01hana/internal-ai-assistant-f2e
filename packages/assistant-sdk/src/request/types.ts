@@ -5,6 +5,8 @@ export interface AssistantRequestBuildInput {
   readonly hostContext?: unknown;
   readonly integrationMode?: IntegrationMode;
   readonly message?: unknown;
+  /** Backend Feature 013: a server-declared Quick Reply or suggestion ID, instead of `message`. */
+  readonly choiceId?: unknown;
   readonly operation?: unknown;
   readonly sessionId?: unknown;
   readonly widgetConfiguration?: unknown;

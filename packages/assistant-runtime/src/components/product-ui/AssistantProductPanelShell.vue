@@ -8,7 +8,13 @@ withDefaults(defineProps<{
   title?: string;
   restartLabel?: string;
   closeLabel?: string;
+  /** Frontend 003: show the session-history entry (only when the transport can list sessions). */
+  showHistory?: boolean;
+  /** Frontend 003: the panel body currently shows the session list. */
+  historyOpen?: boolean;
 }>(), {
+  showHistory: false,
+  historyOpen: false,
   contextReady: true,
   showRestart: true,
   title: "AI 助理",
@@ -19,6 +25,8 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
   close: [];
   restart: [];
+  history: [];
+  back: [];
 }>();
 </script>
 
@@ -50,7 +58,29 @@ const emit = defineEmits<{
 
         <div class="assistant-product-panel-header-actions">
           <button
-            v-if="showRestart"
+            v-if="historyOpen"
+            type="button"
+            class="assistant-product-header-icon"
+            data-testid="assistant-panel-back"
+            aria-label="返回對話"
+            title="返回對話"
+            @click="emit('back')"
+          >
+            <AssistantProductIcon name="back" />
+          </button>
+          <button
+            v-else-if="showHistory"
+            type="button"
+            class="assistant-product-header-icon"
+            data-testid="assistant-panel-history"
+            aria-label="對話紀錄"
+            title="對話紀錄"
+            @click="emit('history')"
+          >
+            <AssistantProductIcon name="list" />
+          </button>
+          <button
+            v-if="showRestart && !historyOpen"
             type="button"
             class="assistant-product-header-icon"
             data-testid="assistant-panel-restart"

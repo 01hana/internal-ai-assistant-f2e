@@ -44,7 +44,7 @@ npm install @ideaxpress/assistant-sdk
 `package.json` 會出現：
 
 ```json
-"@ideaxpress/assistant-sdk": "^0.1.0"
+"@ideaxpress/assistant-sdk": "^0.2.0"
 ```
 
 只使用這兩個公開入口，不要 deep import 套件內部路徑：
@@ -192,7 +192,13 @@ $development: {
 }
 ```
 
+設定在 `:root` 或掛載點上都可以。改語意色（例如 `--assistant-sdk-accent`、`--assistant-sdk-danger`）全局都會跟著變；只有想讓某個元件和全局不同時，才需要設定元件層的變數。不要修改 SDK 的 `styles.css`，更新 SDK 時會被覆蓋。
+
 可用的變數清單見 README「Theme token contract」。
+
+### 4.7 讓 Quick Reply 依頁面顯示（`0.2.0`）
+
+後端會依 `pageContext.module` 決定每個頁面顯示哪些 Quick Reply（例如只在儀表板顯示儀表板相關的問題）。在 `provider` 回傳的 `pageContext` 加上目前頁面的 `module`；值要和後端體驗設定中的 `pageScope.modules` 相同。使用 Nuxt 範本時，傳入 `getModule` 即可（見 `templates/nuxt-gateway/README.md`）。沒有帶 `module` 時，只會顯示不限頁面的選項。
 
 ---
 
@@ -206,6 +212,7 @@ $development: {
 | HostApp | 與前端 `provider` 回傳的 `hostApp` 相同 |
 | Identity Bridge 設定 | 能驗證此客戶系統的登入 token（issuer、驗證端點等） |
 | TrustProfile、工具與權限 | 這個客戶允許使用哪些查詢工具，以及需要的權限 |
+| 對話體驗設定（`0.2.0`） | 問候語、Quick Reply 與建議；沒有設定時使用 Core 預設問候、不顯示選項 |
 
 這些由後端的 `provision` 流程建立，請參考該客戶的部署手冊（例如 `runbooks/deploy-192.168.10.110.md` 第 4、5 節）。
 
@@ -214,11 +221,11 @@ $development: {
 ## 6. 更新 SDK
 
 ```bash
-# 更新到目前版號範圍內的最新版（例如 ^0.1.0 → 0.1.x 最新）
+# 更新到目前版號範圍內的最新版（例如 ^0.2.0 → 0.2.x 最新）
 npm update @ideaxpress/assistant-sdk
 
 # 指定版本（跨 minor / major 時使用）
-npm install @ideaxpress/assistant-sdk@0.2.0
+npm install @ideaxpress/assistant-sdk@0.3.0
 ```
 
 更新後：
@@ -254,7 +261,7 @@ npm install @ideaxpress/assistant-sdk@0.2.0
 
    若本機同時有 internal-ai-assistant repo，可以把 `idx-shinmone-scm-frontend/scripts/update-assistant-sdk.sh` 複製過去，用 `npm run sdk:update` 一次完成建置、打包、覆蓋與安裝。
 
-改用 GitHub Packages 後，把依賴改回 `"^0.1.0"` 並重新 `npm install`，就可以刪掉 `vendor/`。
+改用 GitHub Packages 後，把依賴改回 `"^0.2.0"` 並重新 `npm install`，就可以刪掉 `vendor/`。
 
 ---
 

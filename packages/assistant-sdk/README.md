@@ -64,6 +64,8 @@ Nuxt UI host 可映射 Nuxt app token；Quasar host 可映射 Quasar CSS variabl
 }
 ```
 
+Frontend 003（`0.2.0`）新增的對話體驗元件 tokens（皆有預設值，只在想與全局主題不同時才需要設定）：`--assistant-sdk-suggestion-border`、`--assistant-sdk-suggestion-background`、`--assistant-sdk-suggestion-hover-background`、`--assistant-sdk-suggestion-foreground`、`--assistant-sdk-suggestion-shadow`、`--assistant-sdk-suggestion-font-size`、`--assistant-sdk-suggestion-list-offset`（Quick Reply／建議按鈕），`--assistant-sdk-session-icon-foreground`、`--assistant-sdk-session-icon-danger-foreground`、`--assistant-sdk-session-icon-hover-background`（對話紀錄的封存／刪除圖示），以及 `--assistant-sdk-message-content-gap`（訊息與時間的間距）。這些 token 都由 `--assistant-sdk-accent`、`--assistant-sdk-accent-strong`、`--assistant-sdk-danger`、`--assistant-sdk-muted` 推導，改語意色即會跟著變。
+
 常用 public tokens 包含 layout (`--assistant-sdk-panel-width`, `--assistant-sdk-panel-height`, `--assistant-sdk-launcher-size`, `--assistant-sdk-gap`)、typography (`--assistant-sdk-font-family`, `--assistant-sdk-font-size`, `--assistant-sdk-line-height`)、radius/spacing/shadow (`--assistant-sdk-radius-*`, `--assistant-sdk-space-*`, `--assistant-sdk-shadow`, `--assistant-sdk-bubble-shadow`)、semantic colors，以及 component-level tokens such as `--assistant-sdk-message-area-background`, `--assistant-sdk-message-bubble-background`, `--assistant-sdk-input-background`, `--assistant-sdk-button-primary-background`, `--assistant-sdk-button-secondary-background`, `--assistant-sdk-button-danger-background`, `--assistant-sdk-safe-outcome-background`, `--assistant-sdk-evidence-background`, `--assistant-sdk-feedback-background`, `--assistant-sdk-action-draft-background`, `--assistant-sdk-approval-request-background`, and `--assistant-sdk-focus-ring`.
 
 ## mountAssistantWidget usage
@@ -208,7 +210,7 @@ Gateway 負責驗證 upstream Host identity，依 IntegrationBinding 決定 Cust
 
 ### Gateway-v1 HTTP surface
 
-Gateway-v1 正式支援以下四個 Host-facing operations；所有 request 都使用 request-scoped upstream `Authorization`：
+Gateway-v1 正式支援以下 Host-facing operations；所有 request 都使用 request-scoped upstream `Authorization`：
 
 | Operation | Method | Route |
 | --- | --- | --- |
@@ -216,6 +218,12 @@ Gateway-v1 正式支援以下四個 Host-facing operations；所有 request 都�
 | getSession / restore | GET | `/api/v1/assistant/sessions/:sessionId` |
 | loadHistory | GET | `/api/v1/assistant/sessions/:sessionId/messages` |
 | streamMessage / conversation SSE | POST | `/api/v1/assistant/sessions/:sessionId/messages` |
+| listSessions（`0.2.0`） | GET | `/api/v1/assistant/sessions?limit&cursor[&status=archived]` |
+| archiveSession（`0.2.0`） | POST | `/api/v1/assistant/sessions/:sessionId/archive` |
+| unarchiveSession（`0.2.0`） | POST | `/api/v1/assistant/sessions/:sessionId/unarchive` |
+| deleteSession（`0.2.0`） | DELETE | `/api/v1/assistant/sessions/:sessionId` |
+
+Compatibility Mode 使用相同的路徑。
 
 Gateway-v1 沒有 SDK-owned Gateway ingress for feedback, approval, action confirmation, cancel endpoint，或其他 Shared Runtime operations。SDK 不會 invent route，也不會 fallback 直接呼叫 Backend。
 
@@ -241,6 +249,16 @@ Gateway-v1 沒有 SDK-owned Gateway ingress for feedback, approval, action confi
 ```
 
 Browser context 的 `actorId`、`organizationId`、`hostApp`、`roles`、`permissionScopes`、`customerId` 與 `integrationId` 都不是 trusted Backend authority，且不會被 SDK serialise 到 Gateway-v1 create/send body。Customer authority 只屬於 Gateway IntegrationBinding。
+
+## Conversation experience（`0.2.0`）
+
+需要 Backend Feature 013（Core 與 Gateway 一起更新，含已封存列表、取消封存與刪除）。前端程式對所有客戶相同；問候語與選項的文字由各客戶的後端設定提供。
+
+- **開場問候與 Quick Reply**：建立 session 時後端回傳 `opening`，widget 把問候語顯示為第一則助理訊息，Quick Reply 顯示在其下方。Quick Reply 依 `pageContext.module` 篩選，所以 provider 應在 `pageContext` 帶目前頁面的 `module`（例如 `dashboard`）。
+- **點擊選項**：送出 `{ choiceId, pageContext }`（不送 `message`），畫面顯示按鈕文字作為使用者訊息。後端回 404（選項已失效或沒有權限）時移除該按鈕，並提示使用者直接輸入問題。
+- **回答後的建議**：SSE `final.suggestions` 顯示在最新一則回答下方；使用者送出下一則訊息後隱藏。
+- **對話紀錄**：面板標題列的「對話紀錄」按鈕開啟列表（分頁），可還原、封存、刪除對話；「已封存」分類可取消封存。刪除對使用者是永久移除，後端保留資料供稽核。封存或刪除目前對話時，widget 會開一段新對話。
+- **舊後端**：後端沒有 `opening`／`suggestions` 時畫面與 `0.1.0` 相同；對話紀錄列表回 404 時 widget 隱藏「對話紀錄」入口，`status=archived` 回 400 時隱藏「已封存」分類。取消封存與刪除沒有偵測方式，請確認後端已包含 Feature 013 再升級到 `0.2.0`。
 
 ## Session lifecycle
 
@@ -305,7 +323,7 @@ mountAssistantWidget({
 
 ## Version compatibility
 
-目前 package version 是 `0.1.0`。Vue 是 peer dependency；Pinia 是 SDK regular runtime dependency；Nuxt 是 optional peer for Nuxt host compatibility，不是必要 runtime dependency。
+目前 package version 是 `0.2.0`。對話體驗功能需要 Backend Feature 013（Core 與 Gateway）；舊後端的相容行為見「Conversation experience」。Vue 是 peer dependency；Pinia 是 SDK regular runtime dependency；Nuxt 是 optional peer for Nuxt host compatibility，不是必要 runtime dependency。
 
 ## GitHub Packages install notes
 
@@ -318,5 +336,7 @@ mountAssistantWidget({
 請由 npm、CI 或 GitHub Packages 設定管理 registry authentication。不要把 registry token 傳進 SDK runtime。
 
 ## Release notes
+
+`0.2.0`：Backend Feature 013 對話體驗 —— 開場問候與 Quick Reply、點擊選項送 `choiceId`、回答後的建議、對話紀錄（分頁、還原、封存、已封存分類與取消封存、刪除），以及上述 theme tokens。公開 API（`AssistantWidget`、`mountAssistantWidget`、`styles.css`）與既有參數不變；provider 建議在 `pageContext` 加上 `module`。
 
 `0.1.0`：完成 productized AssistantWidget、isolated `mountAssistantWidget`、Backend 001 Compatibility Mode packaged chat flow、root + stylesheet public package boundary、Shared Canonical Assistant Runtime bundling，以及 final release readiness guardrails。

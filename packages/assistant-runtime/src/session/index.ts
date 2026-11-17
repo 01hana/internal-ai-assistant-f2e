@@ -16,6 +16,7 @@ import type {
   AssistantSseEvent,
   HistoryMessageSummary,
 } from "../types";
+import { normalizeAssistantOpening } from "../experience";
 
 export type AssistantSessionRecoveryReason =
   | "expired"
@@ -199,6 +200,18 @@ export function appendAssistantHistoryPage(
   };
 }
 
+/** Backend Feature 013: keeps a well-formed `opening` and drops a malformed one; other fields are untouched. */
+function normalizeCreatedSession(session: AssistantRuntimeSession): AssistantRuntimeSession {
+  if (!session || typeof session !== "object" || !("opening" in session)) {
+    return session;
+  }
+
+  const { opening, ...rest } = session;
+  const normalized = normalizeAssistantOpening(opening);
+
+  return normalized ? { ...rest, opening: normalized } : rest;
+}
+
 function unwrapTransportResult<T>(result: { readonly ok: boolean; readonly value?: unknown; readonly error?: unknown }): T {
   if (result.ok) {
     return result.value as T;
@@ -263,9 +276,9 @@ export function createAssistantSessionHistoryOrchestrator(input: {
   return {
     async createSession(createInput = {}, options = {}) {
       return runTrackedOperation(
-        async trackedOptions => unwrapTransportResult<AssistantRuntimeSession>(
+        async trackedOptions => normalizeCreatedSession(unwrapTransportResult<AssistantRuntimeSession>(
           await input.transport.createSession(createInput, trackedOptions),
-        ),
+        )),
         options.signal,
       );
     },

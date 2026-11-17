@@ -3,7 +3,7 @@ export const expectedPublishReadinessMetadata = {
   license: "UNLICENSED",
   name: "@ideaxpress/assistant-sdk",
   registry: "https://npm.pkg.github.com",
-  version: "0.1.0",
+  version: "0.2.0",
 } as const;
 
 export const requiredPublishPackageFiles = [

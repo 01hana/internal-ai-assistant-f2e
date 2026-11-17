@@ -419,3 +419,121 @@ Content-Type: application/json
   }
 }
 ```
+
+## Conversation experience（Backend Feature 013）
+
+### Create session with opening
+
+```http
+POST /api/v1/assistant/sessions
+Content-Type: application/json
+```
+
+```json
+{ "pageContext": { "module": "orders" } }
+```
+
+```json
+{
+  "requestId": "req-frontend-020",
+  "data": {
+    "sessionId": "session-020",
+    "status": "active",
+    "opening": {
+      "configVersion": "1.0.0",
+      "greeting": "你好，我可以協助查詢訂單資訊。",
+      "quickReplies": [
+        { "id": "overview", "label": "你能查詢哪些資料？" },
+        { "id": "order-status-10001", "label": "訂單 SO-10001 的狀態" }
+      ]
+    }
+  }
+}
+```
+
+沒有體驗設定時：`"opening": { "configVersion": null, "greeting": "<Core 預設問候>", "quickReplies": [] }`。
+
+### Send a choice
+
+```http
+POST /api/v1/assistant/sessions/session-020/messages
+Content-Type: application/json
+Accept: text/event-stream
+```
+
+```json
+{ "choiceId": "order-status-10001", "pageContext": { "module": "orders" } }
+```
+
+回應為一般 SSE 串流；`final.data` 可能帶 `suggestions`（見 `sse-events.md`）。`choiceId` 失效時：
+
+```json
+{
+  "requestId": "req-frontend-021",
+  "error": { "code": "NOT_FOUND", "message": "Assistant session not found." }
+}
+```
+
+### List sessions
+
+```http
+GET /api/v1/assistant/sessions?limit=20
+```
+
+```json
+{
+  "requestId": "req-frontend-022",
+  "data": {
+    "sessions": [
+      { "sessionId": "session-020", "title": "查詢訂單 SO-10001 狀態",
+        "createdAt": "2026-11-16T02:00:00.000Z", "lastMessageAt": "2026-11-16T02:05:00.000Z" }
+    ],
+    "nextCursor": null
+  }
+}
+```
+
+下一頁：`GET /api/v1/assistant/sessions?limit=20&cursor=<nextCursor>`。
+
+### Archive session
+
+```http
+POST /api/v1/assistant/sessions/session-020/archive
+```
+
+```json
+{
+  "requestId": "req-frontend-023",
+  "data": { "sessionId": "session-020", "status": "closed" }
+}
+```
+
+### List archived sessions, unarchive, delete（Backend Feature 013 Phase 8）
+
+```http
+GET /api/v1/assistant/sessions?limit=20&status=archived
+```
+
+回應格式與一般列表相同。
+
+```http
+POST /api/v1/assistant/sessions/session-020/unarchive
+```
+
+```json
+{
+  "requestId": "req-frontend-024",
+  "data": { "sessionId": "session-020", "status": "active" }
+}
+```
+
+```http
+DELETE /api/v1/assistant/sessions/session-020
+```
+
+```json
+{
+  "requestId": "req-frontend-025",
+  "data": { "sessionId": "session-020", "status": "deleted" }
+}
+```

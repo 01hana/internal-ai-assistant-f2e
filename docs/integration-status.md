@@ -1,6 +1,6 @@
 # Assistant Integration Status
 
-**Last audited**: 2026-07-27  
+**Last audited**: 2026-11-17  
 **Scope**: Frontend 001 chat panel, Frontend 002 SDK, Backend 001 public handoff, and the customer-host integration boundary.  
 **Status legend**: `Ready` = verified in this repository; `Conditional` = implementation exists but needs an external system/configuration; `Blocked` = no contract or target project is available to verify.
 
@@ -13,6 +13,7 @@
 | Frontend 002 public SDK | Ready for package-level integration | Spec Kit `002-internal-assistant-embedded-sdk-package` implementation tasks T001–T149 are marked complete. The public API is `AssistantWidget`, `mountAssistantWidget`, and `styles.css`. |
 | Backend 001 compatibility flow | Conditional | The public REST/SSE contract exists and SDK tests pass. A real host must provide authenticated identity propagation and route `/api/v1/assistant/**` to the backend. |
 | Backend 002 / full host-aware integration | Blocked | The Frontend 002 spec references `specs/002-host-integration-gateway-and-data-adapter-contract/`, but that directory and its contract are absent from this workspace. |
+| Frontend 003 conversation experience (SDK `0.2.0`) | Ready for package-level integration | Spec Kit `003-assistant-conversation-experience` Phases 0–3 complete (Gate 3 PASS); Phase 4 acceptance/compatibility tests added. Requires Backend Feature 013 (Core + Gateway): opening/Quick Replies, `choiceId`, `final.suggestions`, session list/archive/unarchive/delete. Pre-013 backends keep the `0.1.0` behaviour (history entry hides itself on a 404 list). |
 | Customer project integration | Blocked | No customer project source, deployment configuration, gateway configuration, or API environment is present in this workspace. |
 
 ## Source-of-truth map

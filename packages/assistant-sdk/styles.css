@@ -981,6 +981,12 @@
   justify-content: flex-end;
 }
 
+/* Frontend 003: the assistant avatar belongs to the reply, so it aligns with the top of the bubble even when time and choices follow. */
+.assistant-sdk-root .assistant-message-frame--assistant,
+[data-assistant-sdk-root] .assistant-message-frame--assistant {
+  align-items: flex-start;
+}
+
 .assistant-sdk-root .assistant-message-frame-content,
 [data-assistant-sdk-root] .assistant-message-frame-content {
   box-sizing: border-box;
@@ -990,7 +996,7 @@
   max-inline-size: var(--assistant-sdk-message-content-max-width, 78%);
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--assistant-sdk-message-metadata-gap, 6px);
+  gap: var(--assistant-sdk-message-content-gap, 4px);
 }
 
 .assistant-sdk-root .assistant-message-frame--user .assistant-message-frame-content,
@@ -1054,7 +1060,7 @@
 
 .assistant-sdk-root .assistant-message-timestamp,
 [data-assistant-sdk-root] .assistant-message-timestamp {
-  padding-inline: var(--assistant-sdk-message-timestamp-padding-inline, var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1)));
+  padding-inline: var(--assistant-sdk-message-timestamp-padding-inline, 0);
   color: var(--assistant-sdk-message-timestamp-foreground, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)));
   font-size: var(--assistant-sdk-message-timestamp-font-size, 0.6875rem);
 }
@@ -1278,4 +1284,322 @@
   [data-assistant-sdk-root] .assistant-streaming-cursor {
     animation: none;
   }
+}
+
+/* Frontend 003: Quick Replies and suggestions, inside the message frame between the bubble and the time. */
+.assistant-sdk-root .assistant-suggestion-list,
+[data-assistant-sdk-root] .assistant-suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin-block-start: var(--assistant-sdk-suggestion-list-offset, 10px);
+}
+
+/* Frontend 003: Quick Reply / suggestion chips are actions, not messages: outlined, faintly tinted, no shadow. */
+.assistant-sdk-root .assistant-suggestion-chip,
+[data-assistant-sdk-root] .assistant-suggestion-chip {
+  max-width: 100%;
+  border: 1px solid var(--assistant-sdk-suggestion-border, color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 35%, transparent));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: 6px 14px;
+  background: var(--assistant-sdk-suggestion-background, color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 4%, transparent));
+  color: var(--assistant-sdk-suggestion-foreground, var(--assistant-sdk-accent-strong, var(--assistant-sdk-default-accent-strong)));
+  box-shadow: var(--assistant-sdk-suggestion-shadow, none);
+  font: inherit;
+  font-size: var(--assistant-sdk-suggestion-font-size, 0.8125rem);
+  line-height: 1.4;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.assistant-sdk-root .assistant-suggestion-chip:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-suggestion-chip:hover:not(:disabled) {
+  border-color: var(--assistant-sdk-accent, var(--assistant-sdk-default-accent));
+  background: var(--assistant-sdk-suggestion-hover-background, color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 9%, transparent));
+}
+
+.assistant-sdk-root .assistant-suggestion-chip:focus-visible,
+[data-assistant-sdk-root] .assistant-suggestion-chip:focus-visible {
+  outline: 2px solid var(--assistant-sdk-focus-border, var(--assistant-sdk-default-focus-border));
+  outline-offset: 2px;
+}
+
+.assistant-sdk-root .assistant-suggestion-chip:disabled,
+[data-assistant-sdk-root] .assistant-suggestion-chip:disabled {
+  opacity: var(--assistant-sdk-disabled-opacity, var(--assistant-sdk-default-disabled-opacity));
+  cursor: not-allowed;
+}
+
+.assistant-sdk-root .assistant-message-notice,
+[data-assistant-sdk-root] .assistant-message-notice {
+  margin: 0;
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
+  text-align: end;
+}
+
+/* Frontend 003: session history view, shown inside the panel body instead of the conversation. */
+.assistant-sdk-root .assistant-session-list,
+[data-assistant-sdk-root] .assistant-session-list {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--assistant-sdk-space-4, var(--assistant-sdk-default-space-4));
+  background: var(--assistant-sdk-message-area-background, var(--assistant-sdk-default-message-area-background));
+}
+
+.assistant-sdk-root .assistant-session-list-title,
+[data-assistant-sdk-root] .assistant-session-list-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: var(--assistant-sdk-font-weight-strong, var(--assistant-sdk-default-font-weight-strong));
+  outline: none;
+}
+
+/* Frontend 003: loading, empty and error states fill the list area and sit in its centre. */
+.assistant-sdk-root .assistant-session-list-state,
+[data-assistant-sdk-root] .assistant-session-list-state {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  margin: 0;
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  text-align: center;
+}
+
+/* The error message carries the content weight; the retry action carries the emphasis. */
+.assistant-sdk-root .assistant-session-list-state[role="alert"],
+[data-assistant-sdk-root] .assistant-session-list-state[role="alert"] {
+  color: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+}
+
+.assistant-sdk-root .assistant-session-list-state .assistant-session-list-action,
+[data-assistant-sdk-root] .assistant-session-list-state .assistant-session-list-action {
+  padding-inline: var(--assistant-sdk-space-5, var(--assistant-sdk-default-space-5));
+}
+
+.assistant-sdk-root .assistant-session-list-state p,
+[data-assistant-sdk-root] .assistant-session-list-state p {
+  margin: 0;
+}
+
+.assistant-sdk-root .assistant-session-list-items,
+[data-assistant-sdk-root] .assistant-session-list-items {
+  display: grid;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-sdk-root .assistant-session-list-item,
+[data-assistant-sdk-root] .assistant-session-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+  /* border: 1px solid var(--assistant-sdk-message-bubble-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border))); */
+  border-radius: var(--assistant-sdk-radius-md, var(--assistant-sdk-default-radius-md));
+  padding: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  box-shadow: var(--assistant-sdk-bubble-shadow, var(--assistant-sdk-default-bubble-shadow));
+}
+
+.assistant-sdk-root .assistant-session-list-item[data-current="true"],
+[data-assistant-sdk-root] .assistant-session-list-item[data-current="true"] {
+  border-color: var(--assistant-sdk-accent, var(--assistant-sdk-default-accent));
+}
+
+.assistant-sdk-root .assistant-session-list-open,
+[data-assistant-sdk-root] .assistant-session-list-open {
+  display: grid;
+  flex: 1 1 0;
+  gap: 2px;
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.assistant-sdk-root .assistant-session-list-open:disabled,
+[data-assistant-sdk-root] .assistant-session-list-open:disabled {
+  cursor: not-allowed;
+  opacity: var(--assistant-sdk-disabled-opacity, var(--assistant-sdk-default-disabled-opacity));
+}
+
+.assistant-sdk-root .assistant-session-list-item-title,
+[data-assistant-sdk-root] .assistant-session-list-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-sdk-root .assistant-session-list-item-meta,
+[data-assistant-sdk-root] .assistant-session-list-item-meta {
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
+}
+
+.assistant-sdk-root .assistant-session-list-confirm-text,
+[data-assistant-sdk-root] .assistant-session-list-confirm-text {
+  flex: 1 1 auto;
+}
+
+.assistant-sdk-root .assistant-session-list-item-actions,
+[data-assistant-sdk-root] .assistant-session-list-item-actions {
+  display: flex;
+  gap: var(--assistant-sdk-space-2, var(--assistant-sdk-default-space-2));
+}
+
+.assistant-sdk-root .assistant-session-list-action,
+[data-assistant-sdk-root] .assistant-session-list-action {
+  border: 1px solid var(--assistant-sdk-button-secondary-border, var(--assistant-sdk-border, var(--assistant-sdk-default-border)));
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  background: var(--assistant-sdk-button-secondary-background, var(--assistant-sdk-default-button-secondary-background));
+  color: var(--assistant-sdk-default-muted, var(--assistant-sdk-default-muted));
+  font: inherit;
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
+  cursor: pointer;
+}
+
+.assistant-sdk-root .assistant-session-list-action--danger,
+[data-assistant-sdk-root] .assistant-session-list-action--danger {
+  border-color: var(--assistant-sdk-button-danger-border, transparent);
+  background: var(--assistant-sdk-button-danger-background, var(--assistant-sdk-default-button-danger-background));
+  color: var(--assistant-sdk-button-danger-foreground, var(--assistant-sdk-default-button-danger-foreground));
+}
+
+.assistant-sdk-root .assistant-session-list-action--primary,
+[data-assistant-sdk-root] .assistant-session-list-action--primary {
+  border-color: transparent;
+  background: var(--assistant-sdk-accent, var(--assistant-sdk-default-accent));
+  color: var(--assistant-sdk-accent-foreground, var(--assistant-sdk-default-accent-foreground));
+}
+
+.assistant-sdk-root .assistant-session-list-more,
+[data-assistant-sdk-root] .assistant-session-list-more {
+  align-self: center;
+}
+
+.assistant-sdk-root .assistant-session-list-item-error,
+[data-assistant-sdk-root] .assistant-session-list-item-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--assistant-sdk-error-foreground, var(--assistant-sdk-default-error-foreground));
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
+}
+
+.assistant-sdk-root .assistant-session-list-action:focus-visible,
+.assistant-sdk-root .assistant-session-list-open:focus-visible,
+[data-assistant-sdk-root] .assistant-session-list-action:focus-visible,
+[data-assistant-sdk-root] .assistant-session-list-open:focus-visible {
+  outline: 2px solid var(--assistant-sdk-focus-border, var(--assistant-sdk-default-focus-border));
+  outline-offset: 2px;
+}
+
+/* Frontend 003: borderless archive / delete actions on each session row. Icons carry a softened colour; hover adds a light neutral background. */
+.assistant-sdk-root .assistant-session-list-item-icons,
+[data-assistant-sdk-root] .assistant-session-list-item-icons {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0;
+}
+
+.assistant-sdk-root .assistant-session-list-icon,
+[data-assistant-sdk-root] .assistant-session-list-icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border: 0;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: 0;
+  background: transparent;
+  color: var(--assistant-sdk-session-icon-foreground, color-mix(in srgb, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)) 70%, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted))));
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.assistant-sdk-root .assistant-session-list-icon--danger,
+[data-assistant-sdk-root] .assistant-session-list-icon--danger {
+  color: var(--assistant-sdk-session-icon-danger-foreground, color-mix(in srgb, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)) 70%, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted))));
+}
+
+.assistant-sdk-root .assistant-session-list-icon:hover:not(:disabled),
+[data-assistant-sdk-root] .assistant-session-list-icon:hover:not(:disabled) {
+  background: var(--assistant-sdk-session-icon-hover-background, color-mix(in srgb, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)) 8%, transparent));
+}
+
+.assistant-sdk-root .assistant-session-list-icon:focus-visible,
+[data-assistant-sdk-root] .assistant-session-list-icon:focus-visible {
+  outline: 2px solid var(--assistant-sdk-focus-border, var(--assistant-sdk-default-focus-border));
+  outline-offset: 2px;
+}
+
+.assistant-sdk-root .assistant-session-list-icon:disabled,
+[data-assistant-sdk-root] .assistant-session-list-icon:disabled {
+  cursor: not-allowed;
+  opacity: var(--assistant-sdk-disabled-opacity, var(--assistant-sdk-default-disabled-opacity));
+}
+
+.assistant-sdk-root .assistant-session-list-icon .assistant-product-icon,
+[data-assistant-sdk-root] .assistant-session-list-icon .assistant-product-icon {
+  inline-size: 18px;
+  block-size: 18px;
+}
+
+/* Frontend 003: active / archived switch at the top of the session list. */
+.assistant-sdk-root .assistant-session-list-views,
+[data-assistant-sdk-root] .assistant-session-list-views {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: 2px;
+  background: color-mix(in srgb, var(--assistant-sdk-muted, var(--assistant-sdk-default-muted)) 12%, transparent);
+}
+
+.assistant-sdk-root .assistant-session-list-view,
+[data-assistant-sdk-root] .assistant-session-list-view {
+  border: 0;
+  border-radius: var(--assistant-sdk-radius-pill, var(--assistant-sdk-default-radius-pill));
+  padding: var(--assistant-sdk-space-1, var(--assistant-sdk-default-space-1)) var(--assistant-sdk-space-3, var(--assistant-sdk-default-space-3));
+  background: transparent;
+  color: var(--assistant-sdk-muted, var(--assistant-sdk-default-muted));
+  font: inherit;
+  font-size: var(--assistant-sdk-helper-font-size, 0.86rem);
+  cursor: pointer;
+}
+
+.assistant-sdk-root .assistant-session-list-view[aria-pressed="true"],
+[data-assistant-sdk-root] .assistant-session-list-view[aria-pressed="true"] {
+  background: var(--assistant-sdk-surface-elevated, var(--assistant-sdk-default-surface-elevated));
+  color: var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--assistant-sdk-foreground, var(--assistant-sdk-default-foreground)) 12%, transparent);
+}
+
+.assistant-sdk-root .assistant-session-list-view:focus-visible,
+[data-assistant-sdk-root] .assistant-session-list-view:focus-visible {
+  outline: 2px solid var(--assistant-sdk-focus-border, var(--assistant-sdk-default-focus-border));
+  outline-offset: 2px;
+}
+
+.assistant-sdk-root .assistant-session-list-open--static,
+[data-assistant-sdk-root] .assistant-session-list-open--static {
+  cursor: default;
 }

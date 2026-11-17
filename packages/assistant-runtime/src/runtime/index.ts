@@ -28,6 +28,7 @@ import {
 import {
   normalizeEvidenceReferences,
 } from "../evidence";
+import { createAssistantGreetingMessage, withoutAssistantChoice } from "../experience";
 import {
   completeFeedbackSubmissionState,
   createDefaultFeedbackState,
@@ -57,6 +58,7 @@ import {
 import type {
   ActionDraftId,
   ApprovalRequestId,
+  AssistantChoice,
   AssistantMessageFinalData,
   AssistantMessageId,
   AssistantRequestId,
@@ -111,6 +113,8 @@ export interface AssistantRuntimeStreamingMessage {
   activities?: AssistantRuntimeStreamingActivity[];
   finalAnswerDecision?: AssistantMessageFinalData["answerDecision"];
   finalDecisionState?: unknown;
+  /** Frontend 003: suggestions from `final`, shown while this is the latest message. */
+  suggestions?: AssistantChoice[];
 }
 
 type RuntimeMessage = HistoryMessageSummary | AssistantRuntimeStreamingMessage | Record<string, unknown>;
@@ -145,6 +149,8 @@ export interface AssistantRuntimeController<TMessage = RuntimeMessage> {
   setMessages(messages: readonly TMessage[], cursor: string | null): void;
   appendMessages(messages: readonly HistoryMessageSummary[], cursor: string | null): void;
   appendUserMessage(message: TMessage): void;
+  /** Frontend 003: a clicked choice was rejected (404); drop it and explain under the user's message. */
+  markChoiceUnavailable(choiceId: string, userMessageKey: string, notice: string): void;
   prepareFeedbackSubmission(input: {
     messageId: AssistantMessageId;
     value: AssistantFeedbackValue;
@@ -353,6 +359,14 @@ export function createSessionController<TMessage>(
       }
 
       state.session.value = session;
+      // Frontend 003: a new session starts with its configured greeting and Quick Replies.
+      // Without an opening (older backends) the message list is left exactly as before.
+      if (session?.opening) {
+        state.messages.value = [
+          createAssistantGreetingMessage(session.sessionId, session.opening, new Date().toISOString()),
+          ...state.messages.value,
+        ] as TMessage[];
+      }
       state.status.value = "ready";
     },
     async loadHistory(input: AssistantRuntimeLoadHistoryInput, options: { signal?: AbortSignal } = {}) {
@@ -680,6 +694,9 @@ export function createStreamingController<TMessage>(
 
       message.messageId = event.messageId;
       message.lastSequence = event.sequence;
+      if (event.data.suggestions) {
+        message.suggestions = event.data.suggestions;
+      }
       const nextContent = event.data.answer ?? message.content;
       const normalizedEvidence = normalizeEvidenceReferences(event.data.evidenceRefs);
       const finalDecisionState = mapAnswerDecisionState(
@@ -1447,6 +1464,14 @@ export function createAssistantRuntimeController<TMessage = RuntimeMessage>(
     appendUserMessage(message) {
       mutate(() => {
         input.stores.session.messages.value.push(message);
+      });
+    },
+    markChoiceUnavailable(choiceId, userMessageKey, notice) {
+      mutate(() => {
+        input.stores.session.messages.value = withoutAssistantChoice(input.stores.session.messages.value, choiceId)
+          .map(message => (typeof message === "object" && message !== null && (message as { key?: unknown }).key === userMessageKey
+            ? { ...message, notice }
+            : message)) as TMessage[];
       });
     },
     prepareFeedbackSubmission: feedback.prepareFeedbackSubmission,
