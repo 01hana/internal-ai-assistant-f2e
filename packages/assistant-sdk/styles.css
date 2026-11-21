@@ -646,6 +646,17 @@
   color: var(--assistant-sdk-feedback-selected-foreground, var(--assistant-sdk-accent, var(--assistant-sdk-default-accent)));
 }
 
+/* The chosen rating keeps its meaning: helpful in the success colour, not helpful in the danger colour. */
+.assistant-sdk-root .assistant-feedback-controls [data-testid="assistant-feedback-helpful"][aria-pressed="true"],
+[data-assistant-sdk-root] .assistant-feedback-controls [data-testid="assistant-feedback-helpful"][aria-pressed="true"] {
+  color: var(--assistant-sdk-feedback-helpful-foreground, var(--assistant-sdk-success, var(--assistant-sdk-default-success)));
+}
+
+.assistant-sdk-root .assistant-feedback-controls [data-testid="assistant-feedback-not-helpful"][aria-pressed="true"],
+[data-assistant-sdk-root] .assistant-feedback-controls [data-testid="assistant-feedback-not-helpful"][aria-pressed="true"] {
+  color: var(--assistant-sdk-feedback-not-helpful-foreground, var(--assistant-sdk-danger, var(--assistant-sdk-default-danger)));
+}
+
 .assistant-sdk-root .assistant-product-icon-button--danger,
 [data-assistant-sdk-root] .assistant-product-icon-button--danger {
   border-color: var(--assistant-sdk-button-danger-border, transparent);

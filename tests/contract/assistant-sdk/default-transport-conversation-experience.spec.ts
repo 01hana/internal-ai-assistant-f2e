@@ -138,6 +138,28 @@ describe("default transport conversation experience (Frontend 003)", () => {
         .toMatchObject({ ok: false, error: { code: "transport_execution_failed" } });
     });
 
+    it("sends feedback with POST, an encoded message ID and only the rating", async () => {
+      const accepted = { feedbackEventId: "fe-1", messageId: "m/1", rating: "negative", intent: null, reviewItemId: "ri-1" };
+      const { fetchMock, transport } = setup([json({ requestId: "r", data: accepted }, 201), json({ error: { code: "NOT_FOUND" } }, 404)]);
+      expect(await transport.submitFeedback({ messageId: "m/1", sessionId: "s-1", value: "negative" })).toEqual({ ok: true, value: accepted });
+      expect(await transport.submitFeedback({ messageId: "gone", sessionId: "s-1", value: "positive" })).toMatchObject({ ok: false });
+
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe("http://localhost:4000/api/v1/assistant/messages/m%2F1/feedback");
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(String(init.body))).toEqual({ rating: "negative" });
+      const headers = new Headers(init.headers);
+      expect(headers.get("authorization")).toBe("Bearer token-A");
+      expect(headers.get("content-type")).toBe("application/json");
+    });
+
+    it("never sends feedback without a message ID or with another value", async () => {
+      const { fetchMock, transport } = setup([]);
+      expect(await transport.submitFeedback({ messageId: " ", sessionId: "s-1", value: "positive" })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
+      expect(await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "great" as never })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("passes the created session's opening through to the runtime", async () => {
       const opening = { configVersion: "1.0.0", greeting: "你好", quickReplies: [{ id: "overview", label: "總覽" }] };
       const { transport } = setup([json({ data: { sessionId: "s-1", status: "active", opening } }, 201)]);
@@ -162,6 +184,17 @@ describe("default transport conversation experience (Frontend 003)", () => {
         "POST /api/v1/assistant/sessions/s-1/unarchive",
         "DELETE /api/v1/assistant/sessions/s-1",
       ]);
+    });
+
+    it("uses the same feedback route", async () => {
+      const fetchMock = vi.fn(async () => json({ data: { feedbackEventId: "fe-1" } }, 201));
+      vi.stubGlobal("fetch", fetchMock);
+      const transport = createDefaultTransport();
+
+      expect(await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "positive" })).toEqual({ ok: true, value: { feedbackEventId: "fe-1" } });
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(`${init.method} ${url}`).toBe("POST /api/v1/assistant/messages/m-1/feedback");
+      expect(JSON.parse(String(init.body))).toEqual({ rating: "positive" });
     });
 
     it("uses the same list and archive routes and keeps the message body free of page context", async () => {

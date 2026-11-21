@@ -222,10 +222,11 @@ Gateway-v1 正式支援以下 Host-facing operations；所有 request 都使用 
 | archiveSession（`0.2.0`） | POST | `/api/v1/assistant/sessions/:sessionId/archive` |
 | unarchiveSession（`0.2.0`） | POST | `/api/v1/assistant/sessions/:sessionId/unarchive` |
 | deleteSession（`0.2.0`） | DELETE | `/api/v1/assistant/sessions/:sessionId` |
+| submitFeedback | POST | `/api/v1/assistant/messages/:messageId/feedback`（body 只有 `{ rating }`） |
 
 Compatibility Mode 使用相同的路徑。
 
-Gateway-v1 沒有 SDK-owned Gateway ingress for feedback, approval, action confirmation, cancel endpoint，或其他 Shared Runtime operations。SDK 不會 invent route，也不會 fallback 直接呼叫 Backend。
+Gateway-v1 沒有 SDK-owned Gateway ingress for approval, action confirmation, cancel endpoint，或其他 Shared Runtime operations。SDK 不會 invent route，也不會 fallback 直接呼叫 Backend。
 
 ### Gateway-v1 session restore
 

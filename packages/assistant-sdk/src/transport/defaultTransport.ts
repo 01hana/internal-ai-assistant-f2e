@@ -48,11 +48,13 @@ type CompatibilityFetchRoute =
   | "listSessions"
   | "archiveSession"
   | "unarchiveSession"
-  | "deleteSession";
+  | "deleteSession"
+  | "submitFeedback";
 type GatewayFetchRoute = CompatibilityFetchRoute;
 
 const BUILT_IN_FETCH_ROUTES: readonly string[] = [
   "createSession", "getSession", "loadHistory", "streamMessage", "listSessions", "archiveSession", "unarchiveSession", "deleteSession",
+  "submitFeedback",
 ] satisfies readonly GatewayFetchRoute[];
 
 function isBuiltInFetchRoute(operation: SdkTransportOperationName | "send"): operation is GatewayFetchRoute {
@@ -417,6 +419,15 @@ function createSessionListPath(apiBase: string, request: Readonly<Record<string,
   return search ? `${apiBase}/assistant/sessions?${search}` : `${apiBase}/assistant/sessions`;
 }
 
+/** Feedback on one answer: `POST /assistant/messages/:messageId/feedback` with only the rating. */
+function readFeedbackRequest(request: Readonly<Record<string, unknown>>): PortResult<{ path: string; body: { rating: string } }> {
+  const { messageId, value } = request;
+  if (typeof messageId !== "string" || messageId.trim() === "" || (value !== "positive" && value !== "negative")) {
+    return toFailure("invalid_request");
+  }
+  return { ok: true, value: { path: `/assistant/messages/${encodeURIComponent(messageId)}/feedback`, body: { rating: value } } };
+}
+
 function createArchiveSessionPath(apiBase: string, sessionId: string, action: "archive" | "unarchive" = "archive"): string {
   return `${createCompatibilitySessionPath(apiBase, sessionId)}/${action}`;
 }
@@ -542,6 +553,20 @@ async function executeGatewayFetch<T>(
       ));
     }
 
+    if (route === "submitFeedback") {
+      const feedback = readFeedbackRequest(executionInput.request);
+      if (!feedback.ok) return feedback as PortResult<T>;
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        `${apiBase}${feedback.value.path}`,
+        {
+          body: JSON.stringify(feedback.value.body),
+          headers: createGatewayHeaders(executionInput.requestId, accessToken.token, "application/json", true),
+          method: "POST",
+          signal: runtimeOptions?.signal,
+        },
+      ));
+    }
+
     const response = await fetchImpl(
       createCompatibilitySessionMessagesPath(apiBase, executionInput.sessionId),
       {
@@ -606,6 +631,15 @@ async function executeCompatibilityFetch<T>(
       return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
         createCompatibilitySessionPath(apiBase, executionInput.sessionId),
         createJsonRequestInit("DELETE", runtimeOptions),
+      ));
+    }
+
+    if (route === "submitFeedback") {
+      const feedback = readFeedbackRequest(executionInput.request);
+      if (!feedback.ok) return feedback as PortResult<T>;
+      return await normalizeStatusAwareJsonResponse<T>(await fetchImpl(
+        `${apiBase}${feedback.value.path}`,
+        createJsonRequestInit("POST", runtimeOptions, feedback.value.body),
       ));
     }
 
