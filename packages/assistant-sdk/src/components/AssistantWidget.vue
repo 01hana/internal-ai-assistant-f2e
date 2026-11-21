@@ -648,10 +648,18 @@ async function cancelStreaming(expectedRequestId: string) {
   }
 }
 
-async function submitFeedback(payload: { messageId: string; value: "helpful" | "not_helpful" }) {
+async function submitFeedback(payload: {
+  messageId: string;
+  value: "helpful" | "not_helpful";
+  details?: { intent: "correction" | "not_helpful" | "missing_evidence" | "other"; reason?: string; comment?: string };
+}) {
   const adapter = await getAdapter();
   const session = adapter.controller.stores.session;
-  const prepared = adapter.controller.prepareFeedbackSubmission(payload);
+  // Reasons follow a negative rating already sent: only a pending submission stops them.
+  const current = adapter.controller.getFeedbackState(payload.messageId);
+  const prepared = payload.details
+    ? { allowed: !current.pending, previousValue: current.value }
+    : adapter.controller.prepareFeedbackSubmission(payload);
 
   if (!prepared.allowed) {
     return;
@@ -666,6 +674,7 @@ async function submitFeedback(payload: { messageId: string; value: "helpful" | "
     messageId: payload.messageId,
     sessionId,
     value: payload.value === "helpful" ? "positive" : "negative",
+    ...(payload.details ?? {}),
   });
 
   if (result.ok) {

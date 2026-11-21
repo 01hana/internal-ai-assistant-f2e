@@ -110,6 +110,81 @@ describe("AssistantProductRuntimePanel CTA presentation", () => {
     expect(harness.callbacks.sendMessage).toHaveBeenCalledWith("需要送出的訊息");
   });
 
+  it("asks why after 👎 and sends the reason and comment with the negative rating", async () => {
+    const harness = createPanelHarness();
+    const wrapper = mount(AssistantProductRuntimePanel, {
+      props: {
+        controller: harness.controller,
+        runtimeScope: harness.controller.runtimeScope,
+        composerCanSend: true,
+        onCancelStreaming: harness.callbacks.cancelStreaming,
+        onCancelActionDraft: harness.callbacks.cancelActionDraft,
+        onConfirmActionDraft: harness.callbacks.confirmActionDraft,
+        onLoadMoreHistory: harness.callbacks.loadMoreHistory,
+        onOpenApprovalDetail: harness.callbacks.openApprovalDetail,
+        onSendMessage: harness.callbacks.sendMessage,
+        onSubmitFeedback: (payload: { messageId: string; value: "helpful" | "not_helpful"; requestId?: string | null }) => {
+          harness.callbacks.submitFeedback(payload);
+          harness.controller.startFeedbackSubmission(payload.messageId, payload.value, "feedback-request");
+          harness.controller.completeFeedbackSubmission(payload.messageId, { requestId: "feedback-request" });
+        },
+      },
+      global: { plugins: [harness.pinia] },
+    });
+
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="assistant-feedback-not-helpful"]').trigger("click");
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="assistant-feedback-reason-submit"]').attributes("disabled")).toBeDefined();
+
+    await wrapper.get('[data-testid="assistant-feedback-reason-correction"]').trigger("click");
+    await wrapper.get('[data-testid="assistant-feedback-reason-comment"]').setValue("  數字和報表不同  ");
+    await wrapper.get('[data-testid="assistant-feedback-reason"]').trigger("submit");
+
+    expect(harness.callbacks.submitFeedback).toHaveBeenLastCalledWith({
+      messageId: "message-icon-001",
+      requestId: null,
+      value: "not_helpful",
+      details: { intent: "correction", reason: "答案不正確", comment: "數字和報表不同" },
+    });
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="assistant-feedback-thanks"]').text()).toBe("已收到，謝謝你的回饋。");
+  });
+
+  it("closes the reason form on 略過 and on 👍, keeping only the rating", async () => {
+    const harness = createPanelHarness();
+    const wrapper = mount(AssistantProductRuntimePanel, {
+      props: {
+        controller: harness.controller,
+        runtimeScope: harness.controller.runtimeScope,
+        composerCanSend: true,
+        onCancelStreaming: harness.callbacks.cancelStreaming,
+        onCancelActionDraft: harness.callbacks.cancelActionDraft,
+        onConfirmActionDraft: harness.callbacks.confirmActionDraft,
+        onLoadMoreHistory: harness.callbacks.loadMoreHistory,
+        onOpenApprovalDetail: harness.callbacks.openApprovalDetail,
+        onSendMessage: harness.callbacks.sendMessage,
+        onSubmitFeedback: (payload: { messageId: string; value: "helpful" | "not_helpful" }) => {
+          harness.callbacks.submitFeedback(payload);
+          harness.controller.startFeedbackSubmission(payload.messageId, payload.value, `request-${payload.value}`);
+          harness.controller.completeFeedbackSubmission(payload.messageId, { requestId: `request-${payload.value}` });
+        },
+      },
+      global: { plugins: [harness.pinia] },
+    });
+
+    await wrapper.get('[data-testid="assistant-feedback-not-helpful"]').trigger("click");
+    await wrapper.get('[data-testid="assistant-feedback-reason-skip"]').trigger("click");
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="assistant-feedback-helpful"]').trigger("click");
+    await wrapper.get('[data-testid="assistant-feedback-not-helpful"]').trigger("click");
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="assistant-feedback-helpful"]').trigger("click");
+    expect(wrapper.find('[data-testid="assistant-feedback-reason"]').exists()).toBe(false);
+    expect(harness.callbacks.submitFeedback.mock.calls.every(([payload]) => !("details" in payload))).toBe(true);
+  });
+
   it("keeps ActionDraft and ApprovalRequest controls as visible high-context text actions", () => {
     const source = wrapperSource();
 

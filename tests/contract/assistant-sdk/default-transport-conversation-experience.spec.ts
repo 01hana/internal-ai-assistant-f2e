@@ -153,10 +153,19 @@ describe("default transport conversation experience (Frontend 003)", () => {
       expect(headers.get("content-type")).toBe("application/json");
     });
 
+    it("sends the reason, intent and comment that follow a negative rating", async () => {
+      const { fetchMock, transport } = setup([json({ data: { feedbackEventId: "fe-1" } }, 201)]);
+      await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "negative", intent: "correction", reason: "答案不正確", comment: "數字不同" });
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(JSON.parse(String(init.body))).toEqual({ rating: "negative", intent: "correction", reason: "答案不正確", comment: "數字不同" });
+    });
+
     it("never sends feedback without a message ID or with another value", async () => {
       const { fetchMock, transport } = setup([]);
       expect(await transport.submitFeedback({ messageId: " ", sessionId: "s-1", value: "positive" })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
       expect(await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "great" as never })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
+      expect(await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "negative", intent: "spam" as never })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
+      expect(await transport.submitFeedback({ messageId: "m-1", sessionId: "s-1", value: "negative", comment: "x".repeat(1001) })).toMatchObject({ ok: false, error: { code: "invalid_request" } });
       expect(fetchMock).not.toHaveBeenCalled();
     });
 

@@ -419,13 +419,24 @@ function createSessionListPath(apiBase: string, request: Readonly<Record<string,
   return search ? `${apiBase}/assistant/sessions?${search}` : `${apiBase}/assistant/sessions`;
 }
 
-/** Feedback on one answer: `POST /assistant/messages/:messageId/feedback` with only the rating. */
-function readFeedbackRequest(request: Readonly<Record<string, unknown>>): PortResult<{ path: string; body: { rating: string } }> {
-  const { messageId, value } = request;
-  if (typeof messageId !== "string" || messageId.trim() === "" || (value !== "positive" && value !== "negative")) {
+const FEEDBACK_INTENTS: readonly unknown[] = ["correction", "not_helpful", "missing_evidence", "other"];
+const isOptionalText = (value: unknown, max: number) => value === undefined || (typeof value === "string" && value.length <= max);
+
+/**
+ * Feedback on one answer: `POST /assistant/messages/:messageId/feedback` with the rating and, for a
+ * negative one, the reason the user picked (Core keeps one feedback per answer and updates it).
+ */
+function readFeedbackRequest(request: Readonly<Record<string, unknown>>): PortResult<{ path: string; body: Record<string, string> }> {
+  const { messageId, value, intent, reason, comment } = request;
+  if (typeof messageId !== "string" || messageId.trim() === "" || (value !== "positive" && value !== "negative")
+    || (intent !== undefined && !FEEDBACK_INTENTS.includes(intent)) || !isOptionalText(reason, 160) || !isOptionalText(comment, 1000)) {
     return toFailure("invalid_request");
   }
-  return { ok: true, value: { path: `/assistant/messages/${encodeURIComponent(messageId)}/feedback`, body: { rating: value } } };
+  const body: Record<string, string> = { rating: value };
+  if (typeof intent === "string") body.intent = intent;
+  if (typeof reason === "string") body.reason = reason;
+  if (typeof comment === "string") body.comment = comment;
+  return { ok: true, value: { path: `/assistant/messages/${encodeURIComponent(messageId)}/feedback`, body } };
 }
 
 function createArchiveSessionPath(apiBase: string, sessionId: string, action: "archive" | "unarchive" = "archive"): string {

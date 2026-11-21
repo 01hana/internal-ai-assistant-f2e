@@ -130,6 +130,10 @@ export type AssistantRuntimeFeedbackInput = {
   sessionId: string;
   messageId: string;
   value: "positive" | "negative";
+  /** Why a negative answer was not helpful (sent after the rating; updates the same feedback). */
+  intent?: "correction" | "not_helpful" | "missing_evidence" | "other";
+  reason?: string;
+  comment?: string;
 };
 
 export type AssistantRuntimeActionConfirmationInput = {

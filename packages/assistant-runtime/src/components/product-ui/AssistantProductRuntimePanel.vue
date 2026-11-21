@@ -24,6 +24,8 @@ import type {
   EvidenceRefSummary,
   HistoryMessageSummary,
 } from "../../types";
+import type { AssistantFeedbackDetails } from "../../feedback/feedbackReasons";
+import AssistantFeedbackReasonForm from "./AssistantFeedbackReasonForm.vue";
 import AssistantProductIcon from "./AssistantProductIcon.vue";
 import AssistantProductMessageFrame from "./AssistantProductMessageFrame.vue";
 
@@ -33,6 +35,8 @@ interface FeedbackPayload {
   messageId: string;
   value: AssistantFeedbackValue;
   requestId?: string | null;
+  /** Reasons for a negative rating, sent after it. */
+  details?: AssistantFeedbackDetails;
 }
 
 const props = defineProps<{
@@ -408,6 +412,10 @@ function feedbackState(message: RuntimeMessage) {
   return props.controller.getFeedbackState(messageId(message));
 }
 
+/** After 👎 the reason form opens under that answer (one at a time); after sending it thanks the user. */
+const reasonFormFor = ref<string | null>(null);
+const reasonSentFor = ref<ReadonlySet<string>>(new Set());
+
 function submitFeedback(message: RuntimeMessage, value: AssistantFeedbackValue) {
   const id = messageId(message);
   const requestId = readString(record(message).requestId);
@@ -415,6 +423,19 @@ function submitFeedback(message: RuntimeMessage, value: AssistantFeedbackValue) 
     return;
   }
   props.onSubmitFeedback({ messageId: id, value, requestId });
+  reasonFormFor.value = value === "not_helpful" ? id : null;
+  if (value === "helpful") reasonSentFor.value = new Set([...reasonSentFor.value].filter((sent) => sent !== id));
+}
+
+function submitFeedbackReason(message: RuntimeMessage, details: AssistantFeedbackDetails) {
+  const id = messageId(message);
+  props.onSubmitFeedback({ messageId: id, value: "not_helpful", requestId: readString(record(message).requestId), details });
+  reasonFormFor.value = null;
+  reasonSentFor.value = new Set([...reasonSentFor.value, id]);
+}
+
+function showsReasonForm(message: RuntimeMessage): boolean {
+  return reasonFormFor.value === messageId(message) && feedbackState(message).value === "not_helpful" && !feedbackState(message).error;
 }
 
 function actionDraftId(message: RuntimeMessage): string | null {
@@ -684,7 +705,20 @@ async function requestStop() {
                 >
                   {{ feedbackState(message).error }}
                 </p>
+                <p
+                  v-else-if="reasonSentFor.has(messageId(message)) && feedbackState(message).value === 'not_helpful'"
+                  class="assistant-feedback-thanks"
+                  data-testid="assistant-feedback-thanks"
+                >
+                  已收到，謝謝你的回饋。
+                </p>
               </section>
+              <AssistantFeedbackReasonForm
+                v-if="showsReasonForm(message)"
+                :pending="feedbackState(message).pending"
+                @submit="(details) => submitFeedbackReason(message, details)"
+                @skip="reasonFormFor = null"
+              />
             </template>
             <div
               v-if="isUserMessage(message)"
