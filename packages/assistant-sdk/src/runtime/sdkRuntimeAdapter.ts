@@ -92,7 +92,7 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
   }
 
   // Frontend 003: the stream runner reports every open failure with one generic code, so a choice the server
-  // rejected (404, Backend Feature 013) is remembered here and handled as "choice unavailable", not a failure.
+  // no longer offers (409, Backend Feature 016) is remembered here and handled as "choice unavailable", not a failure.
   let rejectedChoiceId: string | null = null;
 
   function handleRejectedChoice(choiceId: string): void {
@@ -214,7 +214,7 @@ export function createSdkRuntimeAdapter(options: SdkRuntimeAdapterOptions) {
       const result = await transport.streamMessage(input, runtimeOptions);
 
       if (!result.ok) {
-        if (input.choiceId !== undefined && result.error.code === "session_not_found") {
+        if (input.choiceId !== undefined && result.error.code === "choice_unavailable") {
           rejectedChoiceId = input.choiceId;
         }
         throw new Error(result.error.code);

@@ -99,7 +99,7 @@ describe("SDK widget conversation experience (Frontend 003)", () => {
   });
 
   it("removes a rejected choice and explains it without failing the conversation", async () => {
-    const { wrapper } = setup([() => new Response(JSON.stringify({ error: { code: "NOT_FOUND" } }), { status: 404 })]);
+    const { wrapper } = setup([() => new Response(JSON.stringify({ error: { code: "EXPERIENCE_CHOICE_UNAVAILABLE" } }), { status: 409 })]);
     await open(wrapper);
 
     await wrapper.findAll("[data-testid='assistant-suggestion']")[1].trigger("click");

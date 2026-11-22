@@ -130,8 +130,10 @@ describe("default transport conversation experience (Frontend 003)", () => {
       expect(JSON.parse(String(init.body))).toEqual({ choiceId: "order-status-10001", pageContext: { module: "orders" } });
     });
 
-    it("reports a rejected choice (404) as session_not_found but keeps typed messages unchanged", async () => {
-      const { transport } = setup([json({}, 404), json({}, 404)]);
+    it("reports a choice no longer offered (409) as choice_unavailable, a missing session (404) as session_not_found, and keeps typed messages unchanged", async () => {
+      const { transport } = setup([json({ error: { code: "EXPERIENCE_CHOICE_UNAVAILABLE" } }, 409), json({}, 404), json({}, 404)]);
+      expect(await transport.streamMessage({ choiceId: "order-status-10001", sessionId: "s-1" }))
+        .toMatchObject({ ok: false, error: { code: "choice_unavailable" } });
       expect(await transport.streamMessage({ choiceId: "order-status-10001", sessionId: "s-1" }))
         .toMatchObject({ ok: false, error: { code: "session_not_found" } });
       expect(await transport.streamMessage({ message: "查詢訂單", sessionId: "s-1" }))

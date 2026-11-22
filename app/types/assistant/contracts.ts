@@ -1,3 +1,5 @@
+import type { ClarificationQuestionId } from '../../../packages/assistant-runtime/src/types'
+
 export type {
   ActionDraftId,
   AnswerDecisionStatus,
@@ -42,8 +44,6 @@ export type {
   ToolCallStartedSseEvent,
   ToolSummary,
 } from '../../../packages/assistant-runtime/src/types'
-
-import type { ClarificationQuestionId } from '../../../packages/assistant-runtime/src/types'
 
 export interface ClarificationQuestionSummary {
   clarificationQuestionId: ClarificationQuestionId

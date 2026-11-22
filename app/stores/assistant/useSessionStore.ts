@@ -1,17 +1,10 @@
 import { defineStore, getActivePinia } from 'pinia'
 import type {
-  ActionDraftDetail,
   ActionDraftDetailState,
   ActionDraftId,
-  ActionDraftOperationStatus,
-  ActionDraftRecheck,
-  ActionDraftStatus,
   ApprovalRequestDetailState,
   ApprovalRequestId,
-  ApprovalRequestSummary,
-  AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
-  AssistantMessageFinalData,
   AssistantMessageId,
   AssistantRequestId,
   AssistantSession,
@@ -63,7 +56,7 @@ type AssistantFinalSseEvent = Extract<
 const DEGRADED_MESSAGE_KEY = 'system:degraded-state'
 export const FRONTEND001_RUNTIME_SCOPE = 'frontend001:assistant-session'
 
-function unsupportedStoreTransportResult<T>(
+function unsupportedStoreTransportResult(
   operation: string,
 ): Promise<{ ok: false, error: { code: string, message: string, retryable: false } }> {
   return Promise.resolve({

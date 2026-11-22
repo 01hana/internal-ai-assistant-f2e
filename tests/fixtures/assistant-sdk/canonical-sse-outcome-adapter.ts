@@ -84,7 +84,7 @@ export function createCanonicalSseResponse(fixture: CanonicalSseOutcomeFixture):
   });
 
   return new Proxy(response, {
-    get(target, property, receiver) {
+    get(target, property) {
       if (property === "body") {
         return createBody();
       }
@@ -93,7 +93,8 @@ export function createCanonicalSseResponse(fixture: CanonicalSseOutcomeFixture):
         return async () => responseText;
       }
 
-      const value = Reflect.get(target, property, receiver);
+      // Read with the Response itself as `this`: Node 24+ Response getters (status, ok, headers) reject a Proxy receiver.
+      const value = Reflect.get(target, property);
 
       return typeof value === "function"
         ? value.bind(target)

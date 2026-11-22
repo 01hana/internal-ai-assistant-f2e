@@ -17,6 +17,9 @@ async function defineNuxtComponentProject() {
       test: {
         name: "component",
         include: ["tests/component/**/*.spec.ts"],
+        // Node 25 enables its own Web Storage (a localStorage without methods unless --localstorage-file is given),
+        // which hides jsdom's. Turn it off so the tests get jsdom's localStorage; the flag is also accepted by Node 22/24.
+        execArgv: ["--no-experimental-webstorage"],
         environmentOptions: {
           nuxt: {
             domEnvironment: "jsdom",

@@ -640,8 +640,6 @@ export function createAssistantSseStreamRunner<TInput>(
   let activeRun: ActiveAssistantSseRun | null = null;
   let status: AssistantSseStreamStatus = "idle";
   let lastError: AssistantSseStreamSafeError | null = null;
-  let finalEvent: AssistantFinalSseEvent | null = null;
-  let lastEvent: AssistantSseEvent | null = null;
   let results: AssistantSseParseResult[] = [];
 
   function emitStatus(nextStatus: AssistantSseStreamStatus): void {
@@ -655,12 +653,10 @@ export function createAssistantSseStreamRunner<TInput>(
   }
 
   function emitFinalEvent(event: AssistantFinalSseEvent | null): void {
-    finalEvent = event;
     options.state?.onFinalEventChange?.(event);
   }
 
   function emitLastEvent(event: AssistantSseEvent | null): void {
-    lastEvent = event;
     options.state?.onLastEventChange?.(event);
   }
 

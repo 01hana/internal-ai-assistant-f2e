@@ -2,6 +2,7 @@ import type { TransportFailure } from "./types";
 
 export type TransportErrorCode =
   | "authentication_unavailable"
+  | "choice_unavailable"
   | "forbidden_outgoing_request_field"
   | "invalid_request"
   | "session_not_found"

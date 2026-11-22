@@ -199,7 +199,7 @@ For `001-internal-assistant-embedded-chat-panel`:
 | 端點 | 變更 |
 | --- | --- |
 | `POST /assistant/sessions` | `data.opening = { configVersion: string \| null, greeting, quickReplies: [{ id, label }] }`；選項已依使用者權限與 `pageContext.module` 篩選 |
-| `POST /assistant/sessions/:id/messages` | body 為 `message` 與 `choiceId` 二選一；`choiceId` 不存在、已不在設定中或無權限 → 404（與 session 不存在相同） |
+| `POST /assistant/sessions/:id/messages` | body 為 `message` 與 `choiceId` 二選一；`choiceId` 不存在、已不在設定中或無權限 → 409 `EXPERIENCE_CHOICE_UNAVAILABLE`（Backend Feature 016 起；之前為 404），SDK 回報 `choice_unavailable`；session 不存在仍為 404 |
 | SSE `final` | `data.suggestions?: [{ id, label }]`，只在有值時出現：成功回答後的延伸建議、能力總覽、無法辨識問題時的可用選項 |
 | `GET /assistant/sessions?limit&cursor` | 使用者自己、至少有一則訊息、未封存的 session，依 `lastMessageAt` 由新到舊；`{ sessions: [{ sessionId, title, createdAt, lastMessageAt }], nextCursor }`；`limit` 1–50（預設 20）；cursor 不透明，原樣帶回；不合法回 400 |
 | `POST /assistant/sessions/:id/archive` | 無 body、無 query；回 `{ sessionId, status: "closed" }`；之後讀取與送訊息回 404；不存在、他人或已封存回 404 |

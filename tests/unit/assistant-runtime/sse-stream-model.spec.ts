@@ -135,7 +135,7 @@ describe("assistant-runtime canonical SSE stream model", () => {
       const encoder = new TextEncoder();
       const statusChanges: string[] = [];
       const timeoutCallback = vi.fn();
-      const runner = createAssistantSseStreamRunner<void>({
+      const runner = createAssistantSseStreamRunner<undefined>({
         inactivityTimeoutMs: 1_000,
         async openStream() {
           return new ReadableStream<Uint8Array>({
@@ -154,7 +154,7 @@ describe("assistant-runtime canonical SSE stream model", () => {
         },
       });
 
-      const startPromise = runner.start();
+      const startPromise = runner.start(undefined);
       await waitFor(() => statusChanges.includes("streaming"));
 
       await vi.advanceTimersByTimeAsync(999);
@@ -186,7 +186,7 @@ describe("assistant-runtime canonical SSE stream model", () => {
       const addListener = vi.spyOn(externalController.signal, "addEventListener");
       const removeListener = vi.spyOn(externalController.signal, "removeEventListener");
       const readerCancel = vi.fn();
-      const runner = createAssistantSseStreamRunner<void>({
+      const runner = createAssistantSseStreamRunner<undefined>({
         inactivityTimeoutMs: 1_000,
         async openStream() {
           return new ReadableStream<Uint8Array>({
@@ -222,7 +222,7 @@ describe("assistant-runtime canonical SSE stream model", () => {
   it("treats EOF before final as interrupted in the shared stream runner", async () => {
     const interrupted = vi.fn();
     const encoder = new TextEncoder();
-    const runner = createAssistantSseStreamRunner<void>({
+    const runner = createAssistantSseStreamRunner<undefined>({
       async openStream() {
         return new ReadableStream<Uint8Array>({
           start(controller) {
@@ -236,7 +236,7 @@ describe("assistant-runtime canonical SSE stream model", () => {
       },
     });
 
-    await runner.start();
+    await runner.start(undefined);
 
     expect(runner.getStatus()).toBe("interrupted");
     expect(interrupted).toHaveBeenCalledWith({

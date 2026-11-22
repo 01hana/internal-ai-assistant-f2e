@@ -185,15 +185,17 @@ async function normalizeGatewayJsonResponse<T>(response: Response): Promise<Port
 }
 
 /**
- * Frontend 003: a choice the server no longer accepts returns 404 (Backend Feature 013). Only choice requests
- * report it as `session_not_found`; typed messages keep the existing generic failure.
+ * A choice the server no longer offers (edited in the admin back-office, or no longer permitted) returns 409
+ * EXPERIENCE_CHOICE_UNAVAILABLE (Backend Feature 016; Feature 013 answered 404). Only choice requests report
+ * `choice_unavailable` or `session_not_found`; typed messages keep the existing generic failure.
  */
 function normalizeChoiceStreamResponse(
   value: unknown,
   request: Readonly<Record<string, unknown>>,
 ): PortResult<ReadableStream<Uint8Array>> {
-  if (request.choiceId !== undefined && isResponseLike(value) && value.status === 404) {
-    return toFailure("session_not_found");
+  if (request.choiceId !== undefined && isResponseLike(value)) {
+    if (value.status === 409) return toFailure("choice_unavailable");
+    if (value.status === 404) return toFailure("session_not_found");
   }
 
   return normalizeStreamResponse(value);

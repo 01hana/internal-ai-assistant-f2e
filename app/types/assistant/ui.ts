@@ -13,6 +13,7 @@ import type {
   ToolCallId,
 } from './contracts'
 import type { EvidenceReferenceDisplay } from './evidence'
+import type { AnswerDecisionUiState } from '../../../packages/assistant-runtime/src'
 
 export type {
   AnswerDecisionUiState,
@@ -20,10 +21,6 @@ export type {
 export type {
   AssistantFeedbackValue,
   AssistantMessageFeedbackUiState,
-} from '../../../packages/assistant-runtime/src'
-
-import type {
-  AnswerDecisionUiState,
 } from '../../../packages/assistant-runtime/src'
 
 export type AssistantMessageRendererKind =
